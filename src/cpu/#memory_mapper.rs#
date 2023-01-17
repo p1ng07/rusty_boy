@@ -1,0 +1,22 @@
+pub struct MemoryMapper{
+    rom0: [u8; 0x1000],
+    rom_path: String,
+    are_interrupts_enabled: bool,
+}
+
+impl MemoryMapper {
+    pub fn fetch_byte(&self, address: usize) -> u8{
+	self.rom0[address]
+    }
+
+    fn new(rom_path: String) -> MemoryMapper {
+	MemoryMapper{
+	    rom0: [0 as u8; 0x1000],
+	    String::""
+	    are_interrupts_enabled: false
+	}
+    }
+}
+
+impl Default for MemoryMapper {
+}
