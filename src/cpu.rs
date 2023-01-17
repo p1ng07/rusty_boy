@@ -5,12 +5,14 @@ use self::memory_mapper::MemoryMapper;
 pub mod cpu_registers;
 pub mod memory_mapper;
 
-enum CpuState {
+#[derive(PartialEq)]
+pub enum CpuState {
     Boot,
     NonBoot
 }
 
 pub struct Cpu {
+    boot_rom: [u8; 256],
     current_t_cycles: i32,
     state: CpuState,
     pc: usize,
@@ -22,6 +24,7 @@ pub struct Cpu {
 impl Cpu {
     pub fn new(rom_path: String) -> Cpu{
 	Cpu {
+	    boot_rom: [0; 256],
 	    current_t_cycles: 0,
 	    stack: vec![],
 	    pc: 0,
@@ -31,12 +34,16 @@ impl Cpu {
 	}
     }
 
-    pub fn fetch(&mut self)->u16{
-	let mut x: u16 = (self.memory_mapper.fetch_byte(self.pc) as u16 )<< 8;
+    pub(crate) fn fetch(&mut self)->u16{
+	let fetch_byte_big = self.memory_mapper.fetch_byte(self.pc, &self.state).expect("Invalid (or non-implemented memory) was requested") as u16;
 	self.pc+=1;
-	println!("First byte {}" , format!("{:X}", x));
-	x |= self.memory_mapper.fetch_byte(self.pc) as u16;
+	let fetch_byte_small = self.memory_mapper.fetch_byte(self.pc, &self.state).expect("Invalid (or non-implemented memory) was requested") as u16;
 	self.pc +=1;
-	x
+
+	fetch_byte_big << 8 | fetch_byte_small
+    }
+
+    pub(crate) fn execute(&mut self, first_byte_of_instruction: u16) -> u8 {
+
     }
 }

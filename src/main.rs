@@ -13,7 +13,7 @@ fn main() {
 	Some(path) => cpu::Cpu::new(path.to_owned())
     };
 
-    for i in 0..0xFFF {
+    for _ in 0..0xFFF {
 	println!("primeiro opcode {}", format!("{:X}", cpu.fetch()));
     }
 
