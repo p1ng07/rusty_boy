@@ -6,6 +6,9 @@ pub struct MemoryMapper{
     rom0: [u8; 0x1000],
     rom_path: String,
     are_interrupts_enabled: bool,
+    wram0: [u8; 0x2000],
+    wram1: [u8; 0x2000],
+    // ram 8192 positions
 }
 
 impl MemoryMapper {
@@ -19,11 +22,41 @@ impl MemoryMapper {
 	}
     }
 
+    pub fn fetch_from_internal_ram(&self, address: usize) -> Option<u8>{
+	if address > 0xBFFF && address < 0xE000{
+	    if address < 0xD000{
+		return self.wram0.get(address).copied();
+	    }else if address < 0xE000{
+		return self.wram1.get(address).copied();
+	    }
+	}
+	None
+    }
+
+    pub fn set_internal_ram(&mut self, address: usize, value: u8){
+	if address > 0xBFFF && address < 0xE000{
+	    if address < 0xD000{
+		self.wram0[address] = value;
+	    }else if address < 0xE000{
+		self.wram1[address] = value;
+	    }
+	}
+    }
+
+    // pub fn get_ram_byte(&self, address: usize) -> u8{
+	
+    // }
+
+    // pub fn_set_ram_byte(){
+    // }
+
     pub fn new(rom_path: String) -> MemoryMapper {
 	MemoryMapper{
 	    rom0: fs::read(&rom_path).expect("ficheiro {} indisponivel!")[..0x1000].try_into().unwrap(),
 	    rom_path,
 	    are_interrupts_enabled: false,
+	    wram0: [0; 0x2000],
+	    wram1: [0; 0x2000],
 	    boot_rom: [0x31, 0xFE, 0xFF, 0xAF, 0x21, 0xFF, 0x9F, 0x32, 0xCB, 0x7C, 0x20, 0xFB, 0x21, 0x26, 0xFF, 0x0E,
 		       0x11, 0x3E, 0x80, 0x32, 0xE2, 0x0C, 0x3E, 0xF3, 0xE2, 0x32, 0x3E, 0x77, 0x77, 0x3E, 0xFC, 0xE0,
 		       0x47, 0x11, 0x04, 0x01, 0x21, 0x10, 0x80, 0x1A, 0xCD, 0x95, 0x00, 0xCD, 0x96, 0x00, 0x13, 0x7B,
