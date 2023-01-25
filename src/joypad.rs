@@ -20,7 +20,7 @@ impl Joypad {
 
         // Go through every possible pressed button, if it pressed than unset it in the byte representation
         // All of the next operations are done in reverse, at the end of the function the byte is flipped
-	// PS: This is some non ugly code but the raylib_handle.get_key_pressed() was not returning the key if it was held down
+        // PS: This is some non ugly code but the raylib_handle.get_key_pressed() was not returning the key if it was held down
         if raylib_handle.is_key_down(KEY_A)
             || raylib_handle.is_key_down(KEY_W)
             || raylib_handle.is_key_down(KEY_S)

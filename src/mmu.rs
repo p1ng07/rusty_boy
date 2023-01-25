@@ -1,6 +1,6 @@
 use crate::cpu::CpuState;
-use crate::ppu::PPU;
 use crate::joypad::Joypad;
+use crate::ppu::PPU;
 
 const KIBI_BYTE: usize = 1024;
 
@@ -9,7 +9,7 @@ pub struct MMU {
     rom_0: [u8; KIBI_BYTE * 16],
     rom_path: String,
     hram: [u8; 0x7F],
-    joypad: Joypad,
+    pub joypad: Joypad,
     ppu: PPU,
 }
 
@@ -17,7 +17,7 @@ impl MMU {
     pub fn fetch_byte(&self, address: i32, cpu_state: &CpuState) -> u8 {
         match address {
             0..=0x3FFF => match cpu_state {
-                CpuState::Boot => self.boot_rom.get(address as usize).unwrap().to_owned(),
+                CpuState::Boot => self.boot_rom.get((address) as usize).unwrap().to_owned(),
                 CpuState::NonBoot => self.rom_0.get(address as usize).unwrap().to_owned(),
             },
             0x8000..=0x9FFF => self.ppu.get_vram(address - 0x8000).unwrap().to_owned(),
@@ -28,7 +28,8 @@ impl MMU {
             0xFF00 => self.joypad.byte,
             0xFF01..=0xFF02 => todo!("Reading serial data reg and control"),
             0xFF04..=0xFF07 => todo!("Reading from timer and divider"),
-            0xFF40..=0xFF4B => todo!("LCD control, status, position, scroll and palletes"),
+	    0xFF44 => 0x90, // TODO: Stubbed to 0x90 because 0xFF40 is LY and some roms wait for LY to be set to 0x90
+            0xFF40..=0xFF4B => todo!("Reading LCD control, status, position, scroll and palletes, address {:X}", address),
             0xFF80..=0xFFFE => self
                 .hram
                 .get((address - 0xFF80) as usize)
@@ -38,24 +39,28 @@ impl MMU {
         }
     }
 
-    pub fn write_byte(&mut self, cpu_state: &mut CpuState, address: i32, byte: u8) {
+    pub fn write_byte(&mut self, cpu_state: &mut CpuState, address: i32, received_byte: u8) {
         match address {
             0..=0x7FFF => (), // Writing to ROM
-            0x8000..=0x9FFF => self.ppu.set_vram(address - 0x8000, byte),
-            0xA000..=0xBFFF => todo!("Writing to External RAM: ({:X}), {}", address, byte),
-            0xC000..=0xDFFF => todo!("Writing to work ram ({:X}), {}", address, byte),
-            0xE000..=0xFDFF => todo!("Writing to ECHO RAM ({:X}), {}", address, byte),
-            0xFE00..=0xFE9F => todo!("Writing to OAM RAM ({:X}), {}", address, byte),
+            0x8000..=0x9FFF => self.ppu.set_vram(address - 0x8000, received_byte),
+            0xA000..=0xBFFF => todo!(
+                "Writing to External RAM: ({:X}), {}",
+                address,
+                received_byte
+            ),
+            0xC000..=0xDFFF => todo!("Writing to work ram ({:X}), {}", address, received_byte),
+            0xE000..=0xFDFF => todo!("Writing to ECHO RAM ({:X}), {}", address, received_byte),
+            0xFE00..=0xFE9F => todo!("Writing to OAM RAM ({:X}), {}", address, received_byte),
             0xFF01 => todo!("Write to serial data transfer data"),
             0xFF02 => todo!("Writing to serial data transfer control"),
             0xFF07 => todo!("Writing to TMA timer control"),
             0xFF40..=0xFF4B => (), // TODO: bunch off ppu status and controls
             0xFF50 => {
-                if byte > 0 {
+                if received_byte > 0 {
                     *cpu_state = CpuState::NonBoot
                 }
             }
-            0xFF80..=0xFFFE => self.hram[((address - 0xFF80) as usize)] = byte,
+            0xFF80..=0xFFFE => self.hram[((address - 0xFF80) as usize)] = received_byte,
             _ => (),
         };
     }
@@ -66,7 +71,7 @@ impl MMU {
             hram: [0; 0x7F],
             rom_path,
             ppu: PPU::new(),
-	    joypad: Default::default(),
+            joypad: Default::default(),
             boot_rom: [
                 0x31, 0xFE, 0xFF, 0xAF, 0x21, 0xFF, 0x9F, 0x32, 0xCB, 0x7C, 0x20, 0xFB, 0x21, 0x26,
                 0xFF, 0x0E, 0x11, 0x3E, 0x80, 0x32, 0xE2, 0x0C, 0x3E, 0xF3, 0xE2, 0x32, 0x3E, 0x77,
