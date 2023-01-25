@@ -1,5 +1,6 @@
 use crate::cpu::CpuState;
 use crate::ppu::PPU;
+use crate::joypad::Joypad;
 
 const KIBI_BYTE: usize = 1024;
 
@@ -8,6 +9,7 @@ pub struct MMU {
     rom_0: [u8; KIBI_BYTE * 16],
     rom_path: String,
     hram: [u8; 0x7F],
+    joypad: Joypad,
     ppu: PPU,
 }
 
@@ -23,7 +25,7 @@ impl MMU {
             0xC000..=0xDFFF => todo!("Reading from work ram ({:X})", address),
             0xE000..=0xFDFF => todo!("Reading from ECHO RAM ({:X})", address),
             0xFE00..=0xFE9F => todo!("Reading from OAM RAM ({:X})", address),
-            0xFF00 => todo!("Implement joypad"),
+            0xFF00 => self.joypad.byte,
             0xFF01..=0xFF02 => todo!("Reading serial data reg and control"),
             0xFF04..=0xFF07 => todo!("Reading from timer and divider"),
             0xFF40..=0xFF4B => todo!("LCD control, status, position, scroll and palletes"),
@@ -64,6 +66,7 @@ impl MMU {
             hram: [0; 0x7F],
             rom_path,
             ppu: PPU::new(),
+	    joypad: Default::default(),
             boot_rom: [
                 0x31, 0xFE, 0xFF, 0xAF, 0x21, 0xFF, 0x9F, 0x32, 0xCB, 0x7C, 0x20, 0xFB, 0x21, 0x26,
                 0xFF, 0x0E, 0x11, 0x3E, 0x80, 0x32, 0xE2, 0x0C, 0x3E, 0xF3, 0xE2, 0x32, 0x3E, 0x77,

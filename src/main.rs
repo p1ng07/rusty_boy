@@ -23,14 +23,12 @@ fn main() {
 
     while !rl.window_should_close() {
         // run 69905 t-cycles of cpu work, equating to 4MHz of t-cycles per second
-        // let mut ran_cycles = 0;
+        let mut ran_cycles = 0;
 
-        // cpu._update_input(&mut rl);
-        // while ran_cycles < 69905 {
-        //     ran_cycles += cpu.cycle();
-        // }
-        joypad.update_input(&mut rl);
-
+        cpu._update_input(&mut rl);
+        while ran_cycles < 69905 {
+            ran_cycles += cpu.cycle();
+        }
         let mut d = rl.begin_drawing(&thread);
         d.clear_background(Color::PURPLE);
     }
