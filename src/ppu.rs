@@ -1,7 +1,7 @@
-pub struct PPU {
+pub struct Ppu {
     vram: [u8; 8196], // 8 kibibytes of vram
 }
-impl PPU {
+impl Ppu {
     pub fn new() -> Self {
         Self { vram: [0; 8196] }
     }
@@ -15,7 +15,7 @@ impl PPU {
     }
 }
 
-impl Default for PPU {
+impl Default for Ppu {
     fn default() -> Self {
         Self { vram: [0; 8196] }
     }

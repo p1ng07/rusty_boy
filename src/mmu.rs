@@ -1,19 +1,19 @@
 use crate::cpu::CpuState;
 use crate::joypad::Joypad;
-use crate::ppu::PPU;
+use crate::ppu::Ppu;
 
 const KIBI_BYTE: usize = 1024;
 
-pub struct MMU {
+pub struct Mmu {
     boot_rom: [u8; 256],
     rom_0: [u8; KIBI_BYTE * 16],
     rom_path: String,
     hram: [u8; 0x7F],
     pub joypad: Joypad,
-    ppu: PPU,
+    ppu: Ppu,
 }
 
-impl MMU {
+impl Mmu {
     pub fn fetch_byte(&self, address: i32, cpu_state: &CpuState) -> u8 {
         match address {
             0..=0x3FFF => match cpu_state {
@@ -28,8 +28,12 @@ impl MMU {
             0xFF00 => self.joypad.byte,
             0xFF01..=0xFF02 => todo!("Reading serial data reg and control"),
             0xFF04..=0xFF07 => todo!("Reading from timer and divider"),
-	    0xFF44 => 0x90, // TODO: Stubbed to 0x90 because 0xFF40 is LY and some roms wait for LY to be set to 0x90
-            0xFF40..=0xFF4B => todo!("Reading LCD control, status, position, scroll and palletes, address {:X}", address),
+            0xFF42 => 0, // TODO: Stubbed to 0x0 because 0xFF42 is SCY and some roms wait for SCY to be set to 0
+            0xFF44 => 0x90, // TODO: Stubbed to 0x90 because 0xFF40 is LY and some roms wait for LY to be set to 0x90
+            0xFF40..=0xFF4B => todo!(
+                "Reading LCD control, status, position, scroll and palletes, address {:X}",
+                address
+            ),
             0xFF80..=0xFFFE => self
                 .hram
                 .get((address - 0xFF80) as usize)
@@ -70,7 +74,7 @@ impl MMU {
             rom_0: [0; KIBI_BYTE * 16],
             hram: [0; 0x7F],
             rom_path,
-            ppu: PPU::new(),
+            ppu: Ppu::new(),
             joypad: Default::default(),
             boot_rom: [
                 0x31, 0xFE, 0xFF, 0xAF, 0x21, 0xFF, 0x9F, 0x32, 0xCB, 0x7C, 0x20, 0xFB, 0x21, 0x26,
