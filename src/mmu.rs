@@ -81,17 +81,24 @@ impl Mmu {
     pub fn write_byte(&mut self, cpu_state: &mut CpuState, address: i32, received_byte: u8) {
         match address {
             0..=0x7FFF => (), // Writing to ROM
-            0x8000..=0x9FFF => self.ppu.set_vram(address - 0x8000, received_byte),
+            0x8000..=0x9FFF => self.ppu.vram[(address - 0x8000) as usize] = received_byte,
             0xA000..=0xBFFF => todo!(
                 "Writing to External RAM: ({:X}), {}",
                 address,
                 received_byte
             ),
-            0xC000..=0xDFFF => todo!("Writing to work ram ({:X}), {}", address, received_byte),
+            0xC000..=0xDFFF => {
+                let local_address = (address - 0xC000i32) as usize;
+                if local_address < 0x1000 {
+                    self.wram_0[local_address] = received_byte;
+                } else {
+                    self.wram_0[local_address - 0x1000] = received_byte;
+                }
+            }
             0xE000..=0xFDFF => todo!("Writing to ECHO RAM ({:X}), {}", address, received_byte),
             0xFE00..=0xFE9F => todo!("Writing to OAM RAM ({:X}), {}", address, received_byte),
             0xFF01 => todo!("Write to serial data transfer data"),
-            0xFF02 => todo!("Writing to serial data transfer control"),
+            0xFF02 => todo!("Writing to serial data transfer control"),//print!("{}", String::from(received_byte as char)),
             0xFF07 => todo!("Writing to TMA timer control"),
             0xFF40..=0xFF4B => (), // TODO: bunch off ppu status and controls
             0xFF50 => {

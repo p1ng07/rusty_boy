@@ -20,6 +20,7 @@ fn main() {
 
     // Configure logging
     let logfile = FileAppender::builder()
+        .append(false)
         .encoder(Box::new(PatternEncoder::new("{l} - {m}\n")))
         .build("log/output.log")
         .unwrap();
@@ -34,9 +35,9 @@ fn main() {
     let mut cpu = match args.get(1) {
         None => {
             println!("Não foi passada uma ROM para usar");
-            cpu::Cpu::new(String::from(""))
+            cpu::Cpu::new(String::from(""), cpu::CpuState::NonBoot)
         }
-        Some(path) => cpu::Cpu::new(path.to_owned()), // 
+        Some(path) => cpu::Cpu::new(path.to_owned(), cpu::CpuState::NonBoot), //
     };
 
     while !rl.window_should_close() {
