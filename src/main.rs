@@ -4,6 +4,7 @@ use log4rs::encode::pattern::PatternEncoder;
 use std::env;
 
 mod cpu;
+mod serial;
 mod cpu_registers;
 mod joypad;
 mod mmu;

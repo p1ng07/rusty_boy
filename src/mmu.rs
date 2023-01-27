@@ -1,34 +1,69 @@
 use crate::cpu::CpuState;
 use crate::joypad::Joypad;
 use crate::ppu::Ppu;
+use crate::serial::Serial;
 
 const KIBI_BYTE: usize = 1024;
 
 pub struct Mmu {
     boot_rom: [u8; 256],
-    rom_0: Vec<u8>,// [u8; KIBI_BYTE * 16],
+    rom_0: Vec<u8>, // [u8; KIBI_BYTE * 16],
     rom_path: String,
     hram: [u8; 0x7F],
+    serial: Serial,
+    wram_0: [u8; 0x1000],
+    wram_1: [u8; 0x1000],
     pub joypad: Joypad,
     ppu: Ppu,
 }
 
 impl Mmu {
-    pub fn fetch_byte(&self, address: i32, cpu_state: &CpuState) -> u8 {
+    pub fn fetch_byte(&self, address: u16, cpu_state: &CpuState) -> u8 {
         match address {
-            0..=0x3FFF => match cpu_state {
-                CpuState::Boot => self.boot_rom.get((address) as usize).unwrap().to_owned(),
+            0..=0x7FFF => match cpu_state {
+                CpuState::Boot => self.boot_rom.get(address as usize).unwrap().to_owned(),
                 CpuState::NonBoot => self.rom_0.get(address as usize).unwrap().to_owned(),
             },
-            0x8000..=0x9FFF => self.ppu.get_vram(address - 0x8000).unwrap().to_owned(),
-            0xA000..=0xBFFF => todo!("Reading from External RAM: ({:X})", address),
-            0xC000..=0xDFFF => todo!("Reading from work ram ({:X})", address),
-            0xE000..=0xFDFF => todo!("Reading from ECHO RAM ({:X})", address),
-            0xFE00..=0xFE9F => todo!("Reading from OAM RAM ({:X})", address),
+            0x8000..=0x9FFF => self
+                .ppu
+                .vram
+                .get(address.wrapping_sub(0x8000) as usize)
+                .unwrap()
+                .to_owned(),
+            0xA000..=0xBFFF => 0, //TODO: todo!("Reading from external ram ({:X})", address),
+            0xC000..=0xDFFF => {
+		let local_address = (address.wrapping_sub( 0xC000u16)) as usize;
+		if local_address < 0x1000 {
+                    self.wram_0.get(local_address).unwrap().to_owned()
+                } else {
+                    self.wram_0
+                        .get((local_address - 0x1000) as usize)
+                        .unwrap()
+                        .to_owned()
+                }
+            }
+            0xE000..=0xFDFF => {
+                let local_address = (address.wrapping_sub(0xE000u16)) as usize;
+                if local_address < 0x1000 {
+                    self.wram_0.get(local_address).unwrap().to_owned()
+                } else {
+                    self.wram_0
+                        .get((local_address - 0x1000) as usize)
+                        .unwrap()
+                        .to_owned()
+                }
+            }
+            0xFE00..=0xFE9F => self
+                .ppu
+                .oam_ram
+                .get(address.wrapping_sub(0xFE00) as usize)
+                .unwrap()
+                .to_owned(),
             0xFF00 => self.joypad.byte,
-            0xFF01..=0xFF02 => todo!("Reading serial data reg and control"),
+	    0xFF01 => self.serial.serial_data_transfer,
+	    0xFF02 => self.serial.serial_data_control,
             0xFF04..=0xFF07 => todo!("Reading from timer and divider"),
-            0xFF42 => 1, // TODO: Stubbed to 0x0 because 0xFF42 is SCY and some roms wait for SCY to be set to 0
+            0xFF42 => 0, // TODO: Stubbed to 0x0 because 0xFF42 is SCY and some roms wait for SCY to be set to 0
             0xFF44 => 0x90, // TODO: Stubbed to 0x90 because 0xFF40 is LY and some roms wait for LY to be set to 0x90
             0xFF40..=0xFF4B => todo!(
                 "Reading LCD control, status, position, scroll and palletes, address {:X}",
@@ -70,18 +105,21 @@ impl Mmu {
     }
 
     pub fn new(rom_path: String) -> Self {
-	// Load the rom only cartridge
-	let rom_load = std::fs::read(&rom_path).unwrap();
+        // Load the rom only cartridge
+        let rom_load = std::fs::read(&rom_path).unwrap();
 
         Self {
             rom_0: rom_load, //[0; KIBI_BYTE * 16],
             hram: [0; 0x7F],
+            wram_0: [0; 0x1000],
+            wram_1: [0; 0x1000],
             rom_path,
             ppu: Ppu::new(),
             joypad: Default::default(),
+	    serial: Default::default(),
             boot_rom: [
                 0x31, 0xFE, 0xFF, 0xAF, 0x21, 0xFF, 0x9F, 0x32, 0xCB, 0x7C, 0x20, 0xFB, 0x21, 0x26,
-                0xFF, 0x0E,0x11, 0x3E, 0x80, 0x32, 0xE2, 0x0C, 0x3E, 0xF3, 0xE2, 0x32, 0x3E, 0x77,
+                0xFF, 0x0E, 0x11, 0x3E, 0x80, 0x32, 0xE2, 0x0C, 0x3E, 0xF3, 0xE2, 0x32, 0x3E, 0x77,
                 0x77, 0x3E, 0xFC, 0xE0, 0x47, 0x11, 0x04, 0x01, 0x21, 0x10, 0x80, 0x1A, 0xCD, 0x95,
                 0x00, 0xCD, 0x96, 0x00, 0x13, 0x7B, 0xFE, 0x34, 0x20, 0xF3, 0x11, 0xD8, 0x00, 0x06,
                 0x08, 0x1A, 0x13, 0x22, 0x23, 0x05, 0x20, 0xF9, 0x3E, 0x19, 0xEA, 0x10, 0x99, 0x21,
