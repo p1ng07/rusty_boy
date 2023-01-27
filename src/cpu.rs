@@ -66,16 +66,17 @@ impl Cpu {
     pub(crate) fn execute(&mut self, first_byte: u8) -> i32 {
         // Print state of emulator to logger
         log::info!(
-            "A: {:X}, F: {:X}, B: {:X}, C: {:X}, D: {:X}, E: {:X}, H: {:X}, L: {:X}, address: {:X}, instr: {:X}",
-            self.registers.a,
-	    self.registers.f,
-            self.registers.b,
-            self.registers.c,
-            self.registers.d,
-            self.registers.e,
-	    self.registers.h,
-	    self.registers.l,
-            self.pc - 1,
+            "A: {}, F: {}, B: {}, C: {}, D: {}, E: {}, H: {}, L: {}, sp: {}, pc: {}, {:X}",
+            format!("{:0>2X}",self.registers.a),
+            format!("{:0>2X}",self.registers.f),
+            format!("{:0>2X}",self.registers.b),
+            format!("{:0>2X}",self.registers.c),
+            format!("{:0>2X}",self.registers.d),
+            format!("{:0>2X}",self.registers.e),
+            format!("{:0>2X}",self.registers.h),
+            format!("{:0>2X}",self.registers.l),
+            format!("{:0>4X}",self.sp),
+            format!("{:0>4X}",self.pc),
             first_byte
         );
 
@@ -452,7 +453,7 @@ impl Cpu {
     fn inc_u8_reg(&mut self, reg: u8) -> u8 {
         let new_reg = reg.wrapping_add(1);
         self.registers.set_zero_flag(new_reg == 0);
-        self.registers.set_half_carry((reg & 0xF) + 1 > 0xF);
+        self.registers.set_half_carry((reg & 0x0F) as u16 + 1 > 0x0F);
         self.registers.set_was_prev_instr_sub(false);
         new_reg
     }
