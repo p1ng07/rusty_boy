@@ -36,7 +36,7 @@ impl Mmu {
 		if local_address < 0x1000 {
                     self.wram_0.get(local_address).unwrap().to_owned()
                 } else {
-                    self.wram_0
+                    self.wram_1
                         .get((local_address - 0x1000) as usize)
                         .unwrap()
                         .to_owned()
@@ -47,7 +47,7 @@ impl Mmu {
                 if local_address < 0x1000 {
                     self.wram_0.get(local_address).unwrap().to_owned()
                 } else {
-                    self.wram_0
+                    self.wram_1
                         .get((local_address - 0x1000) as usize)
                         .unwrap()
                         .to_owned()
@@ -62,7 +62,7 @@ impl Mmu {
             0xFF00 => self.joypad.byte,
 	    0xFF01 => self.serial.serial_data_transfer,
 	    0xFF02 => self.serial.serial_data_control,
-            0xFF04..=0xFF07 => todo!("Reading from timer and divider"),
+            0xFF04..=0xFF07 => todo!("Reading from timer and divider, address: {:X}", address),
             0xFF42 => 0, // TODO: Stubbed to 0x0 because 0xFF42 is SCY and some roms wait for SCY to be set to 0
             0xFF44 => 0x90, // TODO: Stubbed to 0x90 because 0xFF40 is LY and some roms wait for LY to be set to 0x90
             0xFF40..=0xFF4B => todo!(
@@ -99,7 +99,7 @@ impl Mmu {
             0xFE00..=0xFE9F => todo!("Writing to OAM RAM ({:X}), {}", address, received_byte),
             0xFF01 => self.serial.write_to_transfer(received_byte),
             0xFF02 => self.serial.serial_data_control = received_byte,
-            0xFF07 => todo!("Writing to TMA timer control"),
+            0xFF07 => todo!("Writing to TMA timer control, address: {:X}", address),
             0xFF40..=0xFF4B => (), // TODO: bunch off ppu status and controls
             0xFF50 => {
                 if received_byte > 0 {
