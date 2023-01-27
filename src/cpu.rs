@@ -13,6 +13,7 @@ pub struct Cpu {
     sp: u16,
     registers: CpuRegisters,
     pub mmu: Mmu,
+    ime: bool
 }
 
 impl Cpu {
@@ -22,6 +23,7 @@ impl Cpu {
 	    sp: 0,
 	    state: initial_state,
 	    registers: Default::default(),
+	    ime: false,
 	    mmu: Mmu::new(rom_path),
 	};
 
@@ -76,7 +78,7 @@ impl Cpu {
             format!("{:0>2X}",self.registers.h),
             format!("{:0>2X}",self.registers.l),
             format!("{:0>4X}",self.sp),
-            format!("{:0>4X}",self.pc),
+            format!("{:0>4X}",self.pc - 1),
             first_byte
         );
 
@@ -206,9 +208,13 @@ impl Cpu {
             }
             0x20 => {
                 // JR NZ, i8
-                if  self.registers.is_zero_flag_high() {
+                if !self.registers.is_zero_flag_high() {
 		    let offset = self.fetch_byte() as i8;
-                    self.pc = self.pc.wrapping_add_signed(offset as i16);
+		    if offset < 0 {
+			self.pc = self.pc.wrapping_sub(offset.abs() as u16);
+		    }else{
+			self.pc = self.pc.wrapping_sub(offset as u16);
+		    }
                     return 12;
                 }
                 self.pc += 1;
@@ -227,12 +233,17 @@ impl Cpu {
                 8
             }
             0x28 => {
-                if !self.registers.is_zero_flag_high() {
-                    self.pc += self.fetch_byte() as i8 as u16;
-                    return 12;
-                }
-                self.pc += 1;
-                8
+		if self.registers.is_zero_flag_high() {
+		    let offset = self.fetch_byte() as i8;
+		    if offset < 0 {
+			self.pc = self.pc.wrapping_sub(offset.abs() as u16);
+		    }else{
+			self.pc = self.pc.wrapping_sub(offset as u16);
+		    }
+		    return 12;
+		}
+		self.pc += 1;
+		8
             }
             0x31 => {
                 // LD SP, U16
@@ -378,6 +389,10 @@ impl Cpu {
                     .fetch_byte(0xFF00u16.wrapping_add(self.registers.c as u16), &self.state);
                 8
             }
+	    0xF3 => {
+		self.ime = false;
+		4
+	    }
             0xFE => {
                 let number = self.fetch_byte();
                 self.cp(number);
@@ -451,9 +466,9 @@ impl Cpu {
     }
 
     fn inc_u8_reg(&mut self, reg: u8) -> u8 {
+        self.registers.set_half_carry((reg & 0x0F) as u16 + 1 > 0x0F);
         let new_reg = reg.wrapping_add(1);
         self.registers.set_zero_flag(new_reg == 0);
-        self.registers.set_half_carry((reg & 0x0F) as u16 + 1 > 0x0F);
         self.registers.set_was_prev_instr_sub(false);
         new_reg
     }
