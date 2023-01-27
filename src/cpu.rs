@@ -20,7 +20,7 @@ impl Cpu {
         Cpu {
             pc: 0,
             sp: 0,
-            state: CpuState::Boot,
+            state: CpuState::NonBoot,
             registers: Default::default(),
             mmu: Mmu::new(rom_path),
         }
@@ -66,6 +66,9 @@ impl Cpu {
         );
 
         match first_byte {
+	    0x00 => {
+		4
+	    }
             0x04 => {
                 self.registers.b = self.inc_u8_reg(self.registers.b);
                 4

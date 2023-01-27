@@ -35,7 +35,7 @@ fn main() {
             println!("Não foi passada uma ROM para usar");
             cpu::Cpu::new(String::from(""))
         }
-        Some(path) => cpu::Cpu::new(path.to_owned()),
+        Some(path) => cpu::Cpu::new(path.to_owned()), // 
     };
 
     while !rl.window_should_close() {
