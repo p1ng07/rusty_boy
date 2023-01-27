@@ -10,3 +10,6 @@ RUST_BACKTRACE=1
 
 [dependencies]
 raylib = { version = "3.7" }
+log = "0.4"
+log4rs = "1.2.0"
+

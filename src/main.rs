@@ -1,3 +1,6 @@
+use log4rs::append::file::FileAppender;
+use log4rs::config::{Appender, Config, Root};
+use log4rs::encode::pattern::PatternEncoder;
 use std::env;
 
 mod cpu;
@@ -6,12 +9,26 @@ mod joypad;
 mod mmu;
 mod ppu;
 
+use log::LevelFilter;
 use raylib::prelude::*;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
     let (mut rl, thread) = raylib::init().size(640, 480).title("Hello, World").build();
     rl.set_target_fps(60);
+
+    // Configure logging
+    let logfile = FileAppender::builder()
+        .encoder(Box::new(PatternEncoder::new("{l} - {m}\n")))
+        .build("log/output.log")
+        .unwrap();
+
+    let config = Config::builder()
+        .appender(Appender::builder().build("logfile", Box::new(logfile)))
+        .build(Root::builder().appender("logfile").build(LevelFilter::Info))
+        .unwrap();
+
+    log4rs::init_config(config).unwrap();
 
     let mut cpu = match args.get(1) {
         None => {

@@ -52,8 +52,19 @@ impl Cpu {
 
     // Execute the instruction given and return the number of t-cycles it took to run it
     pub(crate) fn execute(&mut self, first_byte: u8) -> i32 {
-        // println!("Current address: {:X}", self.pc - 1);
-        // println!("instruction: {:X}", first_byte);
+        // Print state of emulator to logger
+        log::info!(
+            "A: {}, B: {}, C: {}, D: {}, E: {}, F: {:b}, address: {:X}, instr: {:X}",
+            self.registers.a,
+            self.registers.b,
+            self.registers.c,
+            self.registers.d,
+            self.registers.e,
+            self.registers.f,
+	    self.pc - 1,
+            first_byte
+        );
+
         match first_byte {
             0x04 => {
                 self.registers.b = self.inc_u8_reg(self.registers.b);
@@ -102,6 +113,14 @@ impl Cpu {
                 self.registers.set_de(new_de);
                 8
             }
+            0x15 => {
+                self.registers.d = self.dec_u8_reg(self.registers.d);
+                4
+            }
+            0x16 => {
+                self.registers.d = self.fetch_byte();
+                8
+            }
             0x17 => {
                 // RLA
                 self.registers.set_flags(if self.registers.a & 0x80 > 0 {
@@ -111,6 +130,11 @@ impl Cpu {
                 });
                 self.registers.a <<= 1;
                 4
+            }
+            0x18 => {
+                let offset = self.fetch_byte() as i8;
+                self.pc += offset as i32;
+                12
             }
             0x1D => {
                 self.registers.e = self.dec_u8_reg(self.registers.e);
@@ -230,6 +254,10 @@ impl Cpu {
                 self.registers.a = self.registers.h;
                 4
             }
+            0x90 => {
+                self.registers.a = self.sub_u8_reg(self.registers.b);
+                4
+            }
             0xAF => {
                 // XOR A
                 self.registers.a ^= self.registers.a;
@@ -311,6 +339,20 @@ impl Cpu {
 
     pub(crate) fn execute_cb(&mut self) -> i32 {
         let instruction = self.fetch_byte();
+
+        // Print state of emulator to logger
+        log::info!(
+            "A: {}, B: {}, C: {}, D: {}, E: {}, F: {:b}, address: {:X}, instr: CB-{:X}",
+            self.registers.a,
+            self.registers.b,
+            self.registers.c,
+            self.registers.d,
+            self.registers.e,
+            self.registers.f,
+	    self.pc - 1,
+            instruction
+        );
+	
         let instruction_cycles = 4;
         instruction_cycles
             + match instruction {
@@ -332,6 +374,16 @@ impl Cpu {
                     instruction.to_be_bytes()
                 ),
             }
+    }
+
+    fn sub_u8_reg(&mut self, reg: u8) -> u8 {
+        self.registers.set_carry_flag(self.registers.a < reg);
+        let result = self.registers.a.wrapping_sub(reg);
+        self.registers.set_zero_flag(self.registers.a == 0);
+        self.registers.set_was_prev_instr_sub(true);
+        self.registers
+            .set_half_carry(((self.registers.a ^ reg ^ result) & 0x10) > 0);
+        result
     }
 
     // Generic implementation for CP A, x opcode group

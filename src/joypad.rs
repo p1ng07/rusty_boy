@@ -39,7 +39,6 @@ impl Joypad {
             if raylib_handle.is_key_down(KEY_S) {
                 byte |= p13_mask;
             }
-            println!("Byte: {:b}", !byte);
         } else if raylib_handle.is_key_down(KEY_I)
             || raylib_handle.is_key_down(KEY_U)
             || raylib_handle.is_key_down(KEY_J)
@@ -58,7 +57,6 @@ impl Joypad {
             if raylib_handle.is_key_down(KEY_I) {
                 byte |= p13_mask;
             }
-            println!("Byte: {:b}", !byte);
         }
         self.byte = !byte;
     }
