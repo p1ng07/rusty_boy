@@ -21,8 +21,8 @@ impl Mmu {
     pub fn fetch_byte(&self, address: u16, cpu_state: &CpuState) -> u8 {
         match address {
             0..=0x7FFF => match cpu_state {
-                CpuState::Boot => self.boot_rom.get(address as usize).unwrap().to_owned(),
-                CpuState::NonBoot => self.rom_0.get(address as usize).unwrap().to_owned(),
+                CpuState::Boot => *self.boot_rom.get(address as usize).unwrap(),
+                CpuState::NonBoot => *self.rom_0.get(address as usize).unwrap(),
             },
             0x8000..=0x9FFF => self
                 .ppu
@@ -30,7 +30,7 @@ impl Mmu {
                 .get(address.wrapping_sub(0x8000) as usize)
                 .unwrap()
                 .to_owned(),
-            0xA000..=0xBFFF => 0, //TODO: todo!("Reading from external ram ({:X})", address),
+            0xA000..=0xBFFF => todo!("Reading from external ram ({:X})", address),
             0xC000..=0xDFFF => {
 		let local_address = (address.wrapping_sub( 0xC000u16)) as usize;
 		if local_address < 0x1000 {
@@ -78,7 +78,7 @@ impl Mmu {
         }
     }
 
-    pub fn write_byte(&mut self, cpu_state: &mut CpuState, address: i32, received_byte: u8) {
+    pub fn write_byte(&mut self, cpu_state: &mut CpuState, address: u16, received_byte: u8) {
         match address {
             0..=0x7FFF => (), // Writing to ROM
             0x8000..=0x9FFF => self.ppu.vram[(address - 0x8000) as usize] = received_byte,
@@ -88,7 +88,7 @@ impl Mmu {
                 received_byte
             ),
             0xC000..=0xDFFF => {
-                let local_address = (address - 0xC000i32) as usize;
+                let local_address = (address - 0xC000u16) as usize;
                 if local_address < 0x1000 {
                     self.wram_0[local_address] = received_byte;
                 } else {
@@ -112,8 +112,11 @@ impl Mmu {
     }
 
     pub fn new(rom_path: String) -> Self {
-        // Load the rom only cartridge
-        let rom_load = std::fs::read(&rom_path).unwrap();
+        // Load the rom only cartridge, if there isn't a rom, load a load of nothing
+        let rom_load = match std::fs::read(&rom_path) {
+	    Ok(vec) => vec,
+	    Err(_) => [0; KIBI_BYTE * 16].to_vec()
+	};
 
         Self {
             rom_0: rom_load, //[0; KIBI_BYTE * 16],

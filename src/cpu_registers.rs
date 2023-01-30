@@ -12,19 +12,19 @@ pub struct CpuRegisters {
 
 impl CpuRegisters {
     pub fn get_af(&self) -> u16 {
-        (self.a as u16) << 8 | self.f as u16
+        u16::from(self.a) << 8 | u16::from(self.f)
     }
 
     pub fn get_bc(&self) -> u16 {
-        (self.b as u16) << 8 | self.c as u16
+        u16::from(self.b) << 8 | u16::from(self.c)
     }
 
     pub fn get_de(&self) -> u16 {
-        (self.d as u16) << 8 | self.e as u16
+        u16::from(self.d) << 8 | u16::from(self.e)
     }
 
     pub fn get_hl(&self) -> u16 {
-        (self.h as u16) << 8 | self.l as u16
+        u16::from(self.h) << 8 | u16::from(self.l)
     }
 
     pub fn set_af(&mut self, n: u16) {

@@ -1,3 +1,5 @@
+use log::info;
+
 use crate::cpu_registers::CpuRegisters;
 use crate::mmu::Mmu;
 
@@ -41,7 +43,7 @@ impl Cpu {
     }
 
     fn fetch_byte(&mut self) -> u8 {
-        let byte = self.mmu.fetch_byte(self.pc, &self.state); // This is never going to launch an exception
+        let byte = self.mmu.fetch_byte(self.pc, &self.state);
         self.pc += 1;
         byte
     }
@@ -57,8 +59,7 @@ impl Cpu {
     pub(crate) fn cycle(&mut self) -> i32 {
         let fetch_cycles = 4;
         let first_byte = self.fetch_byte();
-        fetch_cycles
-            + match first_byte {
+        match first_byte {
                 0xCB => self.execute_cb(),
                 _ => self.execute(first_byte),
             }
@@ -68,7 +69,7 @@ impl Cpu {
     pub(crate) fn execute(&mut self, first_byte: u8) -> i32 {
         // Print state of emulator to logger
         log::info!(
-            "A: {}, F: {}, B: {}, C: {}, D: {}, E: {}, H: {}, L: {}, sp: {}, pc: {}, {:X}",
+            "A: {} F: {} B: {} C: {} D: {} E: {} H: {} L: {} {:X} SP: {} PC: 00:{} ({} {} {} {})",
             format!("{:0>2X}",self.registers.a),
             format!("{:0>2X}",self.registers.f),
             format!("{:0>2X}",self.registers.b),
@@ -77,9 +78,13 @@ impl Cpu {
             format!("{:0>2X}",self.registers.e),
             format!("{:0>2X}",self.registers.h),
             format!("{:0>2X}",self.registers.l),
+	    self.registers.get_hl(),
             format!("{:0>4X}",self.sp),
             format!("{:0>4X}",self.pc - 1),
-            first_byte
+	    format!("{:0>2X}", first_byte),
+	    format!("{:0>2X}", self.mmu.fetch_byte(self.pc,&self.state)),
+	    format!("{:0>2X}", self.mmu.fetch_byte(self.pc + 1,&self.state)),
+	    format!("{:0>2X}",self.mmu.fetch_byte(self.pc + 2,&self.state))
         );
 
         match first_byte {
@@ -128,7 +133,7 @@ impl Cpu {
             0x12 => {
                 self.mmu.write_byte(
                     &mut self.state,
-                    self.registers.get_de() as i32,
+                    self.registers.get_de(),
                     self.registers.a,
                 );
                 8
@@ -185,27 +190,6 @@ impl Cpu {
                 self.registers.e = self.fetch_byte();
                 8
             }
-            0x22 => {
-                // LD (HL++), A
-                self.mmu.write_byte(
-                    &mut self.state,
-                    self.registers.get_hl() as i32,
-                    self.registers.a,
-                );
-                self.registers.set_hl(self.registers.get_hl() + 1);
-                8
-            }
-            0x24 => {
-                self.registers.h = self.inc_u8_reg(self.registers.h);
-                4
-            }
-            0x2A => {
-                let add = self.registers.get_hl();
-                self.registers.a = self.mmu.fetch_byte(add, &self.state);
-                let new_hl = add.wrapping_add(1);
-                self.registers.set_hl(new_hl);
-                8
-            }
             0x20 => {
                 // JR NZ, i8
                 if !self.registers.is_zero_flag_high() {
@@ -226,11 +210,25 @@ impl Cpu {
                 self.registers.set_hl(word);
                 12
             }
+            0x22 => {
+                // LD (HL++), A
+                self.mmu.write_byte(
+                    &mut self.state,
+                    self.registers.get_hl(),
+                    self.registers.a,
+                );
+                self.registers.set_hl(self.registers.get_hl() + 1);
+                8
+            }
             0x23 => {
                 // INC HL
                 let new_hl = self.registers.get_hl().wrapping_add(1);
                 self.registers.set_hl(new_hl);
                 8
+            }
+            0x24 => {
+                self.registers.h = self.inc_u8_reg(self.registers.h);
+                4
             }
             0x28 => {
 		if self.registers.is_zero_flag_high() {
@@ -244,6 +242,13 @@ impl Cpu {
 		}
 		self.pc += 1;
 		8
+            }
+            0x2A => {
+                let add = self.registers.get_hl();
+                self.registers.a = self.mmu.fetch_byte(add, &self.state);
+                let new_hl = add.wrapping_add(1);
+                self.registers.set_hl(new_hl);
+                8
             }
             0x31 => {
                 // LD SP, U16
@@ -360,14 +365,14 @@ impl Cpu {
                 // LD ($FF00+u8), A
                 let address: u16 = 0xFF00 + (self.fetch_byte() as u16);
                 self.mmu
-                    .write_byte(&mut self.state, address as i32, self.registers.a);
+                    .write_byte(&mut self.state, address, self.registers.a);
                 12
             }
             0xE2 => {
                 // LD (FF00 + C), A
                 self.mmu.write_byte(
                     &mut self.state,
-                    0xFF + self.registers.c as i32,
+                    0xFFu16 + self.registers.c as u16,
                     self.registers.a,
                 );
                 8
@@ -375,7 +380,7 @@ impl Cpu {
             0xEA => {
                 let address = self.fetch_word();
                 self.mmu
-                    .write_byte(&mut self.state, address as i32, self.registers.a);
+                    .write_byte(&mut self.state, address, self.registers.a);
                 16
             }
             0xF0 => {
@@ -410,7 +415,7 @@ impl Cpu {
 
         // Print state of emulator to logger
         log::info!(
-            "A: {}, F: {}, B: {}, C: {}, D: {}, E: {}, H: {}, L: {}, sp: {}, pc: {}, {:X}",
+            "A: {} F: {} B: {} C: {} D: {} E: {} H: {} L: {} SP: {} PC: 00:{} ({} {} {} {})",
             format!("{:0>2X}",self.registers.a),
             format!("{:0>2X}",self.registers.f),
             format!("{:0>2X}",self.registers.b),
@@ -421,7 +426,10 @@ impl Cpu {
             format!("{:0>2X}",self.registers.l),
             format!("{:0>4X}",self.sp),
             format!("{:0>4X}",self.pc - 1),
-            instruction
+            format!("{:0>4X}",instruction),
+	    format!("{:02X}", self.mmu.fetch_byte(self.pc,&self.state)),
+	    format!("{:02X}", self.mmu.fetch_byte(self.pc + 1,&self.state)),
+	    format!("{:02X}",self.mmu.fetch_byte(self.pc + 2,&self.state))
         );
 
         let instruction_cycles = 4;
@@ -485,10 +493,10 @@ impl Cpu {
     fn push_u16_to_stack(&mut self, value_to_push: u16) {
         self.sp = self.sp.wrapping_sub(1);
         self.mmu
-            .write_byte(&mut self.state, self.sp as i32, (value_to_push >> 8) as u8);
+            .write_byte(&mut self.state, self.sp, (value_to_push >> 8) as u8);
         self.sp = self.sp.wrapping_sub(1);
         self.mmu
-            .write_byte(&mut self.state, self.sp as i32, value_to_push as u8);
+            .write_byte(&mut self.state, self.sp, value_to_push as u8);
     }
 
     fn pop_u16_from_stack(&mut self) -> u16 {
