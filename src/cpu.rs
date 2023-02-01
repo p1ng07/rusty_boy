@@ -386,6 +386,9 @@ impl Cpu {
                 self.cp(number);
                 8
             }
+	    0xFF => {
+		panic!("Something went wrong, instruction 0xFF called, pc: {:X}", self.pc - 1)
+	    }
             _ => panic!(
                 "Instruction {:x?} not implemented",
                 first_byte.to_be_bytes()

@@ -22,7 +22,7 @@ impl Mmu {
         match address {
             0..=0x7FFF => match cpu_state {
                 CpuState::Boot => *self.boot_rom.get(address as usize).unwrap(),
-                CpuState::NonBoot => *self.rom_0.get(address as usize).unwrap(),
+                CpuState::NonBoot => *self.rom_0.get(address as usize).unwrap_or(&0xFFu8),
             },
             0x8000..=0x9FFF => self
                 .ppu
@@ -113,7 +113,7 @@ impl Mmu {
 
     pub fn new(rom_path: String) -> Self {
         // Load the rom only cartridge, if there isn't a rom, load a load of nothing
-        let rom_load = match std::fs::read(rom_path) {
+        let rom_load = match std::fs::read(&rom_path) {
             Ok(vec) => vec,
             Err(_) => [0; KIBI_BYTE * 16].to_vec(),
         };
