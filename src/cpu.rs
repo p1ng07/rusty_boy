@@ -14,77 +14,76 @@ pub struct Cpu {
     pc: u16,
     sp: u16,
     registers: CpuRegisters,
-    pub mmu: Mmu,
-    ime: bool
 }
 
 impl Cpu {
-    pub fn new(rom_path: String, initial_state: CpuState) -> Cpu {
-	let mut cpu = Cpu {
-	    pc: if initial_state == CpuState::NonBoot {0x100} else {0},
-	    sp: 0,
-	    state: initial_state,
-	    registers: Default::default(),
-	    ime: false,
-	    mmu: Mmu::new(rom_path),
-	};
+    pub fn new(initial_state: CpuState) -> Cpu {
+        let mut cpu = Cpu {
+            pc: if initial_state == CpuState::NonBoot {
+                0x100
+            } else {
+                0
+            },
+            sp: 0,
+            state: initial_state,
+            registers: Default::default(),
+        };
 
-	if cpu.state == CpuState::NonBoot {
-	    cpu.registers.a = 1;
-	    cpu.registers.f = 0xB0;
-	    cpu.registers.c = 0x13;
-	    cpu.registers.e = 0xD8;
-	    cpu.registers.h = 0x1;
-	    cpu.registers.l = 0x4D;
-	    cpu.sp = 0xfffe;
-	}
-	cpu
-	
+        if cpu.state == CpuState::NonBoot {
+            cpu.registers.a = 1;
+            cpu.registers.f = 0xB0;
+            cpu.registers.c = 0x13;
+            cpu.registers.e = 0xD8;
+            cpu.registers.h = 0x1;
+            cpu.registers.l = 0x4D;
+            cpu.sp = 0xfffe;
+        }
+        cpu
     }
 
-    fn fetch_byte(&mut self) -> u8 {
-        let byte = self.mmu.fetch_byte(self.pc, &self.state);
+    fn fetch_byte(&mut self, mmu: &Mmu) -> u8 {
+        let byte = mmu.fetch_byte(self.pc, &self.state);
         self.pc += 1;
         byte
     }
 
-    pub(crate) fn fetch_word(&mut self) -> u16 {
-        let fetch_byte_big = self.fetch_byte() as u16;
-        let fetch_byte_small = self.fetch_byte() as u16;
+    pub(crate) fn fetch_word(&mut self, mmu: &Mmu) -> u16 {
+        let fetch_byte_big = self.fetch_byte(mmu) as u16;
+        let fetch_byte_small = self.fetch_byte(mmu) as u16;
 
         fetch_byte_small << 8 | fetch_byte_big
     }
 
     // Cycle the cpu once, fetch an instruction and run it, returns the number of t-cycles it took to run it
-    pub(crate) fn cycle(&mut self) -> i32 {
+    pub(crate) fn cycle(&mut self, mmu: &mut Mmu) -> i32 {
         let fetch_cycles = 4;
-        let first_byte = self.fetch_byte();
+        let first_byte = self.fetch_byte(mmu);
         match first_byte {
-                0xCB => self.execute_cb(),
-                _ => self.execute(first_byte),
-            }
+            0xCB => self.execute_cb(mmu),
+            _ => self.execute(first_byte, mmu),
+        }
     }
 
     // Execute the instruction given and return the number of t-cycles it took to run it
-    pub(crate) fn execute(&mut self, first_byte: u8) -> i32 {
+    pub(crate) fn execute(&mut self, first_byte: u8, mmu: &mut Mmu) -> i32 {
         // Print state of emulator to logger
         log::info!(
             "A: {} F: {} B: {} C: {} D: {} E: {} H: {} L: {} {:X} SP: {} PC: 00:{} ({} {} {} {})",
-            format!("{:0>2X}",self.registers.a),
-            format!("{:0>2X}",self.registers.f),
-            format!("{:0>2X}",self.registers.b),
-            format!("{:0>2X}",self.registers.c),
-            format!("{:0>2X}",self.registers.d),
-            format!("{:0>2X}",self.registers.e),
-            format!("{:0>2X}",self.registers.h),
-            format!("{:0>2X}",self.registers.l),
-	    self.registers.get_hl(),
-            format!("{:0>4X}",self.sp),
-            format!("{:0>4X}",self.pc - 1),
-	    format!("{:0>2X}", first_byte),
-	    format!("{:0>2X}", self.mmu.fetch_byte(self.pc,&self.state)),
-	    format!("{:0>2X}", self.mmu.fetch_byte(self.pc + 1,&self.state)),
-	    format!("{:0>2X}",self.mmu.fetch_byte(self.pc + 2,&self.state))
+            format!("{:0>2X}", self.registers.a),
+            format!("{:0>2X}", self.registers.f),
+            format!("{:0>2X}", self.registers.b),
+            format!("{:0>2X}", self.registers.c),
+            format!("{:0>2X}", self.registers.d),
+            format!("{:0>2X}", self.registers.e),
+            format!("{:0>2X}", self.registers.h),
+            format!("{:0>2X}", self.registers.l),
+            self.registers.get_hl(),
+            format!("{:0>4X}", self.sp),
+            format!("{:0>4X}", self.pc - 1),
+            format!("{:0>2X}", first_byte),
+            format!("{:0>2X}", mmu.fetch_byte(self.pc, &self.state)),
+            format!("{:0>2X}", mmu.fetch_byte(self.pc + 1, &self.state)),
+            format!("{:0>2X}", mmu.fetch_byte(self.pc + 2, &self.state))
         );
 
         match first_byte {
@@ -100,7 +99,7 @@ impl Cpu {
             }
             0x06 => {
                 // LD B, u8
-                self.registers.b = self.fetch_byte();
+                self.registers.b = self.fetch_byte(mmu);
                 8
             }
             0x0C => {
@@ -114,7 +113,7 @@ impl Cpu {
             }
             0x0E => {
                 // LD C, u8
-                self.registers.c = self.fetch_byte();
+                self.registers.c = self.fetch_byte(mmu);
                 8
             }
             0x0F => {
@@ -126,16 +125,12 @@ impl Cpu {
             }
             0x11 => {
                 // LD BC, u16
-                let word = self.fetch_word();
+                let word = self.fetch_word(mmu);
                 self.registers.set_de(word);
                 12
             }
             0x12 => {
-                self.mmu.write_byte(
-                    &mut self.state,
-                    self.registers.get_de(),
-                    self.registers.a,
-                );
+                mmu.write_byte(&mut self.state, self.registers.get_de(), self.registers.a);
                 8
             }
             0x13 => {
@@ -153,7 +148,7 @@ impl Cpu {
                 4
             }
             0x16 => {
-                self.registers.d = self.fetch_byte();
+                self.registers.d = self.fetch_byte(mmu);
                 8
             }
             0x17 => {
@@ -167,15 +162,14 @@ impl Cpu {
                 4
             }
             0x18 => {
-                let offset = self.fetch_byte() as i8;
+                let offset = self.fetch_byte(mmu) as i8;
                 self.pc += offset as u16;
                 12
             }
             0x1A => {
                 // LD A, (DE)
-                self.registers.a = self
-                    .mmu
-                    .fetch_byte(self.registers.get_de().try_into().unwrap(), &self.state);
+                self.registers.a =
+                    mmu.fetch_byte(self.registers.get_de().try_into().unwrap(), &self.state);
                 8
             }
             0x1C => {
@@ -187,18 +181,18 @@ impl Cpu {
                 4
             }
             0x1E => {
-                self.registers.e = self.fetch_byte();
+                self.registers.e = self.fetch_byte(mmu);
                 8
             }
             0x20 => {
                 // JR NZ, i8
                 if !self.registers.is_zero_flag_high() {
-		    let offset = self.fetch_byte() as i8;
-		    if offset < 0 {
-			self.pc = self.pc.wrapping_sub(offset.abs() as u16);
-		    }else{
-			self.pc = self.pc.wrapping_sub(offset as u16);
-		    }
+                    let offset = self.fetch_byte(mmu) as i8;
+                    if offset < 0 {
+                        self.pc = self.pc.wrapping_sub(offset.abs() as u16);
+                    } else {
+                        self.pc = self.pc.wrapping_sub(offset as u16);
+                    }
                     return 12;
                 }
                 self.pc += 1;
@@ -206,17 +200,13 @@ impl Cpu {
             }
             0x21 => {
                 // LD HL, U16
-                let word = self.fetch_word();
+                let word = self.fetch_word(mmu);
                 self.registers.set_hl(word);
                 12
             }
             0x22 => {
                 // LD (HL++), A
-                self.mmu.write_byte(
-                    &mut self.state,
-                    self.registers.get_hl(),
-                    self.registers.a,
-                );
+                mmu.write_byte(&mut self.state, self.registers.get_hl(), self.registers.a);
                 self.registers.set_hl(self.registers.get_hl() + 1);
                 8
             }
@@ -231,33 +221,33 @@ impl Cpu {
                 4
             }
             0x28 => {
-		if self.registers.is_zero_flag_high() {
-		    let offset = self.fetch_byte() as i8;
-		    if offset < 0 {
-			self.pc = self.pc.wrapping_sub(offset.abs() as u16);
-		    }else{
-			self.pc = self.pc.wrapping_sub(offset as u16);
-		    }
-		    return 12;
-		}
-		self.pc += 1;
-		8
+                if self.registers.is_zero_flag_high() {
+                    let offset = self.fetch_byte(mmu) as i8;
+                    if offset < 0 {
+                        self.pc = self.pc.wrapping_sub(offset.abs() as u16);
+                    } else {
+                        self.pc = self.pc.wrapping_sub(offset as u16);
+                    }
+                    return 12;
+                }
+                self.pc += 1;
+                8
             }
             0x2A => {
                 let add = self.registers.get_hl();
-                self.registers.a = self.mmu.fetch_byte(add, &self.state);
+                self.registers.a = mmu.fetch_byte(add, &self.state);
                 let new_hl = add.wrapping_add(1);
                 self.registers.set_hl(new_hl);
                 8
             }
             0x31 => {
                 // LD SP, U16
-                self.sp = self.fetch_word();
+                self.sp = self.fetch_word(mmu);
                 12
             }
             0x32 => {
                 // ld (hl-), A
-                self.mmu.write_byte(
+                mmu.write_byte(
                     &mut self.state,
                     self.registers.get_hl().into(),
                     self.registers.a,
@@ -272,7 +262,7 @@ impl Cpu {
             }
             0x3E => {
                 // LD A, u8
-                self.registers.a = self.fetch_byte();
+                self.registers.a = self.fetch_byte(mmu);
                 8
             }
             0x44 => {
@@ -298,7 +288,7 @@ impl Cpu {
             }
             0x77 => {
                 // LD (hl), A
-                self.mmu.write_byte(
+                mmu.write_byte(
                     &mut self.state,
                     self.registers.get_hl().into(),
                     self.registers.a,
@@ -330,47 +320,46 @@ impl Cpu {
             }
             0xBC => {
                 // POP BC
-                let new_bc = self.pop_u16_from_stack();
+                let new_bc = self.pop_u16_from_stack(mmu);
                 self.registers.set_bc(new_bc);
                 12
             }
             0xC1 => {
-                let popped_value = self.pop_u16_from_stack();
+                let popped_value = self.pop_u16_from_stack(mmu);
                 self.registers.set_bc(popped_value);
                 12
             }
             0xC3 => {
-                let address = self.fetch_word();
+                let address = self.fetch_word(mmu);
                 self.pc = address;
                 16
             }
             0xC5 => {
                 // PUSH BC
-                self.push_u16_to_stack(self.registers.get_bc());
+                self.push_u16_to_stack(self.registers.get_bc(), mmu);
                 16
             }
             0xC9 => {
                 // RET
-                self.pc = self.pop_u16_from_stack();
+                self.pc = self.pop_u16_from_stack(mmu);
                 16
             }
             0xCD => {
                 // CALL nn
-                let new_address = self.fetch_word();
-                self.push_u16_to_stack(self.pc);
+                let new_address = self.fetch_word(mmu);
+                self.push_u16_to_stack(self.pc, mmu);
                 self.pc = new_address;
                 24
             }
             0xE0 => {
                 // LD ($FF00+u8), A
-                let address: u16 = 0xFF00 + (self.fetch_byte() as u16);
-                self.mmu
-                    .write_byte(&mut self.state, address, self.registers.a);
+                let address: u16 = 0xFF00 + (self.fetch_byte(mmu) as u16);
+                mmu.write_byte(&mut self.state, address, self.registers.a);
                 12
             }
             0xE2 => {
                 // LD (FF00 + C), A
-                self.mmu.write_byte(
+                mmu.write_byte(
                     &mut self.state,
                     0xFFu16 + self.registers.c as u16,
                     self.registers.a,
@@ -378,28 +367,22 @@ impl Cpu {
                 8
             }
             0xEA => {
-                let address = self.fetch_word();
-                self.mmu
-                    .write_byte(&mut self.state, address, self.registers.a);
+                let address = self.fetch_word(mmu);
+                mmu.write_byte(&mut self.state, address, self.registers.a);
                 16
             }
             0xF0 => {
-                let add_on = self.fetch_byte() as u16;
-                self.registers.a = self.mmu.fetch_byte(0xFF00u16 + add_on, &self.state);
+                let add_on = self.fetch_byte(mmu) as u16;
+                self.registers.a = mmu.fetch_byte(0xFF00u16 + add_on, &self.state);
                 12
             }
             0xF2 => {
-                self.registers.a = self
-                    .mmu
-                    .fetch_byte(0xFF00u16.wrapping_add(self.registers.c as u16), &self.state);
+                self.registers.a =
+                    mmu.fetch_byte(0xFF00u16.wrapping_add(self.registers.c as u16), &self.state);
                 8
             }
-	    0xF3 => {
-		self.ime = false;
-		4
-	    }
             0xFE => {
-                let number = self.fetch_byte();
+                let number = self.fetch_byte(mmu);
                 self.cp(number);
                 8
             }
@@ -410,26 +393,26 @@ impl Cpu {
         }
     }
 
-    pub(crate) fn execute_cb(&mut self) -> i32 {
-        let instruction = self.fetch_byte();
+    pub(crate) fn execute_cb(&mut self, mmu: &mut Mmu) -> i32 {
+        let instruction = self.fetch_byte(mmu);
 
         // Print state of emulator to logger
         log::info!(
             "A: {} F: {} B: {} C: {} D: {} E: {} H: {} L: {} SP: {} PC: 00:{} ({} {} {} {})",
-            format!("{:0>2X}",self.registers.a),
-            format!("{:0>2X}",self.registers.f),
-            format!("{:0>2X}",self.registers.b),
-            format!("{:0>2X}",self.registers.c),
-            format!("{:0>2X}",self.registers.d),
-            format!("{:0>2X}",self.registers.e),
-            format!("{:0>2X}",self.registers.h),
-            format!("{:0>2X}",self.registers.l),
-            format!("{:0>4X}",self.sp),
-            format!("{:0>4X}",self.pc - 1),
-            format!("{:0>4X}",instruction),
-	    format!("{:02X}", self.mmu.fetch_byte(self.pc,&self.state)),
-	    format!("{:02X}", self.mmu.fetch_byte(self.pc + 1,&self.state)),
-	    format!("{:02X}",self.mmu.fetch_byte(self.pc + 2,&self.state))
+            format!("{:0>2X}", self.registers.a),
+            format!("{:0>2X}", self.registers.f),
+            format!("{:0>2X}", self.registers.b),
+            format!("{:0>2X}", self.registers.c),
+            format!("{:0>2X}", self.registers.d),
+            format!("{:0>2X}", self.registers.e),
+            format!("{:0>2X}", self.registers.h),
+            format!("{:0>2X}", self.registers.l),
+            format!("{:0>4X}", self.sp),
+            format!("{:0>4X}", self.pc - 1),
+            format!("{:0>4X}", instruction),
+            format!("{:02X}", mmu.fetch_byte(self.pc, &self.state)),
+            format!("{:02X}", mmu.fetch_byte(self.pc + 1, &self.state)),
+            format!("{:02X}", mmu.fetch_byte(self.pc + 2, &self.state))
         );
 
         let instruction_cycles = 4;
@@ -475,7 +458,8 @@ impl Cpu {
     }
 
     fn inc_u8_reg(&mut self, reg: u8) -> u8 {
-        self.registers.set_half_carry((reg & 0x0F) as u16 + 1 > 0x0F);
+        self.registers
+            .set_half_carry((reg & 0x0F) as u16 + 1 > 0x0F);
         let new_reg = reg.wrapping_add(1);
         self.registers.set_zero_flag(new_reg == 0);
         self.registers.set_was_prev_instr_sub(false);
@@ -490,19 +474,17 @@ impl Cpu {
         new_reg
     }
 
-    fn push_u16_to_stack(&mut self, value_to_push: u16) {
+    fn push_u16_to_stack(&mut self, value_to_push: u16, mmu: &mut Mmu) {
         self.sp = self.sp.wrapping_sub(1);
-        self.mmu
-            .write_byte(&mut self.state, self.sp, (value_to_push >> 8) as u8);
+        mmu.write_byte(&mut self.state, self.sp, (value_to_push >> 8) as u8);
         self.sp = self.sp.wrapping_sub(1);
-        self.mmu
-            .write_byte(&mut self.state, self.sp, value_to_push as u8);
+        mmu.write_byte(&mut self.state, self.sp, value_to_push as u8);
     }
 
-    fn pop_u16_from_stack(&mut self) -> u16 {
-        let lower_byte = self.mmu.fetch_byte(self.sp, &self.state);
+    fn pop_u16_from_stack(&mut self, mmu: &Mmu) -> u16 {
+        let lower_byte = mmu.fetch_byte(self.sp, &self.state);
         self.sp = self.sp.wrapping_add(1);
-        let high_byte = self.mmu.fetch_byte(self.sp, &self.state);
+        let high_byte = mmu.fetch_byte(self.sp, &self.state);
         self.sp = self.sp.wrapping_add(1);
         (high_byte as u16) << 8 | lower_byte as u16
     }

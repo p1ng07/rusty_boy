@@ -48,32 +48,32 @@ impl CpuRegisters {
         if is_high {
             self.f |= 0b1000_0000;
         } else {
-	    self.f &= 0b0111_0000;
-	}
+            self.f &= 0b0111_0000;
+        }
     }
 
     pub fn set_carry_flag(&mut self, is_high: bool) {
         if is_high {
             self.f |= 0b0001_0000;
         } else {
-	    self.f &= 0b1110_0000;
-	}
+            self.f &= 0b1110_0000;
+        }
     }
 
     pub fn set_was_prev_instr_sub(&mut self, is_high: bool) {
         if is_high {
             self.f |= 0b0100_0000;
         } else {
-	    self.f &= 0b1011_0000;
-	}
+            self.f &= 0b1011_0000;
+        }
     }
 
     pub fn set_half_carry(&mut self, is_high: bool) {
         if is_high {
             self.f |= 0b0010_0000;
         } else {
-	    self.f &= 0b1101_0000;
-	}
+            self.f &= 0b1101_0000;
+        }
     }
 
     pub fn is_lower_carry_high(&self) -> bool {

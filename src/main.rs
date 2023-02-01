@@ -1,14 +1,15 @@
+use crate::mmu::Mmu;
 use log4rs::append::file::FileAppender;
 use log4rs::config::{Appender, Config, Root};
 use log4rs::encode::pattern::PatternEncoder;
 use std::env;
 
 mod cpu;
-mod serial;
 mod cpu_registers;
 mod joypad;
 mod mmu;
 mod ppu;
+mod serial;
 
 use log::LevelFilter;
 use raylib::prelude::*;
@@ -32,22 +33,21 @@ fn main() {
 
     log4rs::init_config(config).unwrap();
 
-    let mut cpu = match args.get(1) {
-        None => {
-            println!("Não foi passada uma ROM para usar");
-            cpu::Cpu::new(String::from(""), cpu::CpuState::Boot)
-        }
-        Some(path) => cpu::Cpu::new(path.to_owned(), cpu::CpuState::NonBoot), //
+    let mut cpu = cpu::Cpu::new(cpu::CpuState::NonBoot);
+
+    let mut mmu = match args.get(1) {
+        Some(path_to_rom) => Mmu::new(path_to_rom.clone()),
+        None => Mmu::new(String::from("")),
     };
 
     while !rl.window_should_close() {
         // Update input register
-        cpu.mmu.joypad.update_input(&mut rl);
+        mmu.joypad.update_input(&mut rl);
 
         // run 69905 t-cycles of cpu work, equating to 4MHz of t-cycles per second
         let mut ran_cycles = 0;
         while ran_cycles < 69905 {
-            ran_cycles += cpu.cycle();
+            ran_cycles += cpu.cycle(&mut mmu);
         }
 
         let mut d = rl.begin_drawing(&thread);

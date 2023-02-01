@@ -32,8 +32,8 @@ impl Mmu {
                 .to_owned(),
             0xA000..=0xBFFF => todo!("Reading from external ram ({:X})", address),
             0xC000..=0xDFFF => {
-		let local_address = (address.wrapping_sub( 0xC000u16)) as usize;
-		if local_address < 0x1000 {
+                let local_address = (address.wrapping_sub(0xC000u16)) as usize;
+                if local_address < 0x1000 {
                     self.wram_0.get(local_address).unwrap().to_owned()
                 } else {
                     self.wram_1
@@ -60,8 +60,8 @@ impl Mmu {
                 .unwrap()
                 .to_owned(),
             0xFF00 => self.joypad.byte,
-	    0xFF01 => self.serial.serial_data_transfer,
-	    0xFF02 => self.serial.serial_data_control,
+            0xFF01 => self.serial.serial_data_transfer,
+            0xFF02 => self.serial.serial_data_control,
             0xFF04..=0xFF07 => todo!("Reading from timer and divider, address: {:X}", address),
             0xFF42 => 0, // TODO: Stubbed to 0x0 because 0xFF42 is SCY and some roms wait for SCY to be set to 0
             0xFF44 => 0x90, // TODO: Stubbed to 0x90 because 0xFF40 is LY and some roms wait for LY to be set to 0x90
@@ -106,17 +106,17 @@ impl Mmu {
                     *cpu_state = CpuState::NonBoot
                 }
             }
-            0xFF80..=0xFFFE => self.hram[((address - 0xFF80) as usize)] = received_byte,
+            0xFF80..=0xFFFE => self.hram[((address - 0xFF80u16) as usize)] = received_byte,
             _ => (),
         };
     }
 
     pub fn new(rom_path: String) -> Self {
         // Load the rom only cartridge, if there isn't a rom, load a load of nothing
-        let rom_load = match std::fs::read(&rom_path) {
-	    Ok(vec) => vec,
-	    Err(_) => [0; KIBI_BYTE * 16].to_vec()
-	};
+        let rom_load = match std::fs::read(rom_path) {
+            Ok(vec) => vec,
+            Err(_) => [0; KIBI_BYTE * 16].to_vec(),
+        };
 
         Self {
             rom_0: rom_load, //[0; KIBI_BYTE * 16],
@@ -126,7 +126,7 @@ impl Mmu {
             rom_path,
             ppu: Ppu::new(),
             joypad: Default::default(),
-	    serial: Default::default(),
+            serial: Default::default(),
             boot_rom: [
                 0x31, 0xFE, 0xFF, 0xAF, 0x21, 0xFF, 0x9F, 0x32, 0xCB, 0x7C, 0x20, 0xFB, 0x21, 0x26,
                 0xFF, 0x0E, 0x11, 0x3E, 0x80, 0x32, 0xE2, 0x0C, 0x3E, 0xF3, 0xE2, 0x32, 0x3E, 0x77,
