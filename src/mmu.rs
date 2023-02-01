@@ -97,6 +97,7 @@ impl Mmu {
             }
             0xE000..=0xFDFF => todo!("Writing to ECHO RAM ({:X}), {}", address, received_byte),
             0xFE00..=0xFE9F => todo!("Writing to OAM RAM ({:X}), {}", address, received_byte),
+            0xFF00 => self.joypad.write_to_byte(received_byte),
             0xFF01 => self.serial.write_to_transfer(received_byte),
             0xFF02 => self.serial.serial_data_control = received_byte,
             0xFF07 => todo!("Writing to TMA timer control, address: {:X}", address),

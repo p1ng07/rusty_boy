@@ -47,7 +47,7 @@ impl Cpu {
         byte
     }
 
-    pub(crate) fn fetch_word(&mut self, mmu: &Mmu) -> u16 {
+    pub fn fetch_word(&mut self, mmu: &Mmu) -> u16 {
         let fetch_byte_big = self.fetch_byte(mmu) as u16;
         let fetch_byte_small = self.fetch_byte(mmu) as u16;
 
@@ -55,20 +55,32 @@ impl Cpu {
     }
 
     // Cycle the cpu once, fetch an instruction and run it, returns the number of t-cycles it took to run it
-    pub(crate) fn cycle(&mut self, mmu: &mut Mmu) -> i32 {
-        let fetch_cycles = 4;
+    pub fn cycle(&mut self, mmu: &mut Mmu) -> i32 {
+        let mut delta_cycles = 4;
         let first_byte = self.fetch_byte(mmu);
-        match first_byte {
+
+        // Fetch cycles are already included in te execute_* functions, this shouldn't happen but I am too lazy to fix it for now
+        delta_cycles += match first_byte {
             0xCB => self.execute_cb(mmu),
             _ => self.execute(first_byte, mmu),
-        }
+        };
+
+        // TODO: Check for interrupts here
+
+	self.handle_interrupts();
+
+        delta_cycles
+    }
+
+    fn handle_interrupts(&self) {
+        todo!()
     }
 
     // Execute the instruction given and return the number of t-cycles it took to run it
     pub(crate) fn execute(&mut self, first_byte: u8, mmu: &mut Mmu) -> i32 {
         // Print state of emulator to logger
         log::info!(
-            "A: {} F: {} B: {} C: {} D: {} E: {} H: {} L: {} {:X} SP: {} PC: 00:{} ({} {} {} {})",
+            "A: {} F: {} B: {} C: {} D: {} E: {} H: {} L: {} SP: {} PC: 00:{} ({} {} {} {})",
             format!("{:0>2X}", self.registers.a),
             format!("{:0>2X}", self.registers.f),
             format!("{:0>2X}", self.registers.b),
@@ -77,7 +89,6 @@ impl Cpu {
             format!("{:0>2X}", self.registers.e),
             format!("{:0>2X}", self.registers.h),
             format!("{:0>2X}", self.registers.l),
-            self.registers.get_hl(),
             format!("{:0>4X}", self.sp),
             format!("{:0>4X}", self.pc - 1),
             format!("{:0>2X}", first_byte),
@@ -386,9 +397,12 @@ impl Cpu {
                 self.cp(number);
                 8
             }
-	    0xFF => {
-		panic!("Something went wrong, instruction 0xFF called, pc: {:X}", self.pc - 1)
-	    }
+            0xFF => {
+                panic!(
+                    "Something went wrong, instruction 0xFF called, pc: {:X}",
+                    self.pc - 1
+                )
+            }
             _ => panic!(
                 "Instruction {:x?} not implemented",
                 first_byte.to_be_bytes()
@@ -491,4 +505,5 @@ impl Cpu {
         self.sp = self.sp.wrapping_add(1);
         (high_byte as u16) << 8 | lower_byte as u16
     }
+
 }
