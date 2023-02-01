@@ -7,7 +7,6 @@ pub struct Joypad {
 }
 
 impl Joypad {
-    
     // Updates the interal byte represetation of the input, returns true if a key has been pressed
     pub fn update_input(&mut self, raylib_handle: &mut RaylibHandle) {
         let p15_mask = 0b0010_0000;
@@ -63,6 +62,6 @@ impl Joypad {
     }
 
     pub(crate) fn write_to_byte(&mut self, received_byte: u8) {
-	self.byte = (self.byte & 0xCF)|(received_byte & 0x30);
+        self.byte = (self.byte & 0xCF) | (received_byte & 0x30);
     }
 }

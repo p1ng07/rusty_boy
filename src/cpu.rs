@@ -1,6 +1,9 @@
 use log::info;
+use strum::IntoEnumIterator;
+use strum_macros::EnumIter;
 
-use crate::cpu_registers::CpuRegisters;
+use crate::cpu_registers::{self, CpuRegisters};
+use crate::interrupt_handler::*;
 use crate::mmu::Mmu;
 
 #[derive(PartialEq)]
@@ -19,16 +22,13 @@ pub struct Cpu {
 impl Cpu {
     pub fn new(initial_state: CpuState) -> Cpu {
         let mut cpu = Cpu {
-            pc: if initial_state == CpuState::NonBoot {
-                0x100
-            } else {
-                0
-            },
+            pc: 0,
             sp: 0,
             state: initial_state,
-            registers: Default::default(),
+            registers: CpuRegisters::default(),
         };
 
+	// Skip the bootrom, and go straight to running the program
         if cpu.state == CpuState::NonBoot {
             cpu.registers.a = 1;
             cpu.registers.f = 0xB0;
@@ -39,6 +39,22 @@ impl Cpu {
             cpu.sp = 0xfffe;
         }
         cpu
+    }
+
+    // Cycle the cpu once, fetch an instruction and run it, returns the number of t-cycles it took to run it
+    pub fn cycle(&mut self, mmu: &mut Mmu) -> i32 {
+        let mut delta_cycles = 4;
+        let first_byte = self.fetch_byte(mmu);
+
+        // Fetch cycles are already included in te execute_* functions, this shouldn't happen but I am too lazy to fix it for now
+        delta_cycles += match first_byte {
+            0xCB => self.execute_cb(mmu),
+            _ => self.execute(first_byte, mmu),
+        };
+
+        delta_cycles += self.handle_interrupts(mmu);
+
+        delta_cycles
     }
 
     fn fetch_byte(&mut self, mmu: &Mmu) -> u8 {
@@ -54,26 +70,40 @@ impl Cpu {
         fetch_byte_small << 8 | fetch_byte_big
     }
 
-    // Cycle the cpu once, fetch an instruction and run it, returns the number of t-cycles it took to run it
-    pub fn cycle(&mut self, mmu: &mut Mmu) -> i32 {
-        let mut delta_cycles = 4;
-        let first_byte = self.fetch_byte(mmu);
+    // Services all serviciable interrupts and returns the number of t-cycles this handling took
+    fn handle_interrupts(&mut self, mmu: &mut Mmu) -> i32 {
+        let mut interrupt_cycles = 0;
 
-        // Fetch cycles are already included in te execute_* functions, this shouldn't happen but I am too lazy to fix it for now
-        delta_cycles += match first_byte {
-            0xCB => self.execute_cb(mmu),
-            _ => self.execute(first_byte, mmu),
-        };
+        if !mmu.interrupt_handler.enabled
+            || mmu.interrupt_handler.IE == 0
+        {
+	    // It isn't possible to service any interrupt
+            return 0;
+        }
 
-        // TODO: Check for interrupts here
+        // Go through every interrupt possible interrupt in order of priority (bit order ex: vblank is highest priority)
+        // Check if it is requested and enabled, if it is then service it
+        // IMPORTANT: This iterator uses the order in which the variants are set in the enum, therefore respecting the interrupt order
+        for interrupt_type in Interrupt::iter() {
+            if interrupt_type.mask() & mmu.interrupt_handler.IF > 0
+                && interrupt_type.mask() & mmu.interrupt_handler.IE > 0
+            {
+                // Service interrupt, set ime to false and reset the respective IF bit on the handler
+                mmu.interrupt_handler.unrequest_interrupt(&interrupt_type);
 
-	self.handle_interrupts();
+                // CALL interrupt_vector
+                self.push_u16_to_stack(self.pc, mmu);
+		self.pc = interrupt_type.jump_vector();
 
-        delta_cycles
-    }
+                interrupt_cycles += 20
+            }
+	}
+	// It is possible to have more than one interrupt at a time,
+	// so we only disable it outside of the interrupt checking loop,
+	// because this enables it to go through every possibly requested interrupt
+        mmu.interrupt_handler.enabled = false;
 
-    fn handle_interrupts(&self) {
-        todo!()
+        interrupt_cycles
     }
 
     // Execute the instruction given and return the number of t-cycles it took to run it
@@ -505,5 +535,4 @@ impl Cpu {
         self.sp = self.sp.wrapping_add(1);
         (high_byte as u16) << 8 | lower_byte as u16
     }
-
 }

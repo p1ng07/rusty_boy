@@ -1,4 +1,5 @@
 use crate::cpu::CpuState;
+use crate::interrupt_handler::InterruptHandler;
 use crate::joypad::Joypad;
 use crate::ppu::Ppu;
 use crate::serial::Serial;
@@ -8,7 +9,8 @@ const KIBI_BYTE: usize = 1024;
 pub struct Mmu {
     boot_rom: [u8; 256],
     rom_0: Vec<u8>, // [u8; KIBI_BYTE * 16],
-    rom_path: String,
+    pub interrupt_handler: InterruptHandler,
+    pub rom_path: Option<String>,
     hram: [u8; 0x7F],
     serial: Serial,
     wram_0: [u8; 0x1000],
@@ -21,7 +23,10 @@ impl Mmu {
     pub fn fetch_byte(&self, address: u16, cpu_state: &CpuState) -> u8 {
         match address {
             0..=0x7FFF => match cpu_state {
-                CpuState::Boot => *self.boot_rom.get(address as usize).unwrap(),
+                CpuState::Boot => match address {
+		    0..=255 => *self.boot_rom.get(address as usize).unwrap(),
+		    _ => panic!("Tried to call boot rom after it was already ended")
+		},
                 CpuState::NonBoot => *self.rom_0.get(address as usize).unwrap_or(&0xFFu8),
             },
             0x8000..=0x9FFF => self
@@ -63,6 +68,7 @@ impl Mmu {
             0xFF01 => self.serial.serial_data_transfer,
             0xFF02 => self.serial.serial_data_control,
             0xFF04..=0xFF07 => todo!("Reading from timer and divider, address: {:X}", address),
+	    0xFF0F => self.interrupt_handler.IF,
             0xFF42 => 0, // TODO: Stubbed to 0x0 because 0xFF42 is SCY and some roms wait for SCY to be set to 0
             0xFF44 => 0x90, // TODO: Stubbed to 0x90 because 0xFF40 is LY and some roms wait for LY to be set to 0x90
             0xFF40..=0xFF4B => todo!(
@@ -74,6 +80,7 @@ impl Mmu {
                 .get((address - 0xFF80) as usize)
                 .unwrap()
                 .to_owned(),
+	    0xFFFF => self.interrupt_handler.IE,
             _ => 0xFF,
         }
     }
@@ -101,6 +108,7 @@ impl Mmu {
             0xFF01 => self.serial.write_to_transfer(received_byte),
             0xFF02 => self.serial.serial_data_control = received_byte,
             0xFF07 => todo!("Writing to TMA timer control, address: {:X}", address),
+	    0xFFFF => self.interrupt_handler.IF = received_byte,
             0xFF40..=0xFF4B => (), // TODO: bunch off ppu status and controls
             0xFF50 => {
                 if received_byte > 0 {
@@ -108,26 +116,23 @@ impl Mmu {
                 }
             }
             0xFF80..=0xFFFE => self.hram[((address - 0xFF80u16) as usize)] = received_byte,
+	    0xFFFF => self.interrupt_handler.IE = received_byte,
             _ => (),
         };
     }
 
-    pub fn new(rom_path: String) -> Self {
+    pub fn new() -> Self {
         // Load the rom only cartridge, if there isn't a rom, load a load of nothing
-        let rom_load = match std::fs::read(&rom_path) {
-            Ok(vec) => vec,
-            Err(_) => [0; KIBI_BYTE * 16].to_vec(),
-        };
-
         Self {
-            rom_0: rom_load, //[0; KIBI_BYTE * 16],
+            rom_0: [0; KIBI_BYTE * 16].to_vec(), //[0; KIBI_BYTE * 16],
             hram: [0; 0x7F],
             wram_0: [0; 0x1000],
             wram_1: [0; 0x1000],
-            rom_path,
             ppu: Ppu::new(),
-            joypad: Default::default(),
-            serial: Default::default(),
+            joypad: Joypad::default(),
+            serial: Serial::default(),
+	    rom_path: None,
+	    interrupt_handler: InterruptHandler::default(),
             boot_rom: [
                 0x31, 0xFE, 0xFF, 0xAF, 0x21, 0xFF, 0x9F, 0x32, 0xCB, 0x7C, 0x20, 0xFB, 0x21, 0x26,
                 0xFF, 0x0E, 0x11, 0x3E, 0x80, 0x32, 0xE2, 0x0C, 0x3E, 0xF3, 0xE2, 0x32, 0x3E, 0x77,
@@ -150,5 +155,16 @@ impl Mmu {
                 0x3E, 0x01, 0xE0, 0x50,
             ],
         }
+    }
+
+    pub fn load_rom(mut self, rom_path: String) -> Result<Mmu, &'static str> {
+	if let Ok(vec) = std::fs::read(&rom_path) {
+	    self.rom_0 = vec;
+	}else {
+	    return Err("");
+	}
+
+	self.rom_path = Some(rom_path);
+	Ok(self)
     }
 }
