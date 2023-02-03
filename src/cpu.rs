@@ -8,6 +8,7 @@ use crate::mmu::Mmu;
 pub enum CpuState {
     Boot,
     NonBoot,
+    Stopped,
 }
 
 pub struct Cpu {
@@ -35,7 +36,7 @@ impl Cpu {
 
     // Cycle the cpu once, fetch an instruction and run it, returns the number of t-cycles it took to run it
     pub fn cycle(&mut self, mmu: &mut Mmu) -> i32 {
-        let mut delta_cycles = 4;
+        let mut delta_cycles = 0;
         let first_byte = self.fetch_byte(mmu);
 
         // Fetch cycles are already included in te execute_* functions, this shouldn't happen but I am too lazy to fix it for now
@@ -43,6 +44,9 @@ impl Cpu {
             0xCB => self.execute_cb(mmu),
             _ => self.execute(first_byte, mmu),
         };
+
+	// TODO: Update the timers
+	mmu.timer.step(&self.state, delta_cycles, &mut mmu.interrupt_handler);
 
         delta_cycles += self.handle_interrupts(mmu);
 
@@ -326,6 +330,10 @@ impl Cpu {
                 self.registers.a = self.registers.h;
                 4
             }
+	    0x7D => {
+		self.registers.a = self.registers.l;
+		4
+	    }
             0x90 => {
                 self.registers.a = self.sub_u8_reg(self.registers.b);
                 4
@@ -399,6 +407,10 @@ impl Cpu {
                     mmu.fetch_byte(0xFF00u16.wrapping_add(self.registers.c as u16), &self.state);
                 8
             }
+	    0xF3 => {
+		mmu.interrupt_handler.enabled = false;
+		4
+	    }
             0xFE => {
                 let number = self.fetch_byte(mmu);
                 self.cp(number);
@@ -521,5 +533,6 @@ fn initialize_cpu_state_defaults(cpu: &mut Cpu) {
     cpu.registers.e = 0xD8;
     cpu.registers.h = 0x1;
     cpu.registers.l = 0x4D;
+    cpu.pc = 0x100;
     cpu.sp = 0xfffe;
 }

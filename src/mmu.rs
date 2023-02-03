@@ -3,20 +3,22 @@ use crate::interrupt_handler::InterruptHandler;
 use crate::joypad::Joypad;
 use crate::ppu::Ppu;
 use crate::serial::Serial;
+use crate::timer::Timer;
 
 const KIBI_BYTE: usize = 1024;
 
 pub struct Mmu {
     boot_rom: [u8; 256],
-    rom_0: Vec<u8>, // [u8; KIBI_BYTE * 16],
-    pub interrupt_handler: InterruptHandler,
-    pub rom_path: String,
     hram: [u8; 0x7F],
+    pub interrupt_handler: InterruptHandler,
+    pub joypad: Joypad,
+    rom_0: Vec<u8>, // [u8; KIBI_BYTE * 16],
+    pub rom_path: String,
+    pub timer: Timer,
+    ppu: Ppu,
     serial: Serial,
     wram_0: [u8; 0x1000],
     wram_1: [u8; 0x1000],
-    pub joypad: Joypad,
-    ppu: Ppu,
 }
 
 impl Mmu {
@@ -28,6 +30,7 @@ impl Mmu {
                     _ => panic!("Tried to call boot rom after it was already ended"),
                 },
                 CpuState::NonBoot => *self.rom_0.get(address as usize).unwrap_or(&0xFFu8),
+		CpuState::Stopped => 0xFF,
             },
             0x8000..=0x9FFF => self
                 .ppu
@@ -61,7 +64,7 @@ impl Mmu {
             0xFF00 => self.joypad.byte,
             0xFF01 => self.serial.serial_data_transfer,
             0xFF02 => self.serial.serial_data_control,
-            0xFF04..=0xFF07 => todo!("Reading from timer and divider, address: {:X}", address),
+            0xFF04..=0xFF07 => self.timer.read_byte(address),
             0xFF0F => self.interrupt_handler.IF,
             0xFF42 => 0, // TODO: Stubbed to 0x0 because 0xFF42 is SCY and some roms wait for SCY to be set to 0
             0xFF44 => 0x90, // TODO: Stubbed to 0x90 because 0xFF40 is LY and some roms wait for LY to be set to 0x90
@@ -101,7 +104,7 @@ impl Mmu {
             0xFF00 => self.joypad.write_to_byte(received_byte),
             0xFF01 => self.serial.write_to_transfer(received_byte),
             0xFF02 => self.serial.serial_data_control = received_byte,
-            0xFF07 => todo!("Writing to TMA timer control, address: {:X}", address),
+            0xFF04..=0xFF07 => self.timer.write_byte(address, received_byte),
             0xFF0F => self.interrupt_handler.IF = received_byte,
             0xFF40..=0xFF4B => (), // TODO: bunch off ppu status and controls
             0xFF50 => {
@@ -125,6 +128,7 @@ impl Mmu {
             ppu: Ppu::new(),
             joypad: Joypad::default(),
             serial: Serial::default(),
+	    timer: Timer::default(),
             rom_path: String::from(""),
             interrupt_handler: InterruptHandler::default(),
             boot_rom: [
