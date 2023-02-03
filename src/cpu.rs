@@ -28,7 +28,7 @@ impl Cpu {
             registers: CpuRegisters::default(),
         };
 
-	// Skip the bootrom, and go straight to running the program
+        // Skip the bootrom, and go straight to running the program
         if cpu.state == CpuState::NonBoot {
             cpu.registers.a = 1;
             cpu.registers.f = 0xB0;
@@ -72,12 +72,8 @@ impl Cpu {
 
     // Services all serviciable interrupts and returns the number of t-cycles this handling took
     fn handle_interrupts(&mut self, mmu: &mut Mmu) -> i32 {
-        let mut interrupt_cycles = 0;
-
-        if !mmu.interrupt_handler.enabled
-            || mmu.interrupt_handler.IE == 0
-        {
-	    // It isn't possible to service any interrupt
+        if !mmu.interrupt_handler.enabled || mmu.interrupt_handler.IE == 0 {
+            // It isn't possible to service any interrupt
             return 0;
         }
 
@@ -87,23 +83,21 @@ impl Cpu {
         for interrupt_type in Interrupt::iter() {
             if interrupt_type.mask() & mmu.interrupt_handler.IF > 0
                 && interrupt_type.mask() & mmu.interrupt_handler.IE > 0
+		&& mmu.interrupt_handler.enabled
             {
                 // Service interrupt, set ime to false and reset the respective IF bit on the handler
                 mmu.interrupt_handler.unrequest_interrupt(&interrupt_type);
 
                 // CALL interrupt_vector
                 self.push_u16_to_stack(self.pc, mmu);
-		self.pc = interrupt_type.jump_vector();
+                self.pc = interrupt_type.jump_vector();
 
-                interrupt_cycles += 20
+		// Disable IME
+		mmu.interrupt_handler.enabled = false;
+                return 20;
             }
-	}
-	// It is possible to have more than one interrupt at a time,
-	// so we only disable it outside of the interrupt checking loop,
-	// because this enables it to go through every possibly requested interrupt
-        mmu.interrupt_handler.enabled = false;
-
-        interrupt_cycles
+        }
+	0
     }
 
     // Execute the instruction given and return the number of t-cycles it took to run it
