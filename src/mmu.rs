@@ -17,8 +17,7 @@ pub struct Mmu {
     pub timer: Timer,
     ppu: Ppu,
     serial: Serial,
-    wram_0: [u8; 0x1000],
-    wram_1: [u8; 0x1000],
+    wram: [u8; 0x2000],
 }
 
 impl Mmu {
@@ -40,20 +39,12 @@ impl Mmu {
                 .to_owned(),
             0xA000..=0xBFFF => todo!("Reading from external ram ({:X})", address),
             0xC000..=0xDFFF => {
-                let local_address = (address.wrapping_sub(0xC000u16)) as usize;
-                if local_address < 0x1000 {
-                    self.wram_0.get(local_address).unwrap().to_owned()
-                } else {
-                    self.wram_1.get(local_address - 0x1000).unwrap().to_owned()
-                }
-            }
+                let local_address = (address - 0xC000) as usize;
+		self.wram.get(local_address).unwrap().to_owned()
+	    }
             0xE000..=0xFDFF => {
                 let local_address = (address.wrapping_sub(0xE000u16)) as usize;
-                if local_address < 0x1000 {
-                    self.wram_0.get(local_address).unwrap().to_owned()
-                } else {
-                    self.wram_1.get(local_address - 0x1000).unwrap().to_owned()
-                }
+		self.wram.get(local_address).unwrap().to_owned()
             }
             0xFE00..=0xFE9F => self
                 .ppu
@@ -93,11 +84,7 @@ impl Mmu {
             ),
             0xC000..=0xDFFF => {
                 let local_address = (address - 0xC000u16) as usize;
-                if local_address < 0x1000 {
-                    self.wram_0[local_address] = received_byte;
-                } else {
-                    self.wram_0[local_address - 0x1000] = received_byte;
-                }
+		self.wram[local_address] = received_byte;
             }
             0xE000..=0xFDFF => todo!("Writing to ECHO RAM ({:X}), {}", address, received_byte),
             0xFE00..=0xFE9F => todo!("Writing to OAM RAM ({:X}), {}", address, received_byte),
@@ -123,8 +110,7 @@ impl Mmu {
         Self {
             rom_0: [0; KIBI_BYTE * 16].to_vec(), //[0; KIBI_BYTE * 16],
             hram: [0; 0x7F],
-            wram_0: [0; 0x1000],
-            wram_1: [0; 0x1000],
+            wram: [0; 0x2000],
             ppu: Ppu::new(),
             joypad: Joypad::default(),
             serial: Serial::default(),
