@@ -24,9 +24,9 @@ impl Mmu {
         match address {
             0..=0x7FFF => match cpu_state {
                 CpuState::Boot => match address {
-		    0..=255 => *self.boot_rom.get(address as usize).unwrap(),
-		    _ => panic!("Tried to call boot rom after it was already ended")
-		},
+                    0..=255 => *self.boot_rom.get(address as usize).unwrap(),
+                    _ => panic!("Tried to call boot rom after it was already ended"),
+                },
                 CpuState::NonBoot => *self.rom_0.get(address as usize).unwrap_or(&0xFFu8),
             },
             0x8000..=0x9FFF => self
@@ -41,10 +41,7 @@ impl Mmu {
                 if local_address < 0x1000 {
                     self.wram_0.get(local_address).unwrap().to_owned()
                 } else {
-                    self.wram_1
-                        .get((local_address - 0x1000) as usize)
-                        .unwrap()
-                        .to_owned()
+                    self.wram_1.get(local_address - 0x1000).unwrap().to_owned()
                 }
             }
             0xE000..=0xFDFF => {
@@ -52,10 +49,7 @@ impl Mmu {
                 if local_address < 0x1000 {
                     self.wram_0.get(local_address).unwrap().to_owned()
                 } else {
-                    self.wram_1
-                        .get((local_address - 0x1000) as usize)
-                        .unwrap()
-                        .to_owned()
+                    self.wram_1.get(local_address - 0x1000).unwrap().to_owned()
                 }
             }
             0xFE00..=0xFE9F => self
@@ -68,7 +62,7 @@ impl Mmu {
             0xFF01 => self.serial.serial_data_transfer,
             0xFF02 => self.serial.serial_data_control,
             0xFF04..=0xFF07 => todo!("Reading from timer and divider, address: {:X}", address),
-	    0xFF0F => self.interrupt_handler.IF,
+            0xFF0F => self.interrupt_handler.IF,
             0xFF42 => 0, // TODO: Stubbed to 0x0 because 0xFF42 is SCY and some roms wait for SCY to be set to 0
             0xFF44 => 0x90, // TODO: Stubbed to 0x90 because 0xFF40 is LY and some roms wait for LY to be set to 0x90
             0xFF40..=0xFF4B => todo!(
@@ -80,7 +74,7 @@ impl Mmu {
                 .get((address - 0xFF80) as usize)
                 .unwrap()
                 .to_owned(),
-	    0xFFFF => self.interrupt_handler.IE,
+            0xFFFF => self.interrupt_handler.IE,
             _ => 0xFF,
         }
     }
@@ -108,7 +102,7 @@ impl Mmu {
             0xFF01 => self.serial.write_to_transfer(received_byte),
             0xFF02 => self.serial.serial_data_control = received_byte,
             0xFF07 => todo!("Writing to TMA timer control, address: {:X}", address),
-	    0xFFFF => self.interrupt_handler.IF = received_byte,
+            0xFF0F => self.interrupt_handler.IF = received_byte,
             0xFF40..=0xFF4B => (), // TODO: bunch off ppu status and controls
             0xFF50 => {
                 if received_byte > 0 {
@@ -116,7 +110,7 @@ impl Mmu {
                 }
             }
             0xFF80..=0xFFFE => self.hram[((address - 0xFF80u16) as usize)] = received_byte,
-	    0xFFFF => self.interrupt_handler.IE = received_byte,
+            0xFFFF => self.interrupt_handler.IE = received_byte,
             _ => (),
         };
     }
@@ -131,8 +125,8 @@ impl Mmu {
             ppu: Ppu::new(),
             joypad: Joypad::default(),
             serial: Serial::default(),
-	    rom_path: None,
-	    interrupt_handler: InterruptHandler::default(),
+            rom_path: None,
+            interrupt_handler: InterruptHandler::default(),
             boot_rom: [
                 0x31, 0xFE, 0xFF, 0xAF, 0x21, 0xFF, 0x9F, 0x32, 0xCB, 0x7C, 0x20, 0xFB, 0x21, 0x26,
                 0xFF, 0x0E, 0x11, 0x3E, 0x80, 0x32, 0xE2, 0x0C, 0x3E, 0xF3, 0xE2, 0x32, 0x3E, 0x77,
@@ -158,13 +152,13 @@ impl Mmu {
     }
 
     pub fn load_rom(mut self, rom_path: String) -> Result<Mmu, &'static str> {
-	if let Ok(vec) = std::fs::read(&rom_path) {
-	    self.rom_0 = vec;
-	}else {
-	    return Err("");
-	}
+        if let Ok(vec) = std::fs::read(&rom_path) {
+            self.rom_0 = vec;
+        } else {
+            return Err("");
+        }
 
-	self.rom_path = Some(rom_path);
-	Ok(self)
+        self.rom_path = Some(rom_path);
+        Ok(self)
     }
 }

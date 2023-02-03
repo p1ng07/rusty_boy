@@ -1,8 +1,6 @@
-use log::info;
 use strum::IntoEnumIterator;
-use strum_macros::EnumIter;
 
-use crate::cpu_registers::{self, CpuRegisters};
+use crate::cpu_registers::CpuRegisters;
 use crate::interrupt_handler::*;
 use crate::mmu::Mmu;
 
@@ -83,7 +81,7 @@ impl Cpu {
         for interrupt_type in Interrupt::iter() {
             if interrupt_type.mask() & mmu.interrupt_handler.IF > 0
                 && interrupt_type.mask() & mmu.interrupt_handler.IE > 0
-		&& mmu.interrupt_handler.enabled
+                && mmu.interrupt_handler.enabled
             {
                 // Service interrupt, set ime to false and reset the respective IF bit on the handler
                 mmu.interrupt_handler.unrequest_interrupt(&interrupt_type);
@@ -92,12 +90,12 @@ impl Cpu {
                 self.push_u16_to_stack(self.pc, mmu);
                 self.pc = interrupt_type.jump_vector();
 
-		// Disable IME
-		mmu.interrupt_handler.enabled = false;
+                // Disable IME
+                mmu.interrupt_handler.enabled = false;
                 return 20;
             }
         }
-	0
+        0
     }
 
     // Execute the instruction given and return the number of t-cycles it took to run it
@@ -203,8 +201,7 @@ impl Cpu {
             }
             0x1A => {
                 // LD A, (DE)
-                self.registers.a =
-                    mmu.fetch_byte(self.registers.get_de().try_into().unwrap(), &self.state);
+                self.registers.a = mmu.fetch_byte(self.registers.get_de(), &self.state);
                 8
             }
             0x1C => {
@@ -224,7 +221,7 @@ impl Cpu {
                 if !self.registers.is_zero_flag_high() {
                     let offset = self.fetch_byte(mmu) as i8;
                     if offset < 0 {
-                        self.pc = self.pc.wrapping_sub(offset.abs() as u16);
+                        self.pc = self.pc.wrapping_sub(offset.unsigned_abs() as u16);
                     } else {
                         self.pc = self.pc.wrapping_sub(offset as u16);
                     }
@@ -259,7 +256,7 @@ impl Cpu {
                 if self.registers.is_zero_flag_high() {
                     let offset = self.fetch_byte(mmu) as i8;
                     if offset < 0 {
-                        self.pc = self.pc.wrapping_sub(offset.abs() as u16);
+                        self.pc = self.pc.wrapping_sub(offset.unsigned_abs() as u16);
                     } else {
                         self.pc = self.pc.wrapping_sub(offset as u16);
                     }
@@ -282,11 +279,7 @@ impl Cpu {
             }
             0x32 => {
                 // ld (hl-), A
-                mmu.write_byte(
-                    &mut self.state,
-                    self.registers.get_hl().into(),
-                    self.registers.a,
-                );
+                mmu.write_byte(&mut self.state, self.registers.get_hl(), self.registers.a);
                 self.registers
                     .set_hl(self.registers.get_hl().wrapping_sub(1));
                 4
@@ -323,11 +316,7 @@ impl Cpu {
             }
             0x77 => {
                 // LD (hl), A
-                mmu.write_byte(
-                    &mut self.state,
-                    self.registers.get_hl().into(),
-                    self.registers.a,
-                );
+                mmu.write_byte(&mut self.state, self.registers.get_hl(), self.registers.a);
                 8
             }
             0x78 => {

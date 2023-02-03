@@ -38,15 +38,15 @@ fn main() {
 
     let mut mmu: Mmu = match args.get(1) {
         Some(path_to_rom) => match Mmu::new().load_rom(path_to_rom.to_owned()) {
-	    Ok(my_mmu) => my_mmu,
-	    Err(_) => panic!("It wasn't possible to open the rom")
-	},
+            Ok(my_mmu) => my_mmu,
+            Err(_) => panic!("It wasn't possible to open the rom"),
+        },
         None => Mmu::new(),
     };
 
     while !rl.window_should_close() {
         // Update joypad input state
-	// TODO: Make this request a joypad interrupt
+        // TODO: Make this request a joypad interrupt
         mmu.joypad.update_input(&mut rl);
 
         // run 69905 t-cycles of cpu work, equating to 4MHz of t-cycles per second

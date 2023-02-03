@@ -10,6 +10,7 @@ pub struct CpuRegisters {
     pub l: u8,
 }
 
+#[allow(dead_code)]
 impl CpuRegisters {
     pub fn get_af(&self) -> u16 {
         u16::from(self.a) << 8 | u16::from(self.f)
@@ -95,21 +96,5 @@ impl CpuRegisters {
 
     pub(crate) fn unset_flags(&mut self) {
         self.f = 0;
-    }
-
-    pub fn inc_c(&mut self) {
-        let old_c = self.c;
-        self.c += 1;
-
-        // Zero flag
-        if self.c == 0 {
-            self.f |= 0b1000_0000;
-        }
-        // Overflow occurred, set carry flag
-        if old_c > self.c {
-            self.f |= 0b0001_0000;
-        }
-        // Half carry flag
-        self.f |= ((old_c & 0xf) + 1) & 0x10 << 4;
     }
 }
