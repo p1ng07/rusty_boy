@@ -77,7 +77,7 @@ impl Mmu {
 	let lower = word as u8;
 	self.write_byte(address, lower, cpu_state);
 	let high = (word >> 8) as u8;
-	self.write_byte(address + 1, lower, cpu_state);
+	self.write_byte(address + 1, high, cpu_state);
     }
 
     pub fn write_byte(&mut self, address: u16, received_byte: u8,cpu_state: &mut CpuState) {

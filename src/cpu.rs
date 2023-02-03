@@ -123,17 +123,21 @@ impl Cpu {
 		self.registers.set_bc(n);
 		12
 	    }
+	    0x02 => {
+		mmu.write_byte(self.registers.get_bc(), self.registers.a, &mut self.state);
+		8
+	    }
 	    0x03 => {
 		self.registers.set_bc(self.registers.get_bc().wrapping_add(1));
 		8
 	    }
             0x04 => {
-                self.registers.b = self.inc_u8_reg(self.registers.b);
+                self.registers.b = self.registers.inc_u8_reg(self.registers.b);
                 4
             }
             0x05 => {
                 // DEC B
-                self.registers.b = self.dec_u8_reg(self.registers.b);
+                self.registers.b = self.registers.dec_u8_reg(self.registers.b);
                 5
             }
             0x06 => {
@@ -141,13 +145,33 @@ impl Cpu {
                 self.registers.b = self.fetch_byte(mmu);
                 8
             }
+	    0x07 => {
+		self.registers.rlca();
+		4
+	    }
+	    0x08 => {
+		mmu.write_word(self.fetch_word(mmu), self.sp,&mut self.state, );
+		20
+	    }
+	    0x09 => {
+		self.registers.add_hl_u16(self.registers.get_bc());
+		8
+	    }
+	    0x0A => {
+		self.registers.a = mmu.fetch_byte(self.registers.get_bc(), &self.state);
+		8
+	    }
+	    0x0B => {
+		self.registers.dec_bc();
+		8
+	    }
             0x0C => {
                 // INC C
-                self.registers.c = self.inc_u8_reg(self.registers.c);
+                self.registers.c = self.registers.inc_u8_reg(self.registers.c);
                 4
             }
             0x0D => {
-                self.registers.c = self.dec_u8_reg(self.registers.c);
+                self.registers.c = self.registers.dec_u8_reg(self.registers.c);
                 4
             }
             0x0E => {
@@ -169,7 +193,7 @@ impl Cpu {
                 12
             }
             0x12 => {
-                mmu.write_byte(&mut self.state, self.registers.get_de(), self.registers.a);
+                mmu.write_byte(self.registers.get_de(), self.registers.a, &mut self.state);
                 8
             }
             0x13 => {
@@ -179,11 +203,11 @@ impl Cpu {
                 8
             }
             0x14 => {
-                self.registers.d = self.inc_u8_reg(self.registers.d);
+                self.registers.d = self.registers.inc_u8_reg(self.registers.d);
                 4
             }
             0x15 => {
-                self.registers.d = self.dec_u8_reg(self.registers.d);
+                self.registers.d = self.registers.dec_u8_reg(self.registers.d);
                 4
             }
             0x16 => {
@@ -192,12 +216,14 @@ impl Cpu {
             }
             0x17 => {
                 // RLA
+		let old_carry = if self.registers.is_carry_flag_high() {1} else {0};
                 self.registers.set_flags(if self.registers.a & 0x80 > 0 {
                     0b1000
                 } else {
                     0b0000
                 });
                 self.registers.a <<= 1;
+		self.registers.a |= old_carry;
                 4
             }
             0x18 => {
@@ -205,23 +231,42 @@ impl Cpu {
                 self.pc += offset as u16;
                 12
             }
+	    0x19 => {
+		self.registers.add_hl_u16(self.registers.get_de());
+		8
+	    }
             0x1A => {
                 // LD A, (DE)
                 self.registers.a = mmu.fetch_byte(self.registers.get_de(), &self.state);
                 8
             }
+	    0x1B => {
+		self.registers.dec_de();
+		8
+	    }
             0x1C => {
-                self.registers.e = self.inc_u8_reg(self.registers.e);
+                self.registers.e = self.registers.inc_u8_reg(self.registers.e);
                 4
             }
             0x1D => {
-                self.registers.e = self.dec_u8_reg(self.registers.e);
+                self.registers.e = self.registers.dec_u8_reg(self.registers.e);
                 4
             }
             0x1E => {
                 self.registers.e = self.fetch_byte(mmu);
                 8
             }
+	    0x1F => {
+		let old_carry = if self.registers.is_carry_flag_high() {1} else {0};
+		self.registers.set_flags(if self.registers.a & 0x01 > 0 {
+                    0b1000
+                } else {
+                    0b0000
+                });
+                self.registers.a >>= 1;
+		self.registers.a |= old_carry << 7;
+                4
+	    }
             0x20 => {
                 // JR NZ, i8
                 if !self.registers.is_zero_flag_high() {
@@ -244,7 +289,7 @@ impl Cpu {
             }
             0x22 => {
                 // LD (HL++), A
-                mmu.write_byte(&mut self.state, self.registers.get_hl(), self.registers.a);
+                mmu.write_byte(self.registers.get_hl(), self.registers.a, &mut self.state);
                 self.registers.set_hl(self.registers.get_hl() + 1);
                 8
             }
@@ -255,9 +300,17 @@ impl Cpu {
                 8
             }
             0x24 => {
-                self.registers.h = self.inc_u8_reg(self.registers.h);
+                self.registers.h = self.registers.inc_u8_reg(self.registers.h);
                 4
             }
+	    0x25 => {
+		self.registers.h = self.registers.dec_u8_reg(self.registers.h);
+		4
+	    }
+	    0x26 => {
+		self.registers.h = self.fetch_byte(mmu);
+		8
+	    }
             0x28 => {
                 if self.registers.is_zero_flag_high() {
                     let offset = self.fetch_byte(mmu) as i8;
@@ -271,6 +324,10 @@ impl Cpu {
                 self.pc += 1;
                 8
             }
+	    0x29 => {
+		self.registers.add_hl_u16(self.registers.get_hl());
+		8
+	    }
             0x2A => {
                 let add = self.registers.get_hl();
                 self.registers.a = mmu.fetch_byte(add, &self.state);
@@ -278,9 +335,39 @@ impl Cpu {
                 self.registers.set_hl(new_hl);
                 8
             }
+	    0x2B => {
+		self.registers.dec_hl();
+		8
+	    }
 	    0x2C => {
-		self.registers.l = self.inc_u8_reg(self.registers.l);
+		self.registers.l = self.registers.inc_u8_reg(self.registers.l);
 		4
+	    }
+	    0x2D => {
+		self.registers.l = self.registers.dec_u8_reg(self.registers.l);
+		4
+	    }
+	    0x2E => {
+		self.registers.l = self.fetch_byte(mmu);
+		8
+	    }
+	    0x2F => {
+		self.registers.cpl();
+		4
+	    }
+	    0x30 => {
+                // JR NC, i8
+                if !self.registers.is_carry_flag_high() {
+                    let offset = self.fetch_byte(mmu) as i8;
+                    if offset < 0 {
+                        self.pc = self.pc.wrapping_sub(offset.unsigned_abs() as u16);
+                    } else {
+                        self.pc = self.pc.wrapping_sub(offset as u16);
+                    }
+                    return 12;
+                }
+                self.pc += 1;
+                8
 	    }
             0x31 => {
                 // LD SP, U16
@@ -289,13 +376,65 @@ impl Cpu {
             }
             0x32 => {
                 // ld (hl-), A
-                mmu.write_byte(&mut self.state, self.registers.get_hl(), self.registers.a);
+                mmu.write_byte(self.registers.get_hl(), self.registers.a, &mut self.state);
                 self.registers
                     .set_hl(self.registers.get_hl().wrapping_sub(1));
                 4
             }
+	    0x33 => {
+		self.sp = self.sp.wrapping_add(1);
+		8
+	    }
+	    0x34 => {
+		let value = mmu.fetch_byte(self.registers.get_hl(), &self.state).wrapping_add(1);
+		mmu.write_byte(self.registers.get_hl(), value, &mut self.state);
+		12
+	    }
+	    0x35 => {
+		let value = mmu.fetch_byte(self.registers.get_hl(), &self.state).wrapping_sub(1);
+		mmu.write_byte(self.registers.get_hl(), value, &mut self.state);
+		12
+	    }
+	    0x36 => {
+		mmu.write_byte(self.registers.get_hl(), self.fetch_byte(mmu), &mut self.state);
+		12
+	    }
+	    0x37 => {
+		self.registers.set_carry_flag(true);
+		12
+	    }
+	    0x38 => {
+                if self.registers.is_carry_flag_high() {
+                    let offset = self.fetch_byte(mmu) as i8;
+                    if offset < 0 {
+                        self.pc = self.pc.wrapping_sub(offset.unsigned_abs() as u16);
+                    } else {
+                        self.pc = self.pc.wrapping_sub(offset as u16);
+                    }
+                    return 12;
+                }
+                self.pc += 1;
+                8
+	    }
+	    0x39 => {
+		self.registers.add_hl_u16(self.sp);
+		8
+	    }
+	    0x3A => {
+		self.registers.a = mmu.fetch_byte(self.registers.get_hl(), &self.state);
+		self.registers.set_hl(self.registers.get_hl().wrapping_sub(1));
+		8
+	    }
+	    0x3B => {
+		self.sp = self.sp.wrapping_sub(1);
+		8
+	    }
+	    0x3C => {
+		self.registers.a = self.registers.inc_u8_reg(self.registers.a);
+		8
+	    }
             0x3D => {
-                self.registers.a = self.dec_u8_reg(self.registers.a);
+                self.registers.a = self.registers.dec_u8_reg(self.registers.a);
                 4
             }
             0x3E => {
@@ -303,6 +442,12 @@ impl Cpu {
                 self.registers.a = self.fetch_byte(mmu);
                 8
             }
+	    0x3F => {
+		self.registers.set_was_prev_instr_sub(false);
+		self.registers.set_half_carry(false);
+		self.registers.set_carry_flag(!self.registers.is_carry_flag_high());
+		4
+	    }
             0x44 => {
                 self.registers.b = self.registers.h;
                 4
@@ -326,7 +471,7 @@ impl Cpu {
             }
             0x77 => {
                 // LD (hl), A
-                mmu.write_byte(&mut self.state, self.registers.get_hl(), self.registers.a);
+                mmu.write_byte(self.registers.get_hl(), self.registers.a, &mut self.state);
                 8
             }
             0x78 => {
@@ -347,21 +492,20 @@ impl Cpu {
 		4
 	    }
             0x90 => {
-                self.registers.a = self.sub_u8_reg(self.registers.b);
+                self.registers.a = self.registers.sub_u8_reg(self.registers.b);
                 4
             }
 	    0xA9 => {
-		self.xor(self.registers.c);
+		self.registers.xor_u8(self.registers.c);
 		4
 	    }
             0xAF => {
                 // XOR A
-                self.registers.a ^= self.registers.a;
-                self.registers.unset_flags();
+                self.registers.xor_u8(self.registers.a);
                 4
             }
 	    0xB1 => {
-		self.or(self.registers.c);
+		self.registers.or_u8(self.registers.c);
 		4
 	    }
             0xBC => {
@@ -395,8 +539,8 @@ impl Cpu {
                 16
             }
 	    0xC6 => {
-		let n =self.fetch_byte(mmu);
-		self.add_u8(n);
+		let n = self.fetch_byte(mmu);
+		self.registers.add_u8(n);
 		8
 	    }
             0xC9 => {
@@ -413,7 +557,7 @@ impl Cpu {
             0xE0 => {
                 // LD ($FF00+u8), A
                 let address: u16 = 0xFF00 + (self.fetch_byte(mmu) as u16);
-                mmu.write_byte(&mut self.state, address, self.registers.a);
+                mmu.write_byte(address, self.registers.a, &mut self.state);
                 12
             }
 	    0xE1 => {
@@ -423,11 +567,7 @@ impl Cpu {
 	    }
             0xE2 => {
                 // LD (FF00 + C), A
-                mmu.write_byte(
-                    &mut self.state,
-                    0xFFu16 + self.registers.c as u16,
-                    self.registers.a,
-                );
+                mmu.write_byte(0xFFu16 + self.registers.c as u16, self.registers.a, &mut self.state);
                 8
             }
 	    0xE5 => {
@@ -436,12 +576,12 @@ impl Cpu {
 	    }
 	    0xE6 => {
 		let reg = self.fetch_byte(mmu);
-		self.and_u8(reg);
+		self.registers.and_u8(reg);
 		8
 	    }
             0xEA => {
                 let address = self.fetch_word(mmu);
-                mmu.write_byte(&mut self.state, address, self.registers.a);
+                mmu.write_byte(address, self.registers.a, &mut self.state);
                 16
             }
             0xF0 => {
@@ -473,7 +613,7 @@ impl Cpu {
 	    }
             0xFE => {
                 let number = self.fetch_byte(mmu);
-                self.cp(number);
+                self.registers.cp(number);
                 8
             }
             0xFF => {
@@ -489,13 +629,6 @@ impl Cpu {
         }
     }
 
-    fn and_u8(&mut self, reg: u8) {
-	self.registers.a &= reg;
-        self.registers.set_zero_flag(self.registers.a == 0);
-        self.registers.set_was_prev_instr_sub(false);
-        self.registers.set_half_carry(true);
-        self.registers.set_carry_flag(false);
-    }
 
     pub(crate) fn execute_cb(&mut self, mmu: &mut Mmu) -> i32 {
         let instruction = self.fetch_byte(mmu);
@@ -547,47 +680,12 @@ impl Cpu {
 	self.pc = address;
     }
 
-    fn sub_u8_reg(&mut self, reg: u8) -> u8 {
-        self.registers.set_carry_flag(self.registers.a < reg);
-        let result = self.registers.a.wrapping_sub(reg);
-        self.registers.set_zero_flag(self.registers.a == 0);
-        self.registers.set_was_prev_instr_sub(true);
-        self.registers
-            .set_half_carry(((self.registers.a ^ reg ^ result) & 0x10) > 0);
-        result
-    }
-
-    // Generic implementation for CP A, x opcode group
-    fn cp(&mut self, value: u8) {
-        let result = self.registers.a.wrapping_sub(value);
-        self.registers.set_zero_flag(result == 0);
-        self.registers.set_was_prev_instr_sub(true);
-        self.registers
-            .set_carry_flag(((self.registers.a ^ value ^ result) & 0x10) > 0);
-    }
-
-    fn inc_u8_reg(&mut self, reg: u8) -> u8 {
-        self.registers
-            .set_half_carry((reg & 0x0F) as u16 + 1 > 0x0F);
-        let new_reg = reg.wrapping_add(1);
-        self.registers.set_zero_flag(new_reg == 0);
-        self.registers.set_was_prev_instr_sub(false);
-        new_reg
-    }
-
-    fn dec_u8_reg(&mut self, reg: u8) -> u8 {
-        let new_reg = reg.wrapping_sub(1);
-        self.registers.set_zero_flag(new_reg == 0);
-        self.registers.set_half_carry((reg & 0x0F) == 0);
-        self.registers.set_was_prev_instr_sub(true);
-        new_reg
-    }
 
     fn push_u16_to_stack(&mut self, value_to_push: u16, mmu: &mut Mmu) {
         self.sp = self.sp.wrapping_sub(1);
-        mmu.write_byte(&mut self.state, self.sp, (value_to_push >> 8) as u8);
+        mmu.write_byte(self.sp, (value_to_push >> 8) as u8, &mut self.state);
         self.sp = self.sp.wrapping_sub(1);
-        mmu.write_byte(&mut self.state, self.sp, value_to_push as u8);
+        mmu.write_byte(self.sp, value_to_push as u8, &mut self.state);
     }
 
     fn pop_u16_from_stack(&mut self, mmu: &Mmu) -> u16 {
@@ -598,30 +696,6 @@ impl Cpu {
         (high_byte as u16) << 8 | lower_byte as u16
     }
 
-    pub(crate) fn or(&mut self, c: u8) {
-	self.registers.a |= c;
-	self.registers.set_zero_flag(self.registers.a == 0);
-	self.registers.set_was_prev_instr_sub(false);
-	self.registers.set_half_carry(false);
-	self.registers.set_carry_flag(false);
-    }
-
-    pub(crate) fn xor(&mut self, c: u8){
-	self.registers.a ^= c;
-	self.registers.set_zero_flag(self.registers.a == 0);
-	self.registers.set_was_prev_instr_sub(false);
-	self.registers.set_half_carry(false);
-	self.registers.set_carry_flag(false);
-    }
-
-    pub(crate) fn add_u8(&mut self, n: u8) {
-	self.registers.set_carry_flag(self.registers.a > self.registers.a.wrapping_add(n));
-	self.registers.set_half_carry((self.registers.a & 0x0F) + (n & 0x0F) > 0x0F);
-	self.registers.a = self.registers.a.wrapping_add(n);
-	self.registers.set_zero_flag(self.registers.a == 0);
-	self.registers.set_was_prev_instr_sub(false);
-	
-    }
 }
 
 fn initialize_cpu_state_defaults(cpu: &mut Cpu) {
