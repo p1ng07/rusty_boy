@@ -45,6 +45,43 @@ impl CpuRegisters {
         self.l = n.to_be_bytes()[1];
     }
 
+    pub(crate) fn rlca(&mut self) {
+	self.set_carry_flag(self.a & 0x80 > 1);
+	self.a <<= 1;
+    }
+    
+    pub(crate) fn and_u8(&mut self, reg: u8) {
+	self.a &= reg;
+        self.set_zero_flag(self.a == 0);
+        self.set_was_prev_instr_sub(false);
+        self.set_half_carry(true);
+        self.set_carry_flag(false);
+    }
+
+    pub(crate) fn or_u8(&mut self, c: u8) {
+	self.a |= c;
+	self.set_zero_flag(self.a == 0);
+	self.set_was_prev_instr_sub(false);
+	self.set_half_carry(false);
+	self.set_carry_flag(false);
+    }
+
+    pub(crate) fn xor_u8(&mut self, c: u8){
+	self.a ^= c;
+	self.set_zero_flag(self.a == 0);
+	self.set_was_prev_instr_sub(false);
+	self.set_half_carry(false);
+	self.set_carry_flag(false);
+    }
+
+    pub(crate) fn add_u8(&mut self, n: u8) {
+	self.set_carry_flag(self.a > self.a.wrapping_add(n));
+	self.set_half_carry((self.a & 0x0F) + (n & 0x0F) > 0x0F);
+	self.a = self.a.wrapping_add(n);
+	self.set_zero_flag(self.a == 0);
+	self.set_was_prev_instr_sub(false);
+    }
+
     pub fn set_zero_flag(&mut self, is_high: bool) {
         if is_high {
             self.f |= 0b1000_0000;
