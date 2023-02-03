@@ -10,7 +10,7 @@ pub struct Mmu {
     boot_rom: [u8; 256],
     rom_0: Vec<u8>, // [u8; KIBI_BYTE * 16],
     pub interrupt_handler: InterruptHandler,
-    pub rom_path: Option<String>,
+    pub rom_path: String,
     hram: [u8; 0x7F],
     serial: Serial,
     wram_0: [u8; 0x1000],
@@ -125,7 +125,7 @@ impl Mmu {
             ppu: Ppu::new(),
             joypad: Joypad::default(),
             serial: Serial::default(),
-            rom_path: None,
+            rom_path: String::from(""),
             interrupt_handler: InterruptHandler::default(),
             boot_rom: [
                 0x31, 0xFE, 0xFF, 0xAF, 0x21, 0xFF, 0x9F, 0x32, 0xCB, 0x7C, 0x20, 0xFB, 0x21, 0x26,
@@ -151,14 +151,16 @@ impl Mmu {
         }
     }
 
-    pub fn load_rom(mut self, rom_path: String) -> Result<Mmu, &'static str> {
+    // Tries to load the rom, returns true if it was sucessful, false otherwise
+    pub fn load_rom(&mut self, rom_path: String) -> bool{
+	// TODO: This is only dumping the rom into the temporary rom_0 vector, this will be an mbc controller
+        self.rom_path = rom_path;
         if let Ok(vec) = std::fs::read(&rom_path) {
             self.rom_0 = vec;
         } else {
-            return Err("");
+	    return false;
         }
 
-        self.rom_path = Some(rom_path);
-        Ok(self)
+	true
     }
 }

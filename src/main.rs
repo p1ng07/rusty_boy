@@ -34,14 +34,19 @@ fn main() {
 
     log4rs::init_config(config).unwrap();
 
-    let mut cpu = cpu::Cpu::new(cpu::CpuState::Boot);
+    let mut cpu = cpu::Cpu::new(cpu::CpuState::NonBoot);
 
-    let mut mmu: Mmu = match args.get(1) {
-        Some(path_to_rom) => match Mmu::new().load_rom(path_to_rom.to_owned()) {
-            Ok(my_mmu) => my_mmu,
-            Err(_) => panic!("It wasn't possible to open the rom"),
-        },
-        None => Mmu::new(),
+    let mut mmu: Mmu = Mmu::new();
+
+    if let Some(rom_path) = args.get(1) {
+	// There was a rom path, try to load it
+        let loading_was_sucessful = mmu.load_rom(rom_path.to_owned());
+	if !loading_was_sucessful {
+	    panic!("It wasn't possible to load the rom {}", rom_path);
+	}
+    } else {
+	// Do something
+        false;
     };
 
     while !rl.window_should_close() {

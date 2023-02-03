@@ -28,13 +28,7 @@ impl Cpu {
 
         // Skip the bootrom, and go straight to running the program
         if cpu.state == CpuState::NonBoot {
-            cpu.registers.a = 1;
-            cpu.registers.f = 0xB0;
-            cpu.registers.c = 0x13;
-            cpu.registers.e = 0xD8;
-            cpu.registers.h = 0x1;
-            cpu.registers.l = 0x4D;
-            cpu.sp = 0xfffe;
+            initialize_cpu_state_defaults(&mut cpu);
         }
         cpu
     }
@@ -518,4 +512,14 @@ impl Cpu {
         self.sp = self.sp.wrapping_add(1);
         (high_byte as u16) << 8 | lower_byte as u16
     }
+}
+
+fn initialize_cpu_state_defaults(cpu: &mut Cpu) {
+    cpu.registers.a = 1;
+    cpu.registers.f = 0xB0;
+    cpu.registers.c = 0x13;
+    cpu.registers.e = 0xD8;
+    cpu.registers.h = 0x1;
+    cpu.registers.l = 0x4D;
+    cpu.sp = 0xfffe;
 }
