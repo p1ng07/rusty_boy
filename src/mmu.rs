@@ -155,7 +155,7 @@ impl Mmu {
     pub fn load_rom(&mut self, rom_path: String) -> bool{
 	// TODO: This is only dumping the rom into the temporary rom_0 vector, this will be an mbc controller
         self.rom_path = rom_path;
-        if let Ok(vec) = std::fs::read(&rom_path) {
+        if let Ok(vec) = std::fs::read(&self.rom_path) {
             self.rom_0 = vec;
         } else {
 	    return false;
