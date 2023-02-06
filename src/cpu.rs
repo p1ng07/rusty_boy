@@ -825,8 +825,64 @@ impl Cpu {
                 self.registers.sub_u8_reg(self.registers.a - self.registers.is_carry_flag_high() as u8);
                 4
             }
+	    0xA0 => {
+		self.registers.and_u8(self.registers.b);
+		4
+	    }
+	    0xA1 => {
+		self.registers.and_u8(self.registers.c);
+		4
+	    }
+	    0xA2 => {
+		self.registers.and_u8(self.registers.d);
+		4
+	    }
+	    0xA3 => {
+		self.registers.and_u8(self.registers.e);
+		4
+	    }
+	    0xA4 => {
+		self.registers.and_u8(self.registers.h);
+		4
+	    }
+	    0xA5 => {
+		self.registers.and_u8(self.registers.l);
+		4
+	    }
+	    0xA6 => {
+		self.registers.and_u8(mmu.fetch_byte(self.registers.get_hl(), &self.state));
+		8
+	    }
+	    0xA7 => {
+		self.registers.and_u8(self.registers.a);
+		4
+	    }
+	    0xA8 => {
+		self.registers.xor_u8(self.registers.b);
+		4
+	    }
 	    0xA9 => {
 		self.registers.xor_u8(self.registers.c);
+		4
+	    }
+	    0xAA => {
+		self.registers.xor_u8(self.registers.d);
+		4
+	    }
+	    0xAB => {
+		self.registers.xor_u8(self.registers.e);
+		4
+	    }
+	    0xAC => {
+		self.registers.xor_u8(self.registers.h);
+		4
+	    }
+	    0xAD => {
+		self.registers.xor_u8(self.registers.l);
+		4
+	    }
+	    0xAE => {
+		self.registers.xor_u8(mmu.fetch_byte(self.registers.get_hl(), &self.state));
 		4
 	    }
             0xAF => {
