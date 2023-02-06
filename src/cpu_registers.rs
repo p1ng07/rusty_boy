@@ -144,13 +144,13 @@ impl CpuRegisters {
 	self.set_hl(new_reg);
     }
 
-    pub(crate) fn sub_u8_reg(&mut self, reg: u8) -> u8 {
+    pub(crate) fn sub_u8_reg(&mut self, reg: u8){
         self.set_carry_flag(self.a < reg);
         let result = self.a.wrapping_sub(reg);
         self.set_zero_flag(self.a == 0);
         self.set_was_prev_instr_sub(true);
         self.set_half_carry(((self.a ^ reg ^ result) & 0x10) > 0);
-        result
+	self.a = result;
     }
 
 

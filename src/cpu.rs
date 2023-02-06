@@ -762,7 +762,67 @@ impl Cpu {
 		4
 	    }
             0x90 => {
-                self.registers.a = self.registers.sub_u8_reg(self.registers.b);
+                self.registers.sub_u8_reg(self.registers.b);
+                4
+            }
+            0x91 => {
+                self.registers.sub_u8_reg(self.registers.c);
+                4
+            }
+            0x92 => {
+                self.registers.sub_u8_reg(self.registers.d);
+                4
+            }
+            0x93 => {
+                self.registers.sub_u8_reg(self.registers.e);
+                4
+            }
+            0x94 => {
+                self.registers.sub_u8_reg(self.registers.h);
+                4
+            }
+            0x95 => {
+                self.registers.sub_u8_reg(self.registers.l);
+                4
+            }
+            0x96 => {
+                self.registers.sub_u8_reg(mmu.fetch_byte(self.registers.get_hl(), &self.state));
+                8
+            }
+            0x97 => {
+                self.registers.sub_u8_reg(self.registers.a);
+                4
+            }
+            0x98 => {
+                self.registers.sub_u8_reg(self.registers.b - self.registers.is_carry_flag_high() as u8);
+                4
+            }
+            0x99 => {
+                self.registers.sub_u8_reg(self.registers.c - self.registers.is_carry_flag_high() as u8);
+                4
+            }
+            0x9A => {
+                self.registers.sub_u8_reg(self.registers.d - self.registers.is_carry_flag_high() as u8);
+                4
+            }
+            0x9B => {
+                self.registers.sub_u8_reg(self.registers.e - self.registers.is_carry_flag_high() as u8);
+                4
+            }
+            0x9C => {
+                self.registers.sub_u8_reg(self.registers.h - self.registers.is_carry_flag_high() as u8);
+                4
+            }
+            0x9D => {
+                self.registers.sub_u8_reg(self.registers.l - self.registers.is_carry_flag_high() as u8);
+                4
+            }
+            0x9E => {
+                self.registers.sub_u8_reg(mmu.fetch_byte(self.registers.get_hl(), &self.state) - self.registers.is_carry_flag_high() as u8);
+                8
+            }
+            0x9F => {
+                self.registers.sub_u8_reg(self.registers.a - self.registers.is_carry_flag_high() as u8);
                 4
             }
 	    0xA9 => {
