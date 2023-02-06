@@ -448,12 +448,60 @@ impl Cpu {
 		self.registers.set_carry_flag(!self.registers.is_carry_flag_high());
 		4
 	    }
+	    0x40 => {
+		self.registers.b = self.registers.b;
+		4
+	    }
+	    0x41 => {
+		self.registers.b = self.registers.c;
+		4
+	    }
+	    0x42 => {
+		self.registers.b = self.registers.d;
+		4
+	    }
+	    0x43 => {
+		self.registers.b = self.registers.e;
+		4
+	    }
             0x44 => {
                 self.registers.b = self.registers.h;
                 4
             }
+	    0x45 => {
+		self.registers.b = self.registers.l;
+		4
+	    }
+	    0x46 => {
+		self.registers.b = mmu.fetch_byte(self.registers.get_hl(), &self.state);
+		8
+	    }
             0x47 => {
                 self.registers.b = self.registers.a;
+                4
+            }
+            0x48 => {
+                self.registers.c = self.registers.b;
+                4
+            }
+            0x49 => {
+                self.registers.c = self.registers.c;
+                4
+            }
+            0x4A => {
+                self.registers.c = self.registers.d;
+                4
+            }
+            0x4B => {
+                self.registers.c = self.registers.e;
+                4
+            }
+            0x4C => {
+                self.registers.c = self.registers.h;
+                4
+            }
+            0x4E => {
+                self.registers.c = self.registers.l;
                 4
             }
             0x4F => {
@@ -461,16 +509,159 @@ impl Cpu {
                 self.registers.c = self.registers.a;
                 4
             }
+            0x50 => {
+                self.registers.d = self.registers.b;
+                4
+            }
+            0x51 => {
+                self.registers.d = self.registers.c;
+                4
+            }
+            0x52 => {
+                self.registers.d = self.registers.d;
+                4
+            }
+            0x53 => {
+                self.registers.d = self.registers.e;
+                4
+            }
+            0x54 => {
+                self.registers.d = self.registers.h;
+                4
+            }
+            0x55 => {
+                self.registers.d = self.registers.l;
+                4
+            }
+            0x56 => {
+                self.registers.d = mmu.fetch_byte(self.registers.get_hl(), &self.state);
+                8
+            }
             0x57 => {
                 self.registers.d = self.registers.a;
                 4
+            }
+            0x58 => {
+                self.registers.e = self.registers.b;
+                4
+            }
+            0x59 => {
+                self.registers.e = self.registers.c;
+                4
+            }
+            0x5A => {
+                self.registers.e = self.registers.e;
+                4
+            }
+            0x5B => {
+                self.registers.e = self.registers.e;
+                4
+            }
+            0x5C => {
+                self.registers.e = self.registers.h;
+                4
+            }
+            0x5D => {
+                self.registers.e = self.registers.l;
+                4
+            }
+            0x5E => {
+                self.registers.e = mmu.fetch_byte(self.registers.get_hl(), &self.state);
+                8
+            }
+            0x5F => {
+                self.registers.e = self.registers.a;
+                4
+            }
+            0x60 => {
+                self.registers.h = self.registers.b;
+                4
+            }
+            0x61 => {
+                self.registers.h = self.registers.c;
+                4
+            }
+            0x62 => {
+                self.registers.h = self.registers.d;
+                4
+            }
+            0x63 => {
+                self.registers.h = self.registers.e;
+                4
+            }
+            0x64 => {
+                self.registers.h = self.registers.h;
+                4
+            }
+            0x65 => {
+                self.registers.h = self.registers.l;
+                4
+            }
+            0x66 => {
+                self.registers.h = mmu.fetch_byte(self.registers.get_hl(), &self.state);
+                8
             }
             0x67 => {
                 self.registers.h = self.registers.a;
                 4
             }
+            0x68 => {
+                self.registers.l = self.registers.b;
+                4
+            }
+            0x69 => {
+                self.registers.l = self.registers.c;
+                4
+            }
+            0x6A => {
+                self.registers.l = self.registers.d;
+                4
+            }
+            0x6B => {
+                self.registers.l = self.registers.e;
+                4
+            }
+            0x6C => {
+                self.registers.l = self.registers.h;
+                4
+            }
+            0x6D => {
+                self.registers.l = self.registers.l;
+                4
+            }
+            0x6E => {
+                self.registers.l = mmu.fetch_byte(self.registers.get_hl(), &self.state);
+                8
+            }
+            0x6F => {
+                self.registers.l = self.registers.a;
+                4
+            }
+            0x70 => {
+		mmu.write_byte(self.registers.get_hl(), self.registers.b, &mut self.state);
+                8
+            }
+            0x71 => {
+		mmu.write_byte(self.registers.get_hl(), self.registers.c, &mut self.state);
+                8
+            }
+            0x72 => {
+		mmu.write_byte(self.registers.get_hl(), self.registers.d, &mut self.state);
+                8
+            }
+            0x73 => {
+		mmu.write_byte(self.registers.get_hl(), self.registers.e, &mut self.state);
+                8
+            }
+            0x74 => {
+		mmu.write_byte(self.registers.get_hl(), self.registers.h, &mut self.state);
+                8
+            }
+            0x75 => {
+		mmu.write_byte(self.registers.get_hl(), self.registers.l, &mut self.state);
+                8
+            }
             0x77 => {
-                // LD (hl), A
                 mmu.write_byte(self.registers.get_hl(), self.registers.a, &mut self.state);
                 8
             }
@@ -478,18 +669,33 @@ impl Cpu {
                 self.registers.a = self.registers.b;
                 4
             }
+            0x79 => {
+                self.registers.a = self.registers.c;
+                4
+            }
+            0x7A => {
+                self.registers.a = self.registers.d;
+                4
+            }
             0x7B => {
                 self.registers.a = self.registers.e;
                 4
             }
             0x7C => {
-                // LD A, u8
                 self.registers.a = self.registers.h;
                 4
             }
 	    0x7D => {
 		self.registers.a = self.registers.l;
 		4
+	    }
+	    0x7E => {
+		self.registers.a = mmu.fetch_byte(self.registers.get_hl(), &self.state);
+		8
+	    }
+	    0x7F => {
+		self.registers.a = self.registers.a;
+		8
 	    }
             0x90 => {
                 self.registers.a = self.registers.sub_u8_reg(self.registers.b);
