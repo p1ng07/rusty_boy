@@ -119,7 +119,7 @@ impl CpuRegisters {
     }
 
     // Generic implementation for CP A, x opcode group
-    pub(crate) fn cp(&mut self, value: u8) {
+    pub(crate) fn cp_u8(&mut self, value: u8) {
         let result = self.a.wrapping_sub(value);
         self.set_zero_flag(result == 0);
         self.set_was_prev_instr_sub(true);

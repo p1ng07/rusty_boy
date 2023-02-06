@@ -890,16 +890,70 @@ impl Cpu {
                 self.registers.xor_u8(self.registers.a);
                 4
             }
+	    0xB0 => {
+		self.registers.or_u8(self.registers.b);
+		4
+	    }
 	    0xB1 => {
 		self.registers.or_u8(self.registers.c);
 		4
 	    }
-            0xBC => {
-                // POP BC
-                let new_bc = self.pop_u16_from_stack(mmu);
-                self.registers.set_bc(new_bc);
-                12
-            }
+	    0xB2 => {
+		self.registers.or_u8(self.registers.d);
+		4
+	    }
+	    0xB3 => {
+		self.registers.or_u8(self.registers.e);
+		4
+	    }
+	    0xB4 => {
+		self.registers.or_u8(self.registers.h);
+		4
+	    }
+	    0xB5 => {
+		self.registers.or_u8(self.registers.l);
+		4
+	    }
+	    0xB6 => {
+		self.registers.or_u8(mmu.fetch_byte(self.registers.get_hl(), &self.state));
+		8
+	    }
+	    0xB7 => {
+		self.registers.or_u8(self.registers.a);
+		4
+	    }
+	    0xB8 => {
+		self.registers.cp_u8(self.registers.b);
+		4
+	    }
+	    0xB9 => {
+		self.registers.cp_u8(self.registers.c);
+		4
+	    }
+	    0xBA => {
+		self.registers.cp_u8(self.registers.d);
+		4
+	    }
+	    0xBB => {
+		self.registers.cp_u8(self.registers.e);
+		4
+	    }
+	    0xBC => {
+		self.registers.cp_u8(self.registers.h);
+		4
+	    }
+	    0xBD => {
+		self.registers.cp_u8(self.registers.l);
+		4
+	    }
+	    0xBE => {
+		self.registers.cp_u8(mmu.fetch_byte(self.registers.get_hl(), &self.state));
+		8
+	    }
+	    0xBF => {
+		self.registers.cp_u8(self.registers.a);
+		4
+	    }
             0xC1 => {
                 let popped_value = self.pop_u16_from_stack(mmu);
                 self.registers.set_bc(popped_value);
@@ -999,7 +1053,7 @@ impl Cpu {
 	    }
             0xFE => {
                 let number = self.fetch_byte(mmu);
-                self.registers.cp(number);
+                self.registers.cp_u8(number);
                 8
             }
             0xFF => {
