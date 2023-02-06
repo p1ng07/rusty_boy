@@ -154,7 +154,7 @@ impl Cpu {
 		20
 	    }
 	    0x09 => {
-		self.registers.add_hl_u16(self.registers.get_bc());
+		self.registers.add_to_hl_u16(self.registers.get_bc());
 		8
 	    }
 	    0x0A => {
@@ -232,7 +232,7 @@ impl Cpu {
                 12
             }
 	    0x19 => {
-		self.registers.add_hl_u16(self.registers.get_de());
+		self.registers.add_to_hl_u16(self.registers.get_de());
 		8
 	    }
             0x1A => {
@@ -325,7 +325,7 @@ impl Cpu {
                 8
             }
 	    0x29 => {
-		self.registers.add_hl_u16(self.registers.get_hl());
+		self.registers.add_to_hl_u16(self.registers.get_hl());
 		8
 	    }
             0x2A => {
@@ -417,7 +417,7 @@ impl Cpu {
                 8
 	    }
 	    0x39 => {
-		self.registers.add_hl_u16(self.sp);
+		self.registers.add_to_hl_u16(self.sp);
 		8
 	    }
 	    0x3A => {
@@ -696,6 +696,38 @@ impl Cpu {
 	    0x7F => {
 		self.registers.a = self.registers.a;
 		8
+	    }
+	    0x80 => {
+		self.registers.add_u8(self.registers.b);
+		4
+	    }
+	    0x81 => {
+		self.registers.add_u8(self.registers.c);
+		4
+	    }
+	    0x82 => {
+		self.registers.add_u8(self.registers.d);
+		4
+	    }
+	    0x83 => {
+		self.registers.add_u8(self.registers.e);
+		4
+	    }
+	    0x84 => {
+		self.registers.add_u8(self.registers.h);
+		4
+	    }
+	    0x85 => {
+		self.registers.add_u8(self.registers.l);
+		4
+	    }
+	    0x86 => {
+		self.registers.add_u8(mmu.fetch_byte(self.registers.get_hl(), &self.state));
+		4
+	    }
+	    0x87 => {
+		self.registers.add_u8(self.registers.a);
+		4
 	    }
             0x90 => {
                 self.registers.a = self.registers.sub_u8_reg(self.registers.b);

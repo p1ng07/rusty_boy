@@ -126,6 +126,7 @@ impl CpuRegisters {
         self.set_carry_flag(((self.a ^ value ^ result) & 0x10) > 0);
     }
 
+    // Adds a u8 to the A register and sets flags accordingly
     pub(crate) fn add_u8(&mut self, n: u8) {
 	self.set_carry_flag(self.a > self.a.wrapping_add(n));
 	self.set_half_carry((self.a & 0x0F) + (n & 0x0F) > 0x0F);
@@ -134,7 +135,7 @@ impl CpuRegisters {
 	self.set_was_prev_instr_sub(false);
     }
 
-    pub(crate) fn add_hl_u16(&mut self, n: u16) {
+    pub(crate) fn add_to_hl_u16(&mut self, n: u16) {
 	let new_reg = self.get_hl().wrapping_add(n);
 	self.set_zero_flag(new_reg == 0);
 	self.set_carry_flag(self.get_hl() > self.get_hl());
