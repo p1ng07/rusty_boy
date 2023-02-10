@@ -954,6 +954,13 @@ impl Cpu {
 		self.registers.cp_u8(self.registers.a);
 		4
 	    }
+            0xC0 => {
+		if !self.registers.is_zero_flag_high() {
+		    self.ret(mmu);
+		    return 20;
+		}
+                8
+            }
             0xC1 => {
                 let popped_value = self.pop_u16_from_stack(mmu);
                 self.registers.set_bc(popped_value);
@@ -974,7 +981,6 @@ impl Cpu {
 		12
 	    }
             0xC5 => {
-                // PUSH BC
                 self.push_u16_to_stack(self.registers.get_bc(), mmu);
                 16
             }
@@ -983,19 +989,52 @@ impl Cpu {
 		self.registers.add_u8(n);
 		8
 	    }
+	    0xC7 => {
+		self.call(0x0u16, mmu);
+		16
+	    }
+	    0xC8 => {
+		if self.registers.is_zero_flag_high() {
+		    self.ret(mmu);
+		    return 20;
+		}
+		8
+	    }
             0xC9 => {
-                // RET
-                self.pc = self.pop_u16_from_stack(mmu);
+                self.ret(mmu);
                 16
             }
+            0xCA => {
+		let jump = self.fetch_word(mmu);
+		if self.registers.is_zero_flag_high() {
+		    self.pc = jump;
+		    return 20;
+		}
+                16
+            }
+            0xCC => {
+		let jump_address = self.fetch_word(mmu);
+		if self.registers.is_zero_flag_high() {
+		    self.call(jump_address, mmu);
+		    return 24;
+		}
+                12
+            }
             0xCD => {
-                // CALL nn
                 let new_address = self.fetch_word(mmu);
 		self.call(new_address, mmu);
                 24
             }
+            0xCE => {
+		let number = self.fetch_byte(mmu);
+		self.registers.add_u8(number + self.registers.is_carry_flag_high() as u8);
+		8
+            }
+            0xCF => {
+		self.call(0x08u16, mmu);
+		16
+            }
             0xE0 => {
-                // LD ($FF00+u8), A
                 let address: u16 = 0xFF00 + (self.fetch_byte(mmu) as u16);
                 mmu.write_byte(address, self.registers.a, &mut self.state);
                 12
@@ -1067,6 +1106,10 @@ impl Cpu {
                 first_byte.to_be_bytes()
             ),
         }
+    }
+
+    fn ret(&mut self, mmu: &mut Mmu) {
+        self.pc = self.pop_u16_from_stack(mmu);
     }
 
 
