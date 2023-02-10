@@ -49,7 +49,7 @@ impl CpuRegisters {
 	let high_bit = (self.a & 0x80) >> 7;
 	self.set_carry_flag(high_bit > 0);
 	self.set_was_prev_instr_sub(false);
-	self.set_half_carry(false);
+	self.set_half_carry_flag(false);
 	self.set_zero_flag(false);
 	self.a <<= 1;
 	self.a |= high_bit;
@@ -59,7 +59,7 @@ impl CpuRegisters {
 	let low_bit = self.a & 0x1;
 	self.set_carry_flag(low_bit > 0);
 	self.set_was_prev_instr_sub(false);
-	self.set_half_carry(false);
+	self.set_half_carry_flag(false);
 	self.set_zero_flag(false);
 	self.a >>= 1;
 	self.a |= low_bit << 7;
@@ -69,7 +69,7 @@ impl CpuRegisters {
 	self.a &= reg;
         self.set_zero_flag(self.a == 0);
         self.set_was_prev_instr_sub(false);
-        self.set_half_carry(true);
+        self.set_half_carry_flag(true);
         self.set_carry_flag(false);
     }
 
@@ -77,7 +77,7 @@ impl CpuRegisters {
 	self.a |= c;
 	self.set_zero_flag(self.a == 0);
 	self.set_was_prev_instr_sub(false);
-	self.set_half_carry(false);
+	self.set_half_carry_flag(false);
 	self.set_carry_flag(false);
     }
 
@@ -85,14 +85,14 @@ impl CpuRegisters {
 	self.a ^= c;
 	self.set_zero_flag(self.a == 0);
 	self.set_was_prev_instr_sub(false);
-	self.set_half_carry(false);
+	self.set_half_carry_flag(false);
 	self.set_carry_flag(false);
     }
 
     pub(crate) fn dec_u8_reg(&mut self, reg: u8) -> u8 {
         let new_reg = reg.wrapping_sub(1);
         self.set_zero_flag(new_reg == 0);
-        self.set_half_carry((reg & 0x0F) == 0);
+        self.set_half_carry_flag((reg & 0x0F) == 0);
         self.set_was_prev_instr_sub(true);
         new_reg
     }
@@ -111,7 +111,7 @@ impl CpuRegisters {
     }
 
     pub(crate) fn inc_u8_reg(&mut self, reg: u8) -> u8 {
-        self.set_half_carry((reg & 0x0F) as u16 + 1 > 0x0F);
+        self.set_half_carry_flag((reg & 0x0F) as u16 + 1 > 0x0F);
         let new_reg = reg.wrapping_add(1);
         self.set_zero_flag(new_reg == 0);
         self.set_was_prev_instr_sub(false);
@@ -129,7 +129,7 @@ impl CpuRegisters {
     // Adds a u8 to the A register and sets flags accordingly
     pub(crate) fn add_u8(&mut self, n: u8) {
 	self.set_carry_flag(self.a > self.a.wrapping_add(n));
-	self.set_half_carry((self.a & 0x0F) + (n & 0x0F) > 0x0F);
+	self.set_half_carry_flag((self.a & 0x0F) + (n & 0x0F) > 0x0F);
 	self.a = self.a.wrapping_add(n);
 	self.set_zero_flag(self.a == 0);
 	self.set_was_prev_instr_sub(false);
@@ -139,17 +139,17 @@ impl CpuRegisters {
 	let new_reg = self.get_hl().wrapping_add(n);
 	self.set_zero_flag(new_reg == 0);
 	self.set_carry_flag(self.get_hl() > self.get_hl());
-	self.set_half_carry((self.get_hl() & 0x00FF) + (n & 0x00FF) > 0xFF);
+	self.set_half_carry_flag((self.get_hl() & 0x00FF) + (n & 0x00FF) > 0xFF);
 	self.set_was_prev_instr_sub(false);
 	self.set_hl(new_reg);
     }
 
-    pub(crate) fn sub_u8_reg(&mut self, reg: u8){
+    pub(crate) fn sub_u8(&mut self, reg: u8){
         self.set_carry_flag(self.a < reg);
         let result = self.a.wrapping_sub(reg);
-        self.set_zero_flag(self.a == 0);
+        self.set_zero_flag(result == 0);
         self.set_was_prev_instr_sub(true);
-        self.set_half_carry(((self.a ^ reg ^ result) & 0x10) > 0);
+        self.set_half_carry_flag(((self.a ^ reg ^ result) & 0x10) > 0);
 	self.a = result;
     }
 
@@ -178,7 +178,7 @@ impl CpuRegisters {
         }
     }
 
-    pub fn set_half_carry(&mut self, is_high: bool) {
+    pub fn set_half_carry_flag(&mut self, is_high: bool) {
         if is_high {
             self.f |= 0b0010_0000;
         } else {
@@ -210,6 +210,6 @@ impl CpuRegisters {
     pub(crate) fn cpl(&mut self){
 	self.a ^= 0xFF;
 	self.set_was_prev_instr_sub(true);
-	self.set_half_carry(true);
+	self.set_half_carry_flag(true);
     }
 }

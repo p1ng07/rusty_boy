@@ -40,10 +40,7 @@ impl Cpu {
         let first_byte = self.fetch_byte(mmu);
 
         // Fetch cycles are already included in te execute_* functions, this shouldn't happen but I am too lazy to fix it for now
-        delta_cycles += match first_byte {
-            0xCB => self.execute_cb(mmu),
-            _ => self.execute(first_byte, mmu),
-        };
+        delta_cycles += self.execute(first_byte, mmu);
 
 	// TODO: Update the timers
 	mmu.timer.step(&self.state, delta_cycles, &mut mmu.interrupt_handler);
@@ -274,7 +271,7 @@ impl Cpu {
                     if offset < 0 {
                         self.pc = self.pc.wrapping_sub(offset.unsigned_abs() as u16);
                     } else {
-                        self.pc = self.pc.wrapping_sub(offset as u16);
+                        self.pc = self.pc.wrapping_add(offset as u16);
                     }
                     return 12;
                 }
@@ -444,7 +441,7 @@ impl Cpu {
             }
 	    0x3F => {
 		self.registers.set_was_prev_instr_sub(false);
-		self.registers.set_half_carry(false);
+		self.registers.set_half_carry_flag(false);
 		self.registers.set_carry_flag(!self.registers.is_carry_flag_high());
 		4
 	    }
@@ -730,99 +727,99 @@ impl Cpu {
 		4
 	    }
 	    0x88 => {
-		self.registers.add_u8(self.registers.b + self.registers.is_carry_flag_high() as u8);
+		self.registers.add_u8(self.registers.b.wrapping_add(self.registers.is_carry_flag_high() as u8));
 		4
 	    }
 	    0x89 => {
-		self.registers.add_u8(self.registers.c + self.registers.is_carry_flag_high() as u8);
+		self.registers.add_u8(self.registers.c.wrapping_add(self.registers.is_carry_flag_high() as u8));
 		4
 	    }
 	    0x8A => {
-		self.registers.add_u8(self.registers.d + self.registers.is_carry_flag_high() as u8);
+		self.registers.add_u8(self.registers.d.wrapping_add(self.registers.is_carry_flag_high() as u8));
 		4
 	    }
 	    0x8B => {
-		self.registers.add_u8(self.registers.e + self.registers.is_carry_flag_high() as u8);
+		self.registers.add_u8(self.registers.e.wrapping_add(self.registers.is_carry_flag_high() as u8));
 		4
 	    }
 	    0x8C => {
-		self.registers.add_u8(self.registers.h + self.registers.is_carry_flag_high() as u8);
+		self.registers.add_u8(self.registers.h.wrapping_add(self.registers.is_carry_flag_high() as u8));
 		4
 	    }
 	    0x8D => {
-		self.registers.add_u8(self.registers.l + self.registers.is_carry_flag_high() as u8);
+		self.registers.add_u8(self.registers.l.wrapping_add(self.registers.is_carry_flag_high() as u8));
 		4
 	    }
 	    0x8E => {
-		self.registers.add_u8(mmu.fetch_byte(self.registers.get_hl(), &self.state) + self.registers.is_carry_flag_high() as u8);
+		self.registers.add_u8(mmu.fetch_byte(self.registers.get_hl(), &self.state).wrapping_add(self.registers.is_carry_flag_high() as u8));
 		8
 	    }
 	    0x8F => {
-		self.registers.add_u8(self.registers.a + self.registers.is_carry_flag_high() as u8);
+		self.registers.add_u8(self.registers.a.wrapping_add(self.registers.is_carry_flag_high() as u8));
 		4
 	    }
             0x90 => {
-                self.registers.sub_u8_reg(self.registers.b);
+                self.registers.sub_u8(self.registers.b);
                 4
             }
             0x91 => {
-                self.registers.sub_u8_reg(self.registers.c);
+                self.registers.sub_u8(self.registers.c);
                 4
             }
             0x92 => {
-                self.registers.sub_u8_reg(self.registers.d);
+                self.registers.sub_u8(self.registers.d);
                 4
             }
             0x93 => {
-                self.registers.sub_u8_reg(self.registers.e);
+                self.registers.sub_u8(self.registers.e);
                 4
             }
             0x94 => {
-                self.registers.sub_u8_reg(self.registers.h);
+                self.registers.sub_u8(self.registers.h);
                 4
             }
             0x95 => {
-                self.registers.sub_u8_reg(self.registers.l);
+                self.registers.sub_u8(self.registers.l);
                 4
             }
             0x96 => {
-                self.registers.sub_u8_reg(mmu.fetch_byte(self.registers.get_hl(), &self.state));
+                self.registers.sub_u8(mmu.fetch_byte(self.registers.get_hl(), &self.state));
                 8
             }
             0x97 => {
-                self.registers.sub_u8_reg(self.registers.a);
+                self.registers.sub_u8(self.registers.a);
                 4
             }
             0x98 => {
-                self.registers.sub_u8_reg(self.registers.b - self.registers.is_carry_flag_high() as u8);
+                self.registers.sub_u8(self.registers.b.wrapping_sub(self.registers.is_carry_flag_high() as u8));
                 4
             }
             0x99 => {
-                self.registers.sub_u8_reg(self.registers.c - self.registers.is_carry_flag_high() as u8);
+                self.registers.sub_u8(self.registers.c.wrapping_sub(self.registers.is_carry_flag_high() as u8));
                 4
             }
             0x9A => {
-                self.registers.sub_u8_reg(self.registers.d - self.registers.is_carry_flag_high() as u8);
+                self.registers.sub_u8(self.registers.d.wrapping_sub(self.registers.is_carry_flag_high() as u8));
                 4
             }
             0x9B => {
-                self.registers.sub_u8_reg(self.registers.e - self.registers.is_carry_flag_high() as u8);
+                self.registers.sub_u8(self.registers.e.wrapping_sub(self.registers.is_carry_flag_high() as u8));
                 4
             }
             0x9C => {
-                self.registers.sub_u8_reg(self.registers.h - self.registers.is_carry_flag_high() as u8);
+                self.registers.sub_u8(self.registers.h.wrapping_sub(self.registers.is_carry_flag_high() as u8));
                 4
             }
             0x9D => {
-                self.registers.sub_u8_reg(self.registers.l - self.registers.is_carry_flag_high() as u8);
+                self.registers.sub_u8(self.registers.l.wrapping_sub(self.registers.is_carry_flag_high() as u8));
                 4
             }
             0x9E => {
-                self.registers.sub_u8_reg(mmu.fetch_byte(self.registers.get_hl(), &self.state) - self.registers.is_carry_flag_high() as u8);
+                self.registers.sub_u8(mmu.fetch_byte(self.registers.get_hl(), &self.state).wrapping_sub(self.registers.is_carry_flag_high() as u8));
                 8
             }
             0x9F => {
-                self.registers.sub_u8_reg(self.registers.a - self.registers.is_carry_flag_high() as u8);
+                self.registers.sub_u8(self.registers.a.wrapping_sub(self.registers.is_carry_flag_high() as u8));
                 4
             }
 	    0xA0 => {
@@ -966,6 +963,14 @@ impl Cpu {
                 self.registers.set_bc(popped_value);
                 12
             }
+	    0xC2 => {
+		let address = self.fetch_word(mmu);
+		if self.registers.is_zero_flag_high() {
+		    self.pc = address;
+		    return 16;
+		}
+		12
+	    }
             0xC3 => {
                 let address = self.fetch_word(mmu);
                 self.pc = address;
@@ -1012,6 +1017,9 @@ impl Cpu {
 		}
                 16
             }
+	    0xCB => {
+		self.execute_cb(mmu)
+	    }
             0xCC => {
 		let jump_address = self.fetch_word(mmu);
 		if self.registers.is_zero_flag_high() {
@@ -1034,6 +1042,85 @@ impl Cpu {
 		self.call(0x08u16, mmu);
 		16
             }
+            0xD0 => {
+		if !self.registers.is_carry_flag_high() {
+		    self.ret(mmu);
+		    return 20;
+		}
+                8
+            }
+            0xD1 => {
+                let popped_value = self.pop_u16_from_stack(mmu);
+                self.registers.set_de(popped_value);
+                12
+            }
+	    0xD2 => {
+		let address = self.fetch_word(mmu);
+		if self.registers.is_carry_flag_high() {
+		    self.pc = address;
+		    return 16;
+		}
+		12
+	    }
+	    0xD4 => {
+		let address = self.fetch_word(mmu);
+		if !self.registers.is_carry_flag_high() {
+		    self.call(address, mmu);
+		    return 24;
+		}
+		self.pc += 2;
+		12
+	    }
+            0xD5 => {
+                self.push_u16_to_stack(self.registers.get_de(), mmu);
+                16
+            }
+	    0xD6 => {
+		let n = self.fetch_byte(mmu);
+		self.registers.sub_u8(n);
+		8
+	    }
+	    0xD7 => {
+		self.call(0x10u16, mmu);
+		16
+	    }
+	    0xD8 => {
+		if self.registers.is_carry_flag_high() {
+		    self.ret(mmu);
+		    return 20;
+		}
+		8
+	    }
+            0xD9 => {
+                self.ret(mmu);
+		mmu.interrupt_handler.enabled = true;
+                16
+            }
+            0xDA => {
+		let jump = self.fetch_word(mmu);
+		if self.registers.is_carry_flag_high() {
+		    self.pc = jump;
+		    return 20;
+		}
+                16
+            }
+            0xDC => {
+		let jump_address = self.fetch_word(mmu);
+		if self.registers.is_carry_flag_high() {
+		    self.call(jump_address, mmu);
+		    return 24;
+		}
+                12
+            }
+            0xDE => {
+		let number = self.fetch_byte(mmu);
+		self.registers.sub_u8(number.wrapping_sub(self.registers.is_carry_flag_high() as u8));
+		8
+            }
+            0xDF => {
+		self.call(0x18u16, mmu);
+		16
+            }
             0xE0 => {
                 let address: u16 = 0xFF00 + (self.fetch_byte(mmu) as u16);
                 mmu.write_byte(address, self.registers.a, &mut self.state);
@@ -1045,7 +1132,6 @@ impl Cpu {
 		12
 	    }
             0xE2 => {
-                // LD (FF00 + C), A
                 mmu.write_byte(0xFFu16 + self.registers.c as u16, self.registers.a, &mut self.state);
                 8
             }
@@ -1058,9 +1144,42 @@ impl Cpu {
 		self.registers.and_u8(reg);
 		8
 	    }
+	    0xE7 => {
+		self.call(0x20u16, mmu);
+		16
+	    }
+	    0xE8 => {
+		let number = self.fetch_byte(mmu) as i8;
+		self.registers.set_zero_flag(false);
+		self.registers.set_was_prev_instr_sub(false);
+		
+		if number < 0 {
+		    self.registers.set_carry_flag(self.sp < number as u16);
+		    self.registers.set_half_carry_flag(((self.sp ^ number as u16 ^ self.sp.wrapping_add(number.unsigned_abs() as u16)) & 0x10) > 0);
+		    self.sp = self.sp.wrapping_sub(number.unsigned_abs() as u16);
+		} else {
+		    self.registers.set_carry_flag(self.sp > self.sp.wrapping_add(number.unsigned_abs() as u16));
+		    self.registers.set_half_carry_flag((self.sp & 0xFFu16) + number.unsigned_abs() as u16 > 0xFF);
+		    self.sp = self.sp.wrapping_add(number as u16);
+		}
+		16
+	    }
+	    0xE9 => {
+		self.pc = self.registers.get_hl();
+		4
+	    }
             0xEA => {
                 let address = self.fetch_word(mmu);
                 mmu.write_byte(address, self.registers.a, &mut self.state);
+                16
+            }
+            0xEE => {
+                let byte = self.fetch_byte(mmu);
+		self.registers.xor_u8(byte);
+                8
+            }
+            0xEF => {
+		self.call(0x28u16, mmu);
                 16
             }
             0xF0 => {
@@ -1086,9 +1205,39 @@ impl Cpu {
 		self.push_u16_to_stack(self.registers.get_af(), mmu);
 		16
 	    }
+            0xF6 => {
+		let byte = self.fetch_byte(mmu);
+		self.registers.or_u8(byte);
+		8
+            }
+            0xF7 => {
+		self.call(0x30u16, mmu);
+		16
+            }
+	    0xF8 => {
+		let number = self.fetch_byte(mmu) as i8;
+		let adder: u16;
+
+		if number >= 0 {
+		    adder = self.sp.wrapping_add(number.unsigned_abs() as u16);
+		}else {
+		    adder = self.sp.wrapping_sub(number.unsigned_abs() as u16);
+		}
+
+		self.registers.set_hl(adder);
+		12
+	    }
+	    0xF9 => {
+		self.sp = self.registers.get_hl();
+		8
+	    }
 	    0xFA => {
 		self.registers.a = mmu.fetch_byte(self.fetch_word(mmu), &self.state);
 		16
+	    }
+	    0xFB => {
+		mmu.interrupt_handler.enabled = true;
+		4
 	    }
             0xFE => {
                 let number = self.fetch_byte(mmu);
@@ -1143,7 +1292,7 @@ impl Cpu {
                     self.registers.set_carry_flag(self.registers.c & 0x80 > 0);
                     self.registers.c <<= 1;
                     self.registers.set_zero_flag(self.registers.c == 0);
-                    self.registers.set_half_carry(false);
+                    self.registers.set_half_carry_flag(false);
                     self.registers.set_was_prev_instr_sub(false);
                     8
                 }
