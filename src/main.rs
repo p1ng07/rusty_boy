@@ -37,8 +37,6 @@ fn main() {
 
     let mut cpu = cpu::Cpu::new(cpu::CpuState::NonBoot);
 
-    let mut mmu: Mmu = Mmu::new();
-
     if let Some(rom_path) = args.get(1) {
 	// There was a rom path, try to load it
         let loading_was_sucessful = mmu.load_rom(rom_path.to_owned());
@@ -53,12 +51,12 @@ fn main() {
     while !rl.window_should_close() {
         // Update joypad input state
         // TODO: Make this request a joypad interrupt
-        mmu.joypad.update_input(&mut rl, &mut mmu.interrupt_handler);
+        cpu.mmu.joypad.update_input(&mut rl, &mut mmu.interrupt_handler);
 
         // run 69905 t-cycles of cpu work, equating to 4MHz of t-cycles per second
         let mut ran_cycles = 0;
         while ran_cycles < 69905 {
-            ran_cycles += cpu.cycle(&mut mmu);
+            ran_cycles += cpu.cycle();
         }
 
         let mut d = rl.begin_drawing(&thread);

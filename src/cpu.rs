@@ -13,6 +13,7 @@ pub enum CpuState {
 
 pub struct Cpu {
     state: CpuState,
+    pub mmu: Mmu,
     pc: u16,
     sp: u16,
     registers: CpuRegisters,
@@ -23,6 +24,7 @@ impl Cpu {
         let mut cpu = Cpu {
             pc: 0,
             sp: 0,
+	    mmu: Mmu::new(),
             state: initial_state,
             registers: CpuRegisters::default(),
         };
@@ -35,7 +37,7 @@ impl Cpu {
     }
 
     // Cycle the cpu once, fetch an instruction and run it, returns the number of t-cycles it took to run it
-    pub fn cycle(&mut self, mmu: &mut Mmu) -> i32 {
+    pub fn cycle(&mut self) -> i32 {
         let mut delta_cycles = 0;
         let first_byte = self.fetch_byte(mmu);
 
