@@ -48,9 +48,14 @@ impl Cpu {
 	// TODO: Update the timers
 	self.mmu.timer.step(&self.state, delta_cycles, &mut self.mmu.interrupt_handler);
 
-        delta_cycles += self.handle_interrupts();
+        self.handle_interrupts();
 
         delta_cycles
+    }
+
+    // Ticks every component by 4-cycles
+    fn tick(&mut self) {
+	
     }
 
     fn fetch_byte(&mut self) -> u8 {
@@ -67,10 +72,10 @@ impl Cpu {
     }
 
     // Services all serviciable interrupts and returns the number of t-cycles this handling took
-    fn handle_interrupts(&mut self) -> i32 {
+    fn handle_interrupts(&mut self){
         if !self.mmu.interrupt_handler.enabled || self.mmu.interrupt_handler.IE == 0 {
             // It isn't possible to service any interrupt
-            return 0;
+            return ;
         }
 
         // Go through every interrupt possible interrupt in order of priority (bit order ex: vblank is highest priority)
@@ -89,10 +94,8 @@ impl Cpu {
 
                 // Disable IME
                 self.mmu.interrupt_handler.enabled = false;
-                return 20;
             }
         }
-        0
     }
 
     // Execute the instruction given and return the number of t-cycles it took to run it
