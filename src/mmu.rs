@@ -29,7 +29,7 @@ impl Mmu {
                     _ => panic!("Tried to call boot rom after it was already ended"),
                 },
                 CpuState::NonBoot => *self.rom_0.get(address as usize).unwrap_or(&0xFFu8),
-		CpuState::Stopped => 0xFF,
+                CpuState::Stopped => 0xFF,
             },
             0x8000..=0x9FFF => self
                 .ppu
@@ -40,11 +40,11 @@ impl Mmu {
             0xA000..=0xBFFF => todo!("Reading from external ram ({:X})", address),
             0xC000..=0xDFFF => {
                 let local_address = (address - 0xC000) as usize;
-		self.wram.get(local_address).unwrap().to_owned()
-	    }
+                self.wram.get(local_address).unwrap().to_owned()
+            }
             0xE000..=0xFDFF => {
                 let local_address = (address.wrapping_sub(0xE000u16)) as usize;
-		self.wram.get(local_address).unwrap().to_owned()
+                self.wram.get(local_address).unwrap().to_owned()
             }
             0xFE00..=0xFE9F => self
                 .ppu
@@ -74,13 +74,13 @@ impl Mmu {
     }
 
     pub fn write_word(&mut self, address: u16, word: u16, cpu_state: &mut CpuState) {
-	let lower = word as u8;
-	self.write_byte(address, lower, cpu_state);
-	let high = (word >> 8) as u8;
-	self.write_byte(address + 1, high, cpu_state);
+        let lower = word as u8;
+        self.write_byte(address, lower, cpu_state);
+        let high = (word >> 8) as u8;
+        self.write_byte(address + 1, high, cpu_state);
     }
 
-    pub fn write_byte(&mut self, address: u16, received_byte: u8,cpu_state: &mut CpuState) {
+    pub fn write_byte(&mut self, address: u16, received_byte: u8, cpu_state: &mut CpuState) {
         match address {
             0..=0x7FFF => (), // Writing to ROM
             0x8000..=0x9FFF => self.ppu.vram[(address - 0x8000) as usize] = received_byte,
@@ -91,7 +91,7 @@ impl Mmu {
             ),
             0xC000..=0xDFFF => {
                 let local_address = (address - 0xC000u16) as usize;
-		self.wram[local_address] = received_byte;
+                self.wram[local_address] = received_byte;
             }
             0xE000..=0xFDFF => todo!("Writing to ECHO RAM ({:X}), {}", address, received_byte),
             0xFE00..=0xFE9F => todo!("Writing to OAM RAM ({:X}), {}", address, received_byte),
@@ -121,7 +121,7 @@ impl Mmu {
             ppu: Ppu::new(),
             joypad: Joypad::default(),
             serial: Serial::default(),
-	    timer: Timer::default(),
+            timer: Timer::default(),
             rom_path: String::from(""),
             interrupt_handler: InterruptHandler::default(),
             boot_rom: [
@@ -149,15 +149,15 @@ impl Mmu {
     }
 
     // Tries to load the rom, returns true if it was sucessful, false otherwise
-    pub fn load_rom(&mut self, rom_path: String) -> bool{
-	// TODO: This is only dumping the rom into the temporary rom_0 vector, this will be an mbc controller
+    pub fn load_rom(&mut self, rom_path: String) -> bool {
+        // TODO: This is only dumping the rom into the temporary rom_0 vector, this will be an mbc controller
         self.rom_path = rom_path;
         if let Ok(vec) = std::fs::read(&self.rom_path) {
             self.rom_0 = vec;
         } else {
-	    return false;
+            return false;
         }
 
-	true
+        true
     }
 }

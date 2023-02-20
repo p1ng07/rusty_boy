@@ -1,8 +1,8 @@
 use raylib::prelude::KeyboardKey::*;
 use raylib::RaylibHandle;
 
-use crate::interrupt_handler::InterruptHandler;
 use crate::interrupt_handler::Interrupt;
+use crate::interrupt_handler::InterruptHandler;
 
 #[derive(Default)]
 pub struct Joypad {
@@ -11,7 +11,11 @@ pub struct Joypad {
 
 impl Joypad {
     // Updates the interal byte represetation of the input, returns true if a key has been pressed
-    pub fn update_input(&mut self, raylib_handle: &mut RaylibHandle, interrupt_handler: &mut InterruptHandler) {
+    pub fn update_input(
+        &mut self,
+        raylib_handle: &mut RaylibHandle,
+        interrupt_handler: &mut InterruptHandler,
+    ) {
         let p15_mask = 0b0010_0000;
         let p14_mask = 0b0001_0000;
         let p13_mask = 0b0000_1000;
@@ -29,7 +33,7 @@ impl Joypad {
             || raylib_handle.is_key_down(KEY_S)
             || raylib_handle.is_key_down(KEY_D)
         {
-	    interrupt_handler.request_interrupt(Interrupt::Joypad);
+            interrupt_handler.request_interrupt(Interrupt::Joypad);
             byte = p14_mask;
             if raylib_handle.is_key_down(KEY_D) {
                 byte |= p10_mask;
@@ -48,7 +52,7 @@ impl Joypad {
             || raylib_handle.is_key_down(KEY_J)
             || raylib_handle.is_key_down(KEY_K)
         {
-	    interrupt_handler.request_interrupt(Interrupt::Joypad);
+            interrupt_handler.request_interrupt(Interrupt::Joypad);
             byte = p15_mask;
             if raylib_handle.is_key_down(KEY_K) {
                 byte |= p10_mask;
