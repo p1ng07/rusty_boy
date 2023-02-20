@@ -60,6 +60,7 @@ impl Cpu {
     // Ticks every component by 4 t-cycles
     fn tick(&mut self) {
 	self.delta_t_cycles += 4;
+	self.mmu.timer.step(&self.state, 4, &mut self.mmu.interrupt_handler);
     }
 
     fn fetch_byte(&mut self) -> u8 {
