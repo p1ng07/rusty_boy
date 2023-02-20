@@ -17,14 +17,15 @@ pub struct Cpu {
     pc: u16,
     sp: u16,
     registers: CpuRegisters,
+    // delta_t_cycles: u32, // t-cycles performed in the current instruction
 }
 
 impl Cpu {
-    pub fn new(initial_state: CpuState) -> Cpu {
+    pub fn new(initial_state: CpuState, mmu: Mmu) -> Cpu {
         let mut cpu = Cpu {
             pc: 0,
             sp: 0,
-	    mmu: Mmu::new(),
+	    mmu,
             state: initial_state,
             registers: CpuRegisters::default(),
         };
@@ -39,35 +40,35 @@ impl Cpu {
     // Cycle the cpu once, fetch an instruction and run it, returns the number of t-cycles it took to run it
     pub fn cycle(&mut self) -> i32 {
         let mut delta_cycles = 0;
-        let first_byte = self.fetch_byte(mmu);
+        let first_byte = self.fetch_byte();
 
         // Fetch cycles are already included in te execute_* functions, this shouldn't happen but I am too lazy to fix it for now
-        delta_cycles += self.execute(first_byte, mmu);
+        delta_cycles += self.execute(first_byte);
 
 	// TODO: Update the timers
-	mmu.timer.step(&self.state, delta_cycles, &mut mmu.interrupt_handler);
+	self.mmu.timer.step(&self.state, delta_cycles, &mut self.mmu.interrupt_handler);
 
-        delta_cycles += self.handle_interrupts(mmu);
+        delta_cycles += self.handle_interrupts();
 
         delta_cycles
     }
 
-    fn fetch_byte(&mut self, mmu: &Mmu) -> u8 {
-        let byte = mmu.fetch_byte(self.pc, &self.state);
+    fn fetch_byte(&mut self) -> u8 {
+        let byte = self.mmu.fetch_byte(self.pc, &self.state);
         self.pc += 1;
         byte
     }
 
-    pub fn fetch_word(&mut self, mmu: &Mmu) -> u16 {
-        let fetch_byte_big = self.fetch_byte(mmu) as u16;
-        let fetch_byte_small = self.fetch_byte(mmu) as u16;
+    pub fn fetch_word(&mut self) -> u16 {
+        let fetch_byte_big = self.fetch_byte() as u16;
+        let fetch_byte_small = self.fetch_byte() as u16;
 
         fetch_byte_small << 8 | fetch_byte_big
     }
 
     // Services all serviciable interrupts and returns the number of t-cycles this handling took
-    fn handle_interrupts(&mut self, mmu: &mut Mmu) -> i32 {
-        if !mmu.interrupt_handler.enabled || mmu.interrupt_handler.IE == 0 {
+    fn handle_interrupts(&mut self) -> i32 {
+        if !self.mmu.interrupt_handler.enabled || self.mmu.interrupt_handler.IE == 0 {
             // It isn't possible to service any interrupt
             return 0;
         }
@@ -76,18 +77,18 @@ impl Cpu {
         // Check if it is requested and enabled, if it is then service it
         // IMPORTANT: This iterator uses the order in which the variants are set in the enum, therefore respecting the interrupt order
         for interrupt_type in Interrupt::iter() {
-            if interrupt_type.mask() & mmu.interrupt_handler.IF > 0
-                && interrupt_type.mask() & mmu.interrupt_handler.IE > 0
-                && mmu.interrupt_handler.enabled
+            if interrupt_type.mask() & self.mmu.interrupt_handler.IF > 0
+                && interrupt_type.mask() & self.mmu.interrupt_handler.IE > 0
+                && self.mmu.interrupt_handler.enabled
             {
                 // Service interrupt, set ime to false and reset the respective IF bit on the handler
-                mmu.interrupt_handler.unrequest_interrupt(&interrupt_type);
+                self.mmu.interrupt_handler.unrequest_interrupt(&interrupt_type);
 
                 // CALL interrupt_vector
-		self.call(interrupt_type.jump_vector(), mmu);
+		self.call(interrupt_type.jump_vector());
 
                 // Disable IME
-                mmu.interrupt_handler.enabled = false;
+                self.mmu.interrupt_handler.enabled = false;
                 return 20;
             }
         }
@@ -95,7 +96,7 @@ impl Cpu {
     }
 
     // Execute the instruction given and return the number of t-cycles it took to run it
-    pub(crate) fn execute(&mut self, first_byte: u8, mmu: &mut Mmu) -> i32 {
+    pub(crate) fn execute(&mut self, first_byte: u8) -> i32 {
         // Print state of emulator to logger
         log::info!(
             "A: {} F: {} B: {} C: {} D: {} E: {} H: {} L: {} SP: {} PC: 00:{} ({} {} {} {})",
@@ -110,20 +111,20 @@ impl Cpu {
             format!("{:0>4X}", self.sp),
             format!("{:0>4X}", self.pc - 1),
             format!("{:0>2X}", first_byte),
-            format!("{:0>2X}", mmu.fetch_byte(self.pc, &self.state)),
-            format!("{:0>2X}", mmu.fetch_byte(self.pc + 1, &self.state)),
-            format!("{:0>2X}", mmu.fetch_byte(self.pc + 2, &self.state))
+            format!("{:0>2X}", self.mmu.fetch_byte(self.pc, &self.state)),
+            format!("{:0>2X}", self.mmu.fetch_byte(self.pc + 1, &self.state)),
+            format!("{:0>2X}", self.mmu.fetch_byte(self.pc + 2, &self.state))
         );
 
         match first_byte {
             0x00 => 4,
 	    0x01 => {
-		let n = self.fetch_word(mmu);
+		let n = self.fetch_word();
 		self.registers.set_bc(n);
 		12
 	    }
 	    0x02 => {
-		mmu.write_byte(self.registers.get_bc(), self.registers.a, &mut self.state);
+		self.mmu.write_byte(self.registers.get_bc(), self.registers.a, &mut self.state);
 		8
 	    }
 	    0x03 => {
@@ -141,7 +142,7 @@ impl Cpu {
             }
             0x06 => {
                 // LD B, u8
-                self.registers.b = self.fetch_byte(mmu);
+                self.registers.b = self.fetch_byte();
                 8
             }
 	    0x07 => {
@@ -149,7 +150,8 @@ impl Cpu {
 		4
 	    }
 	    0x08 => {
-		mmu.write_word(self.fetch_word(mmu), self.sp,&mut self.state, );
+		let word = self.fetch_word();
+		self.mmu.write_word(word, self.sp,&mut self.state, );
 		20
 	    }
 	    0x09 => {
@@ -157,7 +159,7 @@ impl Cpu {
 		8
 	    }
 	    0x0A => {
-		self.registers.a = mmu.fetch_byte(self.registers.get_bc(), &self.state);
+		self.registers.a = self.mmu.fetch_byte(self.registers.get_bc(), &self.state);
 		8
 	    }
 	    0x0B => {
@@ -175,7 +177,7 @@ impl Cpu {
             }
             0x0E => {
                 // LD C, u8
-                self.registers.c = self.fetch_byte(mmu);
+                self.registers.c = self.fetch_byte();
                 8
             }
             0x0F => {
@@ -187,12 +189,12 @@ impl Cpu {
             }
             0x11 => {
                 // LD BC, u16
-                let word = self.fetch_word(mmu);
+                let word = self.fetch_word();
                 self.registers.set_de(word);
                 12
             }
             0x12 => {
-                mmu.write_byte(self.registers.get_de(), self.registers.a, &mut self.state);
+                self.mmu.write_byte(self.registers.get_de(), self.registers.a, &mut self.state);
                 8
             }
             0x13 => {
@@ -210,7 +212,7 @@ impl Cpu {
                 4
             }
             0x16 => {
-                self.registers.d = self.fetch_byte(mmu);
+                self.registers.d = self.fetch_byte();
                 8
             }
             0x17 => {
@@ -226,7 +228,7 @@ impl Cpu {
                 4
             }
             0x18 => {
-                let offset = self.fetch_byte(mmu) as i8;
+                let offset = self.fetch_byte() as i8;
                 self.pc += offset as u16;
                 12
             }
@@ -236,7 +238,7 @@ impl Cpu {
 	    }
             0x1A => {
                 // LD A, (DE)
-                self.registers.a = mmu.fetch_byte(self.registers.get_de(), &self.state);
+                self.registers.a = self.mmu.fetch_byte(self.registers.get_de(), &self.state);
                 8
             }
 	    0x1B => {
@@ -252,7 +254,7 @@ impl Cpu {
                 4
             }
             0x1E => {
-                self.registers.e = self.fetch_byte(mmu);
+                self.registers.e = self.fetch_byte();
                 8
             }
 	    0x1F => {
@@ -269,7 +271,7 @@ impl Cpu {
             0x20 => {
                 // JR NZ, i8
                 if !self.registers.is_zero_flag_high() {
-                    let offset = self.fetch_byte(mmu) as i8;
+                    let offset = self.fetch_byte() as i8;
                     if offset < 0 {
                         self.pc = self.pc.wrapping_sub(offset.unsigned_abs() as u16);
                     } else {
@@ -282,13 +284,13 @@ impl Cpu {
             }
             0x21 => {
                 // LD HL, U16
-                let word = self.fetch_word(mmu);
+                let word = self.fetch_word();
                 self.registers.set_hl(word);
                 12
             }
             0x22 => {
                 // LD (HL++), A
-                mmu.write_byte(self.registers.get_hl(), self.registers.a, &mut self.state);
+                self.mmu.write_byte(self.registers.get_hl(), self.registers.a, &mut self.state);
                 self.registers.set_hl(self.registers.get_hl() + 1);
                 8
             }
@@ -307,12 +309,12 @@ impl Cpu {
 		4
 	    }
 	    0x26 => {
-		self.registers.h = self.fetch_byte(mmu);
+		self.registers.h = self.fetch_byte();
 		8
 	    }
             0x28 => {
                 if self.registers.is_zero_flag_high() {
-                    let offset = self.fetch_byte(mmu) as i8;
+                    let offset = self.fetch_byte() as i8;
                     if offset < 0 {
                         self.pc = self.pc.wrapping_sub(offset.unsigned_abs() as u16);
                     } else {
@@ -329,7 +331,7 @@ impl Cpu {
 	    }
             0x2A => {
                 let add = self.registers.get_hl();
-                self.registers.a = mmu.fetch_byte(add, &self.state);
+                self.registers.a = self.mmu.fetch_byte(add, &self.state);
                 let new_hl = add.wrapping_add(1);
                 self.registers.set_hl(new_hl);
                 8
@@ -347,7 +349,7 @@ impl Cpu {
 		4
 	    }
 	    0x2E => {
-		self.registers.l = self.fetch_byte(mmu);
+		self.registers.l = self.fetch_byte();
 		8
 	    }
 	    0x2F => {
@@ -357,7 +359,7 @@ impl Cpu {
 	    0x30 => {
                 // JR NC, i8
                 if !self.registers.is_carry_flag_high() {
-                    let offset = self.fetch_byte(mmu) as i8;
+                    let offset = self.fetch_byte() as i8;
                     if offset < 0 {
                         self.pc = self.pc.wrapping_sub(offset.unsigned_abs() as u16);
                     } else {
@@ -370,12 +372,12 @@ impl Cpu {
 	    }
             0x31 => {
                 // LD SP, U16
-                self.sp = self.fetch_word(mmu);
+                self.sp = self.fetch_word();
                 12
             }
             0x32 => {
                 // ld (hl-), A
-                mmu.write_byte(self.registers.get_hl(), self.registers.a, &mut self.state);
+                self.mmu.write_byte(self.registers.get_hl(), self.registers.a, &mut self.state);
                 self.registers
                     .set_hl(self.registers.get_hl().wrapping_sub(1));
                 4
@@ -385,17 +387,18 @@ impl Cpu {
 		8
 	    }
 	    0x34 => {
-		let value = mmu.fetch_byte(self.registers.get_hl(), &self.state).wrapping_add(1);
-		mmu.write_byte(self.registers.get_hl(), value, &mut self.state);
+		let value = self.mmu.fetch_byte(self.registers.get_hl(), &self.state).wrapping_add(1);
+		self.mmu.write_byte(self.registers.get_hl(), value, &mut self.state);
 		12
 	    }
 	    0x35 => {
-		let value = mmu.fetch_byte(self.registers.get_hl(), &self.state).wrapping_sub(1);
-		mmu.write_byte(self.registers.get_hl(), value, &mut self.state);
+		let value = self.mmu.fetch_byte(self.registers.get_hl(), &self.state).wrapping_sub(1);
+		self.mmu.write_byte(self.registers.get_hl(), value, &mut self.state);
 		12
 	    }
 	    0x36 => {
-		mmu.write_byte(self.registers.get_hl(), self.fetch_byte(mmu), &mut self.state);
+		let byte = self.fetch_byte();
+		self.mmu.write_byte(self.registers.get_hl(), byte, &mut self.state);
 		12
 	    }
 	    0x37 => {
@@ -404,7 +407,7 @@ impl Cpu {
 	    }
 	    0x38 => {
                 if self.registers.is_carry_flag_high() {
-                    let offset = self.fetch_byte(mmu) as i8;
+                    let offset = self.fetch_byte() as i8;
                     if offset < 0 {
                         self.pc = self.pc.wrapping_sub(offset.unsigned_abs() as u16);
                     } else {
@@ -420,7 +423,7 @@ impl Cpu {
 		8
 	    }
 	    0x3A => {
-		self.registers.a = mmu.fetch_byte(self.registers.get_hl(), &self.state);
+		self.registers.a = self.mmu.fetch_byte(self.registers.get_hl(), &self.state);
 		self.registers.set_hl(self.registers.get_hl().wrapping_sub(1));
 		8
 	    }
@@ -438,7 +441,7 @@ impl Cpu {
             }
             0x3E => {
                 // LD A, u8
-                self.registers.a = self.fetch_byte(mmu);
+                self.registers.a = self.fetch_byte();
                 8
             }
 	    0x3F => {
@@ -472,7 +475,7 @@ impl Cpu {
 		4
 	    }
 	    0x46 => {
-		self.registers.b = mmu.fetch_byte(self.registers.get_hl(), &self.state);
+		self.registers.b = self.mmu.fetch_byte(self.registers.get_hl(), &self.state);
 		8
 	    }
             0x47 => {
@@ -533,7 +536,7 @@ impl Cpu {
                 4
             }
             0x56 => {
-                self.registers.d = mmu.fetch_byte(self.registers.get_hl(), &self.state);
+                self.registers.d = self.mmu.fetch_byte(self.registers.get_hl(), &self.state);
                 8
             }
             0x57 => {
@@ -565,7 +568,7 @@ impl Cpu {
                 4
             }
             0x5E => {
-                self.registers.e = mmu.fetch_byte(self.registers.get_hl(), &self.state);
+                self.registers.e = self.mmu.fetch_byte(self.registers.get_hl(), &self.state);
                 8
             }
             0x5F => {
@@ -597,7 +600,7 @@ impl Cpu {
                 4
             }
             0x66 => {
-                self.registers.h = mmu.fetch_byte(self.registers.get_hl(), &self.state);
+                self.registers.h = self.mmu.fetch_byte(self.registers.get_hl(), &self.state);
                 8
             }
             0x67 => {
@@ -629,7 +632,7 @@ impl Cpu {
                 4
             }
             0x6E => {
-                self.registers.l = mmu.fetch_byte(self.registers.get_hl(), &self.state);
+                self.registers.l = self.mmu.fetch_byte(self.registers.get_hl(), &self.state);
                 8
             }
             0x6F => {
@@ -637,31 +640,31 @@ impl Cpu {
                 4
             }
             0x70 => {
-		mmu.write_byte(self.registers.get_hl(), self.registers.b, &mut self.state);
+		self.mmu.write_byte(self.registers.get_hl(), self.registers.b, &mut self.state);
                 8
             }
             0x71 => {
-		mmu.write_byte(self.registers.get_hl(), self.registers.c, &mut self.state);
+		self.mmu.write_byte(self.registers.get_hl(), self.registers.c, &mut self.state);
                 8
             }
             0x72 => {
-		mmu.write_byte(self.registers.get_hl(), self.registers.d, &mut self.state);
+		self.mmu.write_byte(self.registers.get_hl(), self.registers.d, &mut self.state);
                 8
             }
             0x73 => {
-		mmu.write_byte(self.registers.get_hl(), self.registers.e, &mut self.state);
+		self.mmu.write_byte(self.registers.get_hl(), self.registers.e, &mut self.state);
                 8
             }
             0x74 => {
-		mmu.write_byte(self.registers.get_hl(), self.registers.h, &mut self.state);
+		self.mmu.write_byte(self.registers.get_hl(), self.registers.h, &mut self.state);
                 8
             }
             0x75 => {
-		mmu.write_byte(self.registers.get_hl(), self.registers.l, &mut self.state);
+		self.mmu.write_byte(self.registers.get_hl(), self.registers.l, &mut self.state);
                 8
             }
             0x77 => {
-                mmu.write_byte(self.registers.get_hl(), self.registers.a, &mut self.state);
+                self.mmu.write_byte(self.registers.get_hl(), self.registers.a, &mut self.state);
                 8
             }
             0x78 => {
@@ -689,7 +692,7 @@ impl Cpu {
 		4
 	    }
 	    0x7E => {
-		self.registers.a = mmu.fetch_byte(self.registers.get_hl(), &self.state);
+		self.registers.a = self.mmu.fetch_byte(self.registers.get_hl(), &self.state);
 		8
 	    }
 	    0x7F => {
@@ -721,7 +724,7 @@ impl Cpu {
 		4
 	    }
 	    0x86 => {
-		self.registers.add_u8(mmu.fetch_byte(self.registers.get_hl(), &self.state));
+		self.registers.add_u8(self.mmu.fetch_byte(self.registers.get_hl(), &self.state));
 		8
 	    }
 	    0x87 => {
@@ -753,7 +756,7 @@ impl Cpu {
 		4
 	    }
 	    0x8E => {
-		self.registers.add_u8(mmu.fetch_byte(self.registers.get_hl(), &self.state).wrapping_add(self.registers.is_carry_flag_high() as u8));
+		self.registers.add_u8(self.mmu.fetch_byte(self.registers.get_hl(), &self.state).wrapping_add(self.registers.is_carry_flag_high() as u8));
 		8
 	    }
 	    0x8F => {
@@ -785,7 +788,7 @@ impl Cpu {
                 4
             }
             0x96 => {
-                self.registers.sub_u8(mmu.fetch_byte(self.registers.get_hl(), &self.state));
+                self.registers.sub_u8(self.mmu.fetch_byte(self.registers.get_hl(), &self.state));
                 8
             }
             0x97 => {
@@ -817,7 +820,7 @@ impl Cpu {
                 4
             }
             0x9E => {
-                self.registers.sub_u8(mmu.fetch_byte(self.registers.get_hl(), &self.state).wrapping_sub(self.registers.is_carry_flag_high() as u8));
+                self.registers.sub_u8(self.mmu.fetch_byte(self.registers.get_hl(), &self.state).wrapping_sub(self.registers.is_carry_flag_high() as u8));
                 8
             }
             0x9F => {
@@ -849,7 +852,7 @@ impl Cpu {
 		4
 	    }
 	    0xA6 => {
-		self.registers.and_u8(mmu.fetch_byte(self.registers.get_hl(), &self.state));
+		self.registers.and_u8(self.mmu.fetch_byte(self.registers.get_hl(), &self.state));
 		8
 	    }
 	    0xA7 => {
@@ -881,7 +884,7 @@ impl Cpu {
 		4
 	    }
 	    0xAE => {
-		self.registers.xor_u8(mmu.fetch_byte(self.registers.get_hl(), &self.state));
+		self.registers.xor_u8(self.mmu.fetch_byte(self.registers.get_hl(), &self.state));
 		4
 	    }
             0xAF => {
@@ -914,7 +917,7 @@ impl Cpu {
 		4
 	    }
 	    0xB6 => {
-		self.registers.or_u8(mmu.fetch_byte(self.registers.get_hl(), &self.state));
+		self.registers.or_u8(self.mmu.fetch_byte(self.registers.get_hl(), &self.state));
 		8
 	    }
 	    0xB7 => {
@@ -946,7 +949,7 @@ impl Cpu {
 		4
 	    }
 	    0xBE => {
-		self.registers.cp_u8(mmu.fetch_byte(self.registers.get_hl(), &self.state));
+		self.registers.cp_u8(self.mmu.fetch_byte(self.registers.get_hl(), &self.state));
 		8
 	    }
 	    0xBF => {
@@ -955,18 +958,18 @@ impl Cpu {
 	    }
             0xC0 => {
 		if !self.registers.is_zero_flag_high() {
-		    self.ret(mmu);
+		    self.ret();
 		    return 20;
 		}
                 8
             }
             0xC1 => {
-                let popped_value = self.pop_u16_from_stack(mmu);
+                let popped_value = self.pop_u16_from_stack();
                 self.registers.set_bc(popped_value);
                 12
             }
 	    0xC2 => {
-		let address = self.fetch_word(mmu);
+		let address = self.fetch_word();
 		if self.registers.is_zero_flag_high() {
 		    self.pc = address;
 		    return 16;
@@ -974,45 +977,45 @@ impl Cpu {
 		12
 	    }
             0xC3 => {
-                let address = self.fetch_word(mmu);
+                let address = self.fetch_word();
                 self.pc = address;
                 16
             }
 	    0xC4 => {
 		if !self.registers.is_zero_flag_high() {
-		    let address = self.fetch_word(mmu);
-		    self.call(address, mmu);
+		    let address = self.fetch_word();
+		    self.call(address);
 		    return 24;
 		}
 		self.pc += 2;
 		12
 	    }
             0xC5 => {
-                self.push_u16_to_stack(self.registers.get_bc(), mmu);
+                self.push_u16_to_stack(self.registers.get_bc());
                 16
             }
 	    0xC6 => {
-		let n = self.fetch_byte(mmu);
+		let n = self.fetch_byte();
 		self.registers.add_u8(n);
 		8
 	    }
 	    0xC7 => {
-		self.call(0x0u16, mmu);
+		self.call(0x0u16);
 		16
 	    }
 	    0xC8 => {
 		if self.registers.is_zero_flag_high() {
-		    self.ret(mmu);
+		    self.ret();
 		    return 20;
 		}
 		8
 	    }
             0xC9 => {
-                self.ret(mmu);
+                self.ret();
                 16
             }
             0xCA => {
-		let jump = self.fetch_word(mmu);
+		let jump = self.fetch_word();
 		if self.registers.is_zero_flag_high() {
 		    self.pc = jump;
 		    return 20;
@@ -1020,44 +1023,44 @@ impl Cpu {
                 16
             }
 	    0xCB => {
-		self.execute_cb(mmu)
+		self.execute_cb()
 	    }
             0xCC => {
-		let jump_address = self.fetch_word(mmu);
+		let jump_address = self.fetch_word();
 		if self.registers.is_zero_flag_high() {
-		    self.call(jump_address, mmu);
+		    self.call(jump_address);
 		    return 24;
 		}
                 12
             }
             0xCD => {
-                let new_address = self.fetch_word(mmu);
-		self.call(new_address, mmu);
+                let new_address = self.fetch_word();
+		self.call(new_address);
                 24
             }
             0xCE => {
-		let number = self.fetch_byte(mmu);
+		let number = self.fetch_byte();
 		self.registers.add_u8(number + self.registers.is_carry_flag_high() as u8);
 		8
             }
             0xCF => {
-		self.call(0x08u16, mmu);
+		self.call(0x08u16);
 		16
             }
             0xD0 => {
 		if !self.registers.is_carry_flag_high() {
-		    self.ret(mmu);
+		    self.ret();
 		    return 20;
 		}
                 8
             }
             0xD1 => {
-                let popped_value = self.pop_u16_from_stack(mmu);
+                let popped_value = self.pop_u16_from_stack();
                 self.registers.set_de(popped_value);
                 12
             }
 	    0xD2 => {
-		let address = self.fetch_word(mmu);
+		let address = self.fetch_word();
 		if self.registers.is_carry_flag_high() {
 		    self.pc = address;
 		    return 16;
@@ -1065,41 +1068,41 @@ impl Cpu {
 		12
 	    }
 	    0xD4 => {
-		let address = self.fetch_word(mmu);
+		let address = self.fetch_word();
 		if !self.registers.is_carry_flag_high() {
-		    self.call(address, mmu);
+		    self.call(address);
 		    return 24;
 		}
 		self.pc += 2;
 		12
 	    }
             0xD5 => {
-                self.push_u16_to_stack(self.registers.get_de(), mmu);
+                self.push_u16_to_stack(self.registers.get_de());
                 16
             }
 	    0xD6 => {
-		let n = self.fetch_byte(mmu);
+		let n = self.fetch_byte();
 		self.registers.sub_u8(n);
 		8
 	    }
 	    0xD7 => {
-		self.call(0x10u16, mmu);
+		self.call(0x10u16);
 		16
 	    }
 	    0xD8 => {
 		if self.registers.is_carry_flag_high() {
-		    self.ret(mmu);
+		    self.ret();
 		    return 20;
 		}
 		8
 	    }
             0xD9 => {
-                self.ret(mmu);
-		mmu.interrupt_handler.enabled = true;
+                self.ret();
+		self.mmu.interrupt_handler.enabled = true;
                 16
             }
             0xDA => {
-		let jump = self.fetch_word(mmu);
+		let jump = self.fetch_word();
 		if self.registers.is_carry_flag_high() {
 		    self.pc = jump;
 		    return 20;
@@ -1107,51 +1110,51 @@ impl Cpu {
                 16
             }
             0xDC => {
-		let jump_address = self.fetch_word(mmu);
+		let jump_address = self.fetch_word();
 		if self.registers.is_carry_flag_high() {
-		    self.call(jump_address, mmu);
+		    self.call(jump_address);
 		    return 24;
 		}
                 12
             }
             0xDE => {
-		let number = self.fetch_byte(mmu);
+		let number = self.fetch_byte();
 		self.registers.sub_u8(number.wrapping_sub(self.registers.is_carry_flag_high() as u8));
 		8
             }
             0xDF => {
-		self.call(0x18u16, mmu);
+		self.call(0x18u16);
 		16
             }
             0xE0 => {
-                let address: u16 = 0xFF00 + (self.fetch_byte(mmu) as u16);
-                mmu.write_byte(address, self.registers.a, &mut self.state);
+                let address: u16 = 0xFF00 + (self.fetch_byte() as u16);
+                self.mmu.write_byte(address, self.registers.a, &mut self.state);
                 12
             }
 	    0xE1 => {
-		let address = self.pop_u16_from_stack(mmu);
+		let address = self.pop_u16_from_stack();
 		self.registers.set_hl(address);
 		12
 	    }
             0xE2 => {
-                mmu.write_byte(0xFFu16 + self.registers.c as u16, self.registers.a, &mut self.state);
+                self.mmu.write_byte(0xFFu16 + self.registers.c as u16, self.registers.a, &mut self.state);
                 8
             }
 	    0xE5 => {
-		self.push_u16_to_stack(self.registers.get_hl(), mmu);
+		self.push_u16_to_stack(self.registers.get_hl());
 		16
 	    }
 	    0xE6 => {
-		let reg = self.fetch_byte(mmu);
+		let reg = self.fetch_byte();
 		self.registers.and_u8(reg);
 		8
 	    }
 	    0xE7 => {
-		self.call(0x20u16, mmu);
+		self.call(0x20u16);
 		16
 	    }
 	    0xE8 => {
-		let number = self.fetch_byte(mmu) as i8;
+		let number = self.fetch_byte() as i8;
 		self.registers.set_zero_flag(false);
 		self.registers.set_was_prev_instr_sub(false);
 		
@@ -1171,53 +1174,53 @@ impl Cpu {
 		4
 	    }
             0xEA => {
-                let address = self.fetch_word(mmu);
-                mmu.write_byte(address, self.registers.a, &mut self.state);
+                let address = self.fetch_word();
+                self.mmu.write_byte(address, self.registers.a, &mut self.state);
                 16
             }
             0xEE => {
-                let byte = self.fetch_byte(mmu);
+                let byte = self.fetch_byte();
 		self.registers.xor_u8(byte);
                 8
             }
             0xEF => {
-		self.call(0x28u16, mmu);
+		self.call(0x28u16);
                 16
             }
             0xF0 => {
-                let add_on = self.fetch_byte(mmu) as u16;
-                self.registers.a = mmu.fetch_byte(0xFF00u16 + add_on, &self.state);
+                let add_on = self.fetch_byte() as u16;
+                self.registers.a = self.mmu.fetch_byte(0xFF00u16 + add_on, &self.state);
                 12
             }
 	    0xF1 => {
-		let new_af = self.pop_u16_from_stack(mmu);
+		let new_af = self.pop_u16_from_stack();
 		self.registers.set_af(new_af);
 		12
 	    }
             0xF2 => {
                 self.registers.a =
-                    mmu.fetch_byte(0xFF00u16.wrapping_add(self.registers.c as u16), &self.state);
+                    self.mmu.fetch_byte(0xFF00u16.wrapping_add(self.registers.c as u16), &self.state);
                 8
             }
 	    0xF3 => {
-		mmu.interrupt_handler.enabled = false;
+		self.mmu.interrupt_handler.enabled = false;
 		4
 	    }
 	    0xF5 => {
-		self.push_u16_to_stack(self.registers.get_af(), mmu);
+		self.push_u16_to_stack(self.registers.get_af());
 		16
 	    }
             0xF6 => {
-		let byte = self.fetch_byte(mmu);
+		let byte = self.fetch_byte();
 		self.registers.or_u8(byte);
 		8
             }
             0xF7 => {
-		self.call(0x30u16, mmu);
+		self.call(0x30u16);
 		16
             }
 	    0xF8 => {
-		let number = self.fetch_byte(mmu) as i8;
+		let number = self.fetch_byte() as i8;
 		let adder: u16;
 
 		if number >= 0 {
@@ -1234,15 +1237,16 @@ impl Cpu {
 		8
 	    }
 	    0xFA => {
-		self.registers.a = mmu.fetch_byte(self.fetch_word(mmu), &self.state);
+		let word = self.fetch_word();
+		self.registers.a = self.mmu.fetch_byte(word, &self.state);
 		16
 	    }
 	    0xFB => {
-		mmu.interrupt_handler.enabled = true;
+		self.mmu.interrupt_handler.enabled = true;
 		4
 	    }
             0xFE => {
-                let number = self.fetch_byte(mmu);
+                let number = self.fetch_byte();
                 self.registers.cp_u8(number);
                 8
             }
@@ -1259,13 +1263,13 @@ impl Cpu {
         }
     }
 
-    fn ret(&mut self, mmu: &mut Mmu) {
-        self.pc = self.pop_u16_from_stack(mmu);
+    fn ret(&mut self) {
+        self.pc = self.pop_u16_from_stack();
     }
 
 
-    pub(crate) fn execute_cb(&mut self, mmu: &mut Mmu) -> i32 {
-        let instruction = self.fetch_byte(mmu);
+    pub(crate) fn execute_cb(&mut self) -> i32 {
+        let instruction = self.fetch_byte();
 
         // Print state of emulator to logger
         log::info!(
@@ -1281,9 +1285,9 @@ impl Cpu {
             format!("{:0>4X}", self.sp),
             format!("{:0>4X}", self.pc - 1),
             format!("{:0>4X}", instruction),
-            format!("{:02X}", mmu.fetch_byte(self.pc, &self.state)),
-            format!("{:02X}", mmu.fetch_byte(self.pc + 1, &self.state)),
-            format!("{:02X}", mmu.fetch_byte(self.pc + 2, &self.state))
+            format!("{:02X}", self.mmu.fetch_byte(self.pc, &self.state)),
+            format!("{:02X}", self.mmu.fetch_byte(self.pc + 1, &self.state)),
+            format!("{:02X}", self.mmu.fetch_byte(self.pc + 2, &self.state))
         );
 
         let instruction_cycles = 4;
@@ -1309,23 +1313,23 @@ impl Cpu {
             }
     }
 
-    fn call(&mut self, address: u16, mmu: &mut Mmu) {
-	self.push_u16_to_stack(self.pc, mmu);
+    fn call(&mut self, address: u16) {
+	self.push_u16_to_stack(self.pc);
 	self.pc = address;
     }
 
 
-    fn push_u16_to_stack(&mut self, value_to_push: u16, mmu: &mut Mmu) {
+    fn push_u16_to_stack(&mut self, value_to_push: u16) {
         self.sp = self.sp.wrapping_sub(1);
-        mmu.write_byte(self.sp, (value_to_push >> 8) as u8, &mut self.state);
+        self.mmu.write_byte(self.sp, (value_to_push >> 8) as u8, &mut self.state);
         self.sp = self.sp.wrapping_sub(1);
-        mmu.write_byte(self.sp, value_to_push as u8, &mut self.state);
+        self.mmu.write_byte(self.sp, value_to_push as u8, &mut self.state);
     }
 
-    fn pop_u16_from_stack(&mut self, mmu: &Mmu) -> u16 {
-        let lower_byte = mmu.fetch_byte(self.sp, &self.state);
+    fn pop_u16_from_stack(&mut self) -> u16 {
+        let lower_byte = self.mmu.fetch_byte(self.sp, &self.state);
         self.sp = self.sp.wrapping_add(1);
-        let high_byte = mmu.fetch_byte(self.sp, &self.state);
+        let high_byte = self.mmu.fetch_byte(self.sp, &self.state);
         self.sp = self.sp.wrapping_add(1);
         (high_byte as u16) << 8 | lower_byte as u16
     }

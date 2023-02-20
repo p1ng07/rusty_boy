@@ -35,7 +35,7 @@ fn main() {
 
     log4rs::init_config(config).unwrap();
 
-    let mut cpu = cpu::Cpu::new(cpu::CpuState::NonBoot);
+    let mut mmu = Mmu::new();
 
     if let Some(rom_path) = args.get(1) {
 	// There was a rom path, try to load it
@@ -48,10 +48,10 @@ fn main() {
 	// There wasn't a loaded rom, do whatever you like
     };
 
+    let mut cpu = cpu::Cpu::new(cpu::CpuState::NonBoot, mmu);
+
     while !rl.window_should_close() {
-        // Update joypad input state
-        // TODO: Make this request a joypad interrupt
-        cpu.mmu.joypad.update_input(&mut rl, &mut mmu.interrupt_handler);
+        cpu.mmu.joypad.update_input(&mut rl, &mut cpu.mmu.interrupt_handler);
 
         // run 69905 t-cycles of cpu work, equating to 4MHz of t-cycles per second
         let mut ran_cycles = 0;
