@@ -20,8 +20,8 @@ pub struct Cpu {
     delta_t_cycles: i32, // t-cycles performed in the current instruction
 }
 
-mod instructions;
 mod cb_instructions;
+mod instructions;
 
 impl Cpu {
     pub fn new(initial_state: CpuState, mmu: Mmu) -> Cpu {
@@ -30,7 +30,7 @@ impl Cpu {
             sp: 0,
             mmu,
             state: initial_state,
-	    delta_t_cycles: 0,
+            delta_t_cycles: 0,
             registers: CpuRegisters::default(),
         };
 
@@ -44,9 +44,9 @@ impl Cpu {
     // Cycle the cpu once, fetch an instruction and run it, returns the number of t-cycles it took to run it
     pub fn cycle(&mut self) -> i32 {
         let first_byte = self.fetch_byte();
-	let instruction_delta_t_cycles = self.delta_t_cycles;
+        let instruction_delta_t_cycles = self.delta_t_cycles;
 
-	// Cycle timing is done mid-instruction (i.e. is inside the instructions match statement using a self.tick() function to tick the machine 1 m-cycle forward)
+        // Cycle timing is done mid-instruction (i.e. is inside the instructions match statement using a self.tick() function to tick the machine 1 m-cycle forward)
         self.execute(first_byte);
 
         // TODO: Update the timers
@@ -56,14 +56,16 @@ impl Cpu {
 
         self.handle_interrupts();
 
-	self.delta_t_cycles = 0;
-	instruction_delta_t_cycles
+        self.delta_t_cycles = 0;
+        instruction_delta_t_cycles
     }
 
     // Ticks every component by 4 t-cycles
     fn tick(&mut self) {
-	self.delta_t_cycles += 4;
-	self.mmu.timer.step(&self.state, 4, &mut self.mmu.interrupt_handler);
+        self.delta_t_cycles += 4;
+        self.mmu
+            .timer
+            .step(&self.state, 4, &mut self.mmu.interrupt_handler);
     }
 
     fn fetch_byte(&mut self) -> u8 {
@@ -109,35 +111,34 @@ impl Cpu {
         }
     }
 
-
     // Return from function stack, takes 3 m-cycles
     fn ret(&mut self) {
         self.pc = self.pop_u16_from_stack();
-	self.tick();
+        self.tick();
     }
     // calls a sub routine, takes 3 m-cycles
     fn call(&mut self, address: u16) {
         self.push_u16_to_stack(self.pc);
         self.pc = address;
-	self.tick();
+        self.tick();
     }
 
     fn push_u16_to_stack(&mut self, value_to_push: u16) {
         self.sp = self.sp.wrapping_sub(1);
         self.mmu
             .write_byte(self.sp, (value_to_push >> 8) as u8, &mut self.state);
-	self.tick();
+        self.tick();
         self.sp = self.sp.wrapping_sub(1);
         self.mmu
             .write_byte(self.sp, value_to_push as u8, &mut self.state);
-	self.tick();
+        self.tick();
     }
 
     fn pop_u16_from_stack(&mut self) -> u16 {
-	self.tick();
+        self.tick();
         let lower_byte = self.mmu.fetch_byte(self.sp, &self.state);
         self.sp = self.sp.wrapping_add(1);
-	self.tick();
+        self.tick();
         let high_byte = self.mmu.fetch_byte(self.sp, &self.state);
         self.sp = self.sp.wrapping_add(1);
         (high_byte as u16) << 8 | lower_byte as u16

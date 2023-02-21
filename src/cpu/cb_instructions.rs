@@ -1,14 +1,7 @@
 use super::Cpu;
 
 impl Cpu {
-    pub(crate) fn execute_cb(&mut self){
-	#[macro_export]
-	macro_rules! rl {
-	    ($reg:expr) => {
-		{
-		}
-	    };
-	}
+    pub(crate) fn execute_cb(&mut self) {
         let instruction = self.fetch_byte();
 
         // Print state of emulator to logger
@@ -31,35 +24,107 @@ impl Cpu {
         );
 
         match instruction {
-                0x10 => self.registers.b = self.rl(self.registers.b),
-                0x11 => self.registers.c = self.rl(self.registers.c),
-                0x12 => self.registers.d = self.rl(self.registers.d),
-                0x13 => self.registers.e = self.rl(self.registers.e),
-                0x14 => self.registers.h = self.rl(self.registers.h),
-                0x15 => self.registers.l = self.rl(self.registers.l),
-		0x16 => {
-		    let _byte = self.mmu.fetch_byte(self.registers.get_hl(), &self.state);
-		    let byte = self.rl(self.registers.c);
-		    self.mmu.write_byte(self.registers.get_hl(), byte, &mut self.state);
-		    self.tick();
-		},
-                0x17 => self.registers.a = self.rl(self.registers.a),
-                0x7C => {
-                    self.registers.set_zero_flag(self.registers.h < 128);
-                }
-                _ => panic!(
-                    "CB prefixed instruction {:X?} was not implemented",
-                    instruction.to_be_bytes()
-                ),
-	};
+            0x00 => self.registers.b = self.rlc(self.registers.b),
+            0x01 => self.registers.c = self.rlc(self.registers.c),
+            0x02 => self.registers.d = self.rlc(self.registers.d),
+            0x03 => self.registers.e = self.rlc(self.registers.e),
+            0x04 => self.registers.h = self.rlc(self.registers.h),
+            0x05 => self.registers.l = self.rlc(self.registers.l),
+            0x06 => {
+                let _byte = self.mmu.fetch_byte(self.registers.get_hl(), &self.state);
+                let byte = self.rlc(self.registers.c);
+                self.mmu
+                    .write_byte(self.registers.get_hl(), byte, &mut self.state);
+                self.tick();
+            }
+            0x07 => self.registers.a = self.rlc(self.registers.a),
+            0x08 => self.registers.b = self.rrc(self.registers.b),
+            0x09 => self.registers.c = self.rrc(self.registers.c),
+            0x0A => self.registers.d = self.rrc(self.registers.d),
+            0x0B => self.registers.e = self.rrc(self.registers.e),
+            0x0C => self.registers.h = self.rrc(self.registers.h),
+            0x0D => self.registers.l = self.rrc(self.registers.l),
+            0x0E => {
+                let _byte = self.mmu.fetch_byte(self.registers.get_hl(), &self.state);
+                let byte = self.rrc(self.registers.c);
+                self.mmu
+                    .write_byte(self.registers.get_hl(), byte, &mut self.state);
+                self.tick();
+            }
+            0x0F => self.registers.a = self.rrc(self.registers.a),
+            0x10 => self.registers.b = self.rl(self.registers.b),
+            0x11 => self.registers.c = self.rl(self.registers.c),
+            0x12 => self.registers.d = self.rl(self.registers.d),
+            0x13 => self.registers.e = self.rl(self.registers.e),
+            0x14 => self.registers.h = self.rl(self.registers.h),
+            0x15 => self.registers.l = self.rl(self.registers.l),
+            0x16 => {
+                let _byte = self.mmu.fetch_byte(self.registers.get_hl(), &self.state);
+                let byte = self.rl(self.registers.c);
+                self.mmu
+                    .write_byte(self.registers.get_hl(), byte, &mut self.state);
+                self.tick();
+            }
+            0x17 => self.registers.a = self.rr(self.registers.a),
+            0x18 => self.registers.b = self.rr(self.registers.b),
+            0x19 => self.registers.c = self.rr(self.registers.c),
+            0x1A => self.registers.d = self.rr(self.registers.d),
+            0x1B => self.registers.e = self.rr(self.registers.e),
+            0x1C => self.registers.h = self.rr(self.registers.h),
+            0x1D => self.registers.l = self.rr(self.registers.l),
+            0x1E => {
+                let _byte = self.mmu.fetch_byte(self.registers.get_hl(), &self.state);
+                let byte = self.rr(self.registers.c);
+                self.mmu
+                    .write_byte(self.registers.get_hl(), byte, &mut self.state);
+                self.tick();
+            }
+            0x1F => self.registers.a = self.rr(self.registers.a),
+            0x7C => {
+                self.registers.set_zero_flag(self.registers.h < 128);
+            }
+            _ => panic!(
+                "CB prefixed instruction {:X?} was not implemented",
+                instruction.to_be_bytes()
+            ),
+        };
+    }
+
+    fn rr(&mut self, mut reg: u8) -> u8 {
+        self.registers.set_carry_flag(reg & 0x80 > 0);
+        reg >>= 1;
+        self.registers.set_zero_flag(reg == 0);
+        self.registers.set_half_carry_flag(false);
+        self.registers.set_was_prev_instr_sub(false);
+        reg
+    }
+
+    fn rlc(&mut self, mut reg: u8) -> u8 {
+	let carry = reg & 0x80 > 0;
+        self.registers.set_carry_flag(carry);
+	reg = (reg << 1) | carry as u8;
+        self.registers.set_zero_flag(reg == 0);
+        self.registers.set_half_carry_flag(false);
+        self.registers.set_was_prev_instr_sub(false);
+	reg
+    }
+
+    fn rrc(&mut self, mut reg: u8) -> u8 {
+	let carry = reg & 0x1 > 0;
+        self.registers.set_carry_flag(carry);
+	reg = (reg >> 1) | (carry as u8) << 8;
+        self.registers.set_zero_flag(reg == 0);
+        self.registers.set_half_carry_flag(false);
+        self.registers.set_was_prev_instr_sub(false);
+	reg
     }
 
     fn rl(&mut self, mut reg: u8) -> u8 {
-	self.registers.set_carry_flag(reg & 0x80 > 0);
-	reg <<= 1;
-	self.registers.set_zero_flag(reg == 0);
-	self.registers.set_half_carry_flag(false);
-	self.registers.set_was_prev_instr_sub(false);
-	reg
+        self.registers.set_carry_flag(reg & 0x80 > 0);
+        reg <<= 1;
+        self.registers.set_zero_flag(reg == 0);
+        self.registers.set_half_carry_flag(false);
+        self.registers.set_was_prev_instr_sub(false);
+        reg
     }
 }
