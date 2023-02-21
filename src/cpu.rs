@@ -20,7 +20,8 @@ pub struct Cpu {
     delta_t_cycles: i32, // t-cycles performed in the current instruction
 }
 
-mod cpu_instructions;
+mod instructions;
+mod cb_instructions;
 
 impl Cpu {
     pub fn new(initial_state: CpuState, mmu: Mmu) -> Cpu {

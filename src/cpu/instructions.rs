@@ -1,5 +1,6 @@
 use super::Cpu;
 
+
 impl Cpu {
     // Execute the instruction given and return the number of t-cycles it took to run it
     pub(crate) fn execute(&mut self, first_byte: u8) {
@@ -844,44 +845,4 @@ impl Cpu {
     }
 
 
-    pub(crate) fn execute_cb(&mut self){
-        let instruction = self.fetch_byte();
-
-        // Print state of emulator to logger
-        log::info!(
-            "A: {} F: {} B: {} C: {} D: {} E: {} H: {} L: {} SP: {} PC: 00:{} ({} {} {} {})",
-            format!("{:0>2X}", self.registers.a),
-            format!("{:0>2X}", self.registers.f),
-            format!("{:0>2X}", self.registers.b),
-            format!("{:0>2X}", self.registers.c),
-            format!("{:0>2X}", self.registers.d),
-            format!("{:0>2X}", self.registers.e),
-            format!("{:0>2X}", self.registers.h),
-            format!("{:0>2X}", self.registers.l),
-            format!("{:0>4X}", self.sp),
-            format!("{:0>4X}", self.pc - 1),
-            format!("{:0>4X}", instruction),
-            format!("{:02X}", self.mmu.fetch_byte(self.pc, &self.state)),
-            format!("{:02X}", self.mmu.fetch_byte(self.pc + 1, &self.state)),
-            format!("{:02X}", self.mmu.fetch_byte(self.pc + 2, &self.state))
-        );
-
-        match instruction {
-                0x11 => {
-                    // RL C
-                    self.registers.set_carry_flag(self.registers.c & 0x80 > 0);
-                    self.registers.c <<= 1;
-                    self.registers.set_zero_flag(self.registers.c == 0);
-                    self.registers.set_half_carry_flag(false);
-                    self.registers.set_was_prev_instr_sub(false);
-                }
-                0x7C => {
-                    self.registers.set_zero_flag(self.registers.h < 128);
-                }
-                _ => panic!(
-                    "CB prefixed instruction {:X?} was not implemented",
-                    instruction.to_be_bytes()
-                ),
-	};
-    }
 }
