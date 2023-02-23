@@ -107,7 +107,21 @@ impl Cpu {
                     .write_byte(self.registers.get_hl(), byte, &mut self.state);
                 self.tick();
             }
-            0x2F => self.registers.a = self.sra(self.registers.a),
+            0x2F => self.registers.a = self.swap(self.registers.a),
+            0x30 => self.registers.b = self.swap(self.registers.b),
+            0x31 => self.registers.c = self.swap(self.registers.c),
+            0x32 => self.registers.d = self.swap(self.registers.d),
+            0x33 => self.registers.e = self.swap(self.registers.e),
+            0x34 => self.registers.h = self.swap(self.registers.h),
+            0x35 => self.registers.l = self.swap(self.registers.l),
+            0x36 => {
+                let _byte = self.mmu.fetch_byte(self.registers.get_hl(), &self.state);
+                let byte = self.swap(self.registers.c);
+                self.mmu
+                    .write_byte(self.registers.get_hl(), byte, &mut self.state);
+                self.tick();
+            }
+            0x37 => self.registers.a = self.swap(self.registers.a),
             0x7C => {
                 self.registers.set_zero_flag(self.registers.h < 128);
             }
@@ -174,5 +188,10 @@ impl Cpu {
         self.registers.set_half_carry_flag(false);
         self.registers.set_was_prev_instr_sub(false);
 	reg
+    }
+
+    fn swap(&mut self, reg: u8) -> u8 {
+	self.registers.set_zero_flag(reg == 0);
+	reg.swap_bytes()
     }
 }
