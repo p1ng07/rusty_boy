@@ -79,7 +79,35 @@ impl Cpu {
                     .write_byte(self.registers.get_hl(), byte, &mut self.state);
                 self.tick();
             }
-            0x1F => self.registers.a = self.rr(self.registers.a),
+            0x1F => self.registers.a = self.sla(self.registers.a),
+            0x20 => self.registers.b = self.sla(self.registers.b),
+            0x21 => self.registers.c = self.sla(self.registers.c),
+            0x22 => self.registers.d = self.sla(self.registers.d),
+            0x23 => self.registers.e = self.sla(self.registers.e),
+            0x24 => self.registers.h = self.sla(self.registers.h),
+            0x25 => self.registers.l = self.sla(self.registers.l),
+            0x26 => {
+                let _byte = self.mmu.fetch_byte(self.registers.get_hl(), &self.state);
+                let byte = self.sla(self.registers.c);
+                self.mmu
+                    .write_byte(self.registers.get_hl(), byte, &mut self.state);
+                self.tick();
+            }
+            0x27 => self.registers.a = self.sla(self.registers.a),
+            0x28 => self.registers.b = self.sra(self.registers.b),
+            0x29 => self.registers.c = self.sra(self.registers.c),
+            0x2A => self.registers.d = self.sra(self.registers.d),
+            0x2B => self.registers.e = self.sra(self.registers.e),
+            0x2C => self.registers.h = self.sra(self.registers.h),
+            0x2D => self.registers.l = self.sra(self.registers.l),
+            0x2E => {
+                let _byte = self.mmu.fetch_byte(self.registers.get_hl(), &self.state);
+                let byte = self.sra(self.registers.c);
+                self.mmu
+                    .write_byte(self.registers.get_hl(), byte, &mut self.state);
+                self.tick();
+            }
+            0x2F => self.registers.a = self.sra(self.registers.a),
             0x7C => {
                 self.registers.set_zero_flag(self.registers.h < 128);
             }
@@ -126,5 +154,25 @@ impl Cpu {
         self.registers.set_half_carry_flag(false);
         self.registers.set_was_prev_instr_sub(false);
         reg
+    }
+
+    fn sla(&mut self, mut reg: u8) -> u8 {
+	let carry = reg & 0x80 > 0;
+        self.registers.set_carry_flag(carry);
+	reg <<= 1;
+        self.registers.set_zero_flag(reg == 0);
+        self.registers.set_half_carry_flag(false);
+        self.registers.set_was_prev_instr_sub(false);
+	reg
+    }
+
+    fn sra(&mut self, mut reg: u8) -> u8 {
+	let carry = reg & 0x1 > 0;
+        self.registers.set_carry_flag(carry);
+	reg >>= 1;
+        self.registers.set_zero_flag(reg == 0);
+        self.registers.set_half_carry_flag(false);
+        self.registers.set_was_prev_instr_sub(false);
+	reg
     }
 }
