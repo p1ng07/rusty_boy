@@ -136,14 +136,254 @@ impl Cpu {
                 self.tick();
             }
             0x3F => self.registers.a = self.srl(self.registers.a),
-	    0x40..=0x47 => self.test_bit(register_to_use, 0),
-	    0x48..=0x4F => self.test_bit(register_to_use, 1),
-	    0x50..=0x57 => self.test_bit(register_to_use, 2),
-	    0x58..=0x5F => self.test_bit(register_to_use, 3),
-	    0x60..=0x67 => self.test_bit(register_to_use, 4),
-	    0x68..=0x6F => self.test_bit(register_to_use, 5),
-	    0x70..=0x77 => self.test_bit(register_to_use, 6),
-	    0x78..=0x7F => self.test_bit(register_to_use, 7),
+            0x40..=0x47 => self.test_bit(register_to_use, 0),
+            0x48..=0x4F => self.test_bit(register_to_use, 1),
+            0x50..=0x57 => self.test_bit(register_to_use, 2),
+            0x58..=0x5F => self.test_bit(register_to_use, 3),
+            0x60..=0x67 => self.test_bit(register_to_use, 4),
+            0x68..=0x6F => self.test_bit(register_to_use, 5),
+            0x70..=0x77 => self.test_bit(register_to_use, 6),
+            0x78..=0x7F => self.test_bit(register_to_use, 7),
+            0x80 => self.registers.b &= !(1 << 0),
+            0x81 => self.registers.c &= !(1 << 0),
+            0x82 => self.registers.d &= !(1 << 0),
+            0x83 => self.registers.e &= !(1 << 0),
+            0x84 => self.registers.h &= !(1 << 0),
+            0x85 => self.registers.l &= !(1 << 0),
+            0x86 => {
+                self.tick();
+                self.mmu.write_byte(
+                    self.registers.get_hl(),
+                    self.mmu.fetch_byte(self.registers.get_hl(), &self.state) & !(1 << 0),
+                    &mut self.state,
+                );
+            }
+            0x87 => self.registers.a &= !(1 << 1),
+            0x88 => self.registers.b &= !(1 << 1),
+            0x89 => self.registers.c &= !(1 << 1),
+            0x8A => self.registers.d &= !(1 << 1),
+            0x8B => self.registers.e &= !(1 << 1),
+            0x8C => self.registers.h &= !(1 << 1),
+            0x8D => self.registers.l &= !(1 << 1),
+            0x8E => {
+                self.tick();
+                self.mmu.write_byte(
+                    self.registers.get_hl(),
+                    self.mmu.fetch_byte(self.registers.get_hl(), &self.state) & !(1 << 1),
+                    &mut self.state,
+                );
+            }
+            0x8F => self.registers.a &= !(1 << 1),
+            0x90 => self.registers.b &= !(1 << 2),
+            0x91 => self.registers.c &= !(1 << 2),
+            0x92 => self.registers.d &= !(1 << 2),
+            0x93 => self.registers.e &= !(1 << 2),
+            0x94 => self.registers.h &= !(1 << 2),
+            0x95 => self.registers.l &= !(1 << 2),
+            0x96 => {
+                self.tick();
+                self.mmu.write_byte(
+                    self.registers.get_hl(),
+                    self.mmu.fetch_byte(self.registers.get_hl(), &self.state) & !(1 << 2),
+                    &mut self.state,
+                );
+            }
+            0x97 => self.registers.a &= !(1 << 3),
+            0x98 => self.registers.b &= !(1 << 3),
+            0x99 => self.registers.c &= !(1 << 3),
+            0x9A => self.registers.d &= !(1 << 3),
+            0x9B => self.registers.e &= !(1 << 3),
+            0x9C => self.registers.h &= !(1 << 3),
+            0x9D => self.registers.l &= !(1 << 3),
+            0x9E => {
+                self.tick();
+                self.mmu.write_byte(
+                    self.registers.get_hl(),
+                    self.mmu.fetch_byte(self.registers.get_hl(), &self.state) & !(1 << 3),
+                    &mut self.state,
+                );
+            }
+            0x9F => self.registers.a &= !(1 << 3),
+            0xA0 => self.registers.b &= !(1 << 4),
+            0xA1 => self.registers.c &= !(1 << 4),
+            0xA2 => self.registers.d &= !(1 << 4),
+            0xA3 => self.registers.e &= !(1 << 4),
+            0xA4 => self.registers.h &= !(1 << 4),
+            0xA5 => self.registers.l &= !(1 << 4),
+            0xA6 => {
+                self.tick();
+                self.mmu.write_byte(
+                    self.registers.get_hl(),
+                    self.mmu.fetch_byte(self.registers.get_hl(), &self.state) & !(1 << 4),
+                    &mut self.state,
+                );
+            }
+            0xA7 => self.registers.a &= !(1 << 4),
+            0xA8 => self.registers.b &= !(1 << 5),
+            0xA9 => self.registers.c &= !(1 << 5),
+            0xAA => self.registers.d &= !(1 << 5),
+            0xAB => self.registers.e &= !(1 << 5),
+            0xAC => self.registers.h &= !(1 << 5),
+            0xAD => self.registers.l &= !(1 << 5),
+            0xAE => {
+                self.tick();
+                self.mmu.write_byte(
+                    self.registers.get_hl(),
+                    self.mmu.fetch_byte(self.registers.get_hl(), &self.state) & !(1 << 5),
+                    &mut self.state,
+                );
+            }
+            0xAF => self.registers.a &= !(1 << 5),
+            0xB0 => self.registers.b &= !(1 << 6),
+            0xB1 => self.registers.c &= !(1 << 6),
+            0xB2 => self.registers.d &= !(1 << 6),
+            0xB3 => self.registers.e &= !(1 << 6),
+            0xB4 => self.registers.h &= !(1 << 6),
+            0xB5 => self.registers.l &= !(1 << 6),
+            0xB6 => {
+                self.tick();
+                self.mmu.write_byte(
+                    self.registers.get_hl(),
+                    self.mmu.fetch_byte(self.registers.get_hl(), &self.state) & !(1 << 6),
+                    &mut self.state,
+                );
+            }
+            0xB7 => self.registers.a &= !(1 << 6),
+            0xB8 => self.registers.b &= !(1 << 7),
+            0xB9 => self.registers.c &= !(1 << 7),
+            0xBA => self.registers.d &= !(1 << 7),
+            0xBB => self.registers.e &= !(1 << 7),
+            0xBC => self.registers.h &= !(1 << 7),
+            0xBD => self.registers.l &= !(1 << 7),
+            0xBE => {
+                self.tick();
+                self.mmu.write_byte(
+                    self.registers.get_hl(),
+                    self.mmu.fetch_byte(self.registers.get_hl(), &self.state) & !(1 << 7),
+                    &mut self.state,
+                );
+            }
+            0xBF => self.registers.a &= !(1 << 7),
+            0xC0 => self.registers.b  |= 1 << 0,
+            0xC1 => self.registers.c  |= 1 << 0,
+            0xC2 => self.registers.d  |= 1 << 0,
+            0xC3 => self.registers.e  |= 1 << 0,
+            0xC4 => self.registers.h  |= 1 << 0,
+            0xC5 => self.registers.l  |= 1 << 0,
+            0xC6 => {
+                self.tick();
+                self.mmu.write_byte(
+                    self.registers.get_hl(),
+                    self.mmu.fetch_byte(self.registers.get_hl(), &self.state) | (1 << 0),
+                    &mut self.state,
+                );
+            }
+            0xC7 => self.registers.a  |= 1 << 1,
+            0xC8 => self.registers.b  |= 1 << 1,
+            0xC9 => self.registers.c  |= 1 << 1,
+            0xCA => self.registers.d  |= 1 << 1,
+            0xCB => self.registers.e  |= 1 << 1,
+            0xCC => self.registers.h  |= 1 << 1,
+            0xCD => self.registers.l  |= 1 << 1,
+            0xCE => {
+                self.tick();
+                self.mmu.write_byte(
+                    self.registers.get_hl(),
+                    self.mmu.fetch_byte(self.registers.get_hl(), &self.state) | (1 << 1),
+                    &mut self.state,
+                );
+            }
+            0xCF => self.registers.a  |= 1 << 1,
+            0xD0 => self.registers.b  |= 1 << 2,
+            0xD1 => self.registers.c  |= 1 << 2,
+            0xD2 => self.registers.d  |= 1 << 2,
+            0xD3 => self.registers.e  |= 1 << 2,
+            0xD4 => self.registers.h  |= 1 << 2,
+            0xD5 => self.registers.l  |= 1 << 2,
+            0xD6 => {
+                self.tick();
+                self.mmu.write_byte(
+                    self.registers.get_hl(),
+                    self.mmu.fetch_byte(self.registers.get_hl(), &self.state) | (1 << 2),
+                    &mut self.state,
+                );
+            }
+            0xD7 => self.registers.a  |= 1 << 3,
+            0xD8 => self.registers.b  |= 1 << 3,
+            0xD9 => self.registers.c  |= 1 << 3,
+            0xDA => self.registers.d  |= 1 << 3,
+            0xDB => self.registers.e  |= 1 << 3,
+            0xDC => self.registers.h  |= 1 << 3,
+            0xDD => self.registers.l  |= 1 << 3,
+            0xDE => {
+                self.tick();
+                self.mmu.write_byte(
+                    self.registers.get_hl(),
+                    self.mmu.fetch_byte(self.registers.get_hl(), &self.state) | (1 << 3),
+                    &mut self.state,
+                );
+            }
+            0xDF => self.registers.a  |= 1 << 3,
+            0xE0 => self.registers.b  |= 1 << 4,
+            0xE1 => self.registers.c  |= 1 << 4,
+            0xE2 => self.registers.d  |= 1 << 4,
+            0xE3 => self.registers.e  |= 1 << 4,
+            0xE4 => self.registers.h  |= 1 << 4,
+            0xE5 => self.registers.l  |= 1 << 4,
+            0xE6 => {
+                self.tick();
+                self.mmu.write_byte(
+                    self.registers.get_hl(),
+                    self.mmu.fetch_byte(self.registers.get_hl(), &self.state) | (1 << 4),
+                    &mut self.state,
+                );
+            }
+            0xE7 => self.registers.a  |= 1 << 4,
+            0xE8 => self.registers.b  |= 1 << 5,
+            0xE9 => self.registers.c  |= 1 << 5,
+            0xEA => self.registers.d  |= 1 << 5,
+            0xEB => self.registers.e  |= 1 << 5,
+            0xEC => self.registers.h  |= 1 << 5,
+            0xED => self.registers.l  |= 1 << 5,
+            0xEE => {
+                self.tick();
+                self.mmu.write_byte(
+                    self.registers.get_hl(),
+                    self.mmu.fetch_byte(self.registers.get_hl(), &self.state) | (1 << 5),
+                    &mut self.state,
+                );
+            }
+            0xEF => self.registers.a  |= 1 << 5,
+            0xF0 => self.registers.b  |= 1 << 6,
+            0xF1 => self.registers.c  |= 1 << 6,
+            0xF2 => self.registers.d  |= 1 << 6,
+            0xF3 => self.registers.e  |= 1 << 6,
+            0xF4 => self.registers.h  |= 1 << 6,
+            0xF5 => self.registers.l  |= 1 << 6,
+            0xF6 => {
+                self.tick();
+                self.mmu.write_byte(
+                    self.registers.get_hl(),
+                    self.mmu.fetch_byte(self.registers.get_hl(), &self.state) | (1 << 6),
+                    &mut self.state,
+                );
+            }
+            0xF7 => self.registers.a  |= 1 << 6,
+            0xF8 => self.registers.b  |= 1 << 7,
+            0xF9 => self.registers.c  |= 1 << 7,
+            0xFA => self.registers.d  |= 1 << 7,
+            0xFB => self.registers.e  |= 1 << 7,
+            0xFC => self.registers.h  |= 1 << 7,
+            0xFD => self.registers.l  |= 1 << 7,
+            0xFE => {
+                self.tick();
+                self.mmu.write_byte(
+                    self.registers.get_hl(),
+                    self.mmu.fetch_byte(self.registers.get_hl(), &self.state) | (1 << 7),
+                    &mut self.state,
+                );
+            }
+            0xFF => self.registers.a  |= 1 << 7,
             _ => panic!(
                 "CB prefixed instruction {:X?} was not implemented",
                 instruction.to_be_bytes()
