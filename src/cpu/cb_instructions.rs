@@ -5,23 +5,7 @@ impl Cpu {
         let instruction = self.fetch_byte();
 
         // Print state of emulator to logger
-        log::info!(
-            "A: {} F: {} B: {} C: {} D: {} E: {} H: {} L: {} SP: {} PC: 00:{} ({} {} {} {})",
-            format!("{:0>2X}", self.registers.a),
-            format!("{:0>2X}", self.registers.f),
-            format!("{:0>2X}", self.registers.b),
-            format!("{:0>2X}", self.registers.c),
-            format!("{:0>2X}", self.registers.d),
-            format!("{:0>2X}", self.registers.e),
-            format!("{:0>2X}", self.registers.h),
-            format!("{:0>2X}", self.registers.l),
-            format!("{:0>4X}", self.sp),
-            format!("{:0>4X}", self.pc - 1),
-            format!("{:0>4X}", instruction),
-            format!("{:02X}", self.mmu.fetch_byte(self.pc, &self.state)),
-            format!("{:02X}", self.mmu.fetch_byte(self.pc + 1, &self.state)),
-            format!("{:02X}", self.mmu.fetch_byte(self.pc + 2, &self.state))
-        );
+	self.log_to_file(first_byte);
 
         match instruction {
             0x00 => self.registers.b = self.rlc(self.registers.b),
@@ -122,6 +106,20 @@ impl Cpu {
                 self.tick();
             }
             0x37 => self.registers.a = self.swap(self.registers.a),
+            0x38 => self.registers.b = self.srl(self.registers.b),
+            0x39 => self.registers.c = self.srl(self.registers.c),
+            0x3A => self.registers.d = self.srl(self.registers.d),
+            0x3B => self.registers.e = self.srl(self.registers.e),
+            0x3C => self.registers.h = self.srl(self.registers.h),
+            0x3D => self.registers.l = self.srl(self.registers.l),
+            0x3E => {
+                let _byte = self.mmu.fetch_byte(self.registers.get_hl(), &self.state);
+                let byte = self.srl(self.registers.c);
+                self.mmu
+                    .write_byte(self.registers.get_hl(), byte, &mut self.state);
+                self.tick();
+            }
+            0x3F => self.registers.a = self.srl(self.registers.a),
             0x7C => {
                 self.registers.set_zero_flag(self.registers.h < 128);
             }
@@ -190,8 +188,25 @@ impl Cpu {
 	reg
     }
 
+    fn srl(&mut self, mut reg: u8) -> u8 {
+	self.registers.set_carry_flag(reg & 0x80 > 0);
+	reg >>= 1;
+        self.registers.set_zero_flag(reg == 0);
+        self.registers.set_half_carry_flag(false);
+        self.registers.set_was_prev_instr_sub(false);
+	reg
+    }
+
     fn swap(&mut self, reg: u8) -> u8 {
 	self.registers.set_zero_flag(reg == 0);
 	reg.swap_bytes()
     }
+
+
+    fn test_bit(&mut self, reg: u8, bit_index: u8){
+	self.registers.set_zero_flag((reg >> bit_index) & 0x1 == 0);
+	self.registers.set_was_prev_instr_sub(false);
+	self.registers.set_half_carry_flag(false);
+    }
 }
+

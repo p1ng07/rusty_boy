@@ -4,23 +4,7 @@ impl Cpu {
     // Execute the instruction given and return the number of t-cycles it took to run it
     pub(crate) fn execute(&mut self, first_byte: u8) {
         // Print state of emulator to logger
-        log::info!(
-            "A: {} F: {} B: {} C: {} D: {} E: {} H: {} L: {} SP: {} PC: 00:{} ({} {} {} {})",
-            format!("{:0>2X}", self.registers.a),
-            format!("{:0>2X}", self.registers.f),
-            format!("{:0>2X}", self.registers.b),
-            format!("{:0>2X}", self.registers.c),
-            format!("{:0>2X}", self.registers.d),
-            format!("{:0>2X}", self.registers.e),
-            format!("{:0>2X}", self.registers.h),
-            format!("{:0>2X}", self.registers.l),
-            format!("{:0>4X}", self.sp),
-            format!("{:0>4X}", self.pc - 1),
-            format!("{:0>2X}", first_byte),
-            format!("{:0>2X}", self.mmu.fetch_byte(self.pc, &self.state)),
-            format!("{:0>2X}", self.mmu.fetch_byte(self.pc + 1, &self.state)),
-            format!("{:0>2X}", self.mmu.fetch_byte(self.pc + 2, &self.state))
-        );
+	self.log_to_file(first_byte);
 
         match first_byte {
             0x00 => {
