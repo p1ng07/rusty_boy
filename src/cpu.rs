@@ -145,23 +145,23 @@ impl Cpu {
     }
 
     fn log_to_file(&self, instruction: u8) {
-	log::info!(
-	    "A: {} F: {} B: {} C: {} D: {} E: {} H: {} L: {} SP: {} PC: 00:{} ({} {} {} {})",
-	    format!("{:0>2X}", self.registers.a),
-	    format!("{:0>2X}", self.registers.f),
-	    format!("{:0>2X}", self.registers.b),
-	    format!("{:0>2X}", self.registers.c),
-	    format!("{:0>2X}", self.registers.d),
-	    format!("{:0>2X}", self.registers.e),
-	    format!("{:0>2X}", self.registers.h),
-	    format!("{:0>2X}", self.registers.l),
-	    format!("{:0>4X}", self.sp),
-	    format!("{:0>4X}", self.pc - 1),
-	    format!("{:0>4X}", instruction),
-	    format!("{:02X}", self.mmu.fetch_byte(self.pc, &self.state)),
-	    format!("{:02X}", self.mmu.fetch_byte(self.pc + 1, &self.state)),
-	    format!("{:02X}", self.mmu.fetch_byte(self.pc + 2, &self.state))
-	);
+        log::info!(
+            "A: {} F: {} B: {} C: {} D: {} E: {} H: {} L: {} SP: {} PC: 00:{} ({} {} {} {})",
+            format!("{:0>2X}", self.registers.a),
+            format!("{:0>2X}", self.registers.f),
+            format!("{:0>2X}", self.registers.b),
+            format!("{:0>2X}", self.registers.c),
+            format!("{:0>2X}", self.registers.d),
+            format!("{:0>2X}", self.registers.e),
+            format!("{:0>2X}", self.registers.h),
+            format!("{:0>2X}", self.registers.l),
+            format!("{:0>4X}", self.sp),
+            format!("{:0>4X}", self.pc - 1),
+            format!("{:0>4X}", instruction),
+            format!("{:02X}", self.mmu.fetch_byte(self.pc, &self.state)),
+            format!("{:02X}", self.mmu.fetch_byte(self.pc + 1, &self.state)),
+            format!("{:02X}", self.mmu.fetch_byte(self.pc + 2, &self.state))
+        );
     }
 }
 

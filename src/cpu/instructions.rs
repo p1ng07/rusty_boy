@@ -4,7 +4,7 @@ impl Cpu {
     // Execute the instruction given and return the number of t-cycles it took to run it
     pub(crate) fn execute(&mut self, first_byte: u8) {
         // Print state of emulator to logger
-	self.log_to_file(first_byte);
+        self.log_to_file(first_byte);
 
         match first_byte {
             0x00 => {

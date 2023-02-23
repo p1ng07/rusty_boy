@@ -5,7 +5,23 @@ impl Cpu {
         let instruction = self.fetch_byte();
 
         // Print state of emulator to logger
-	self.log_to_file(first_byte);
+        self.log_to_file(instruction);
+
+        // Register used in the operation depends
+        let register_to_use = match ((instruction >> 4) & 0xF) % 8 {
+            0 => self.registers.b,
+            1 => self.registers.c,
+            2 => self.registers.d,
+            3 => self.registers.e,
+            4 => self.registers.h,
+            5 => self.registers.l,
+            6 => {
+                self.tick();
+                self.mmu.fetch_byte(self.registers.get_hl(), &self.state)
+            }
+            7 => self.registers.a,
+            _ => 0, // This is impossible to reach because we are comparing the remainder of a division by 8
+        };
 
         match instruction {
             0x00 => self.registers.b = self.rlc(self.registers.b),
@@ -120,9 +136,14 @@ impl Cpu {
                 self.tick();
             }
             0x3F => self.registers.a = self.srl(self.registers.a),
-            0x7C => {
-                self.registers.set_zero_flag(self.registers.h < 128);
-            }
+	    0x40..=0x47 => self.test_bit(register_to_use, 0),
+	    0x48..=0x4F => self.test_bit(register_to_use, 1),
+	    0x50..=0x57 => self.test_bit(register_to_use, 2),
+	    0x58..=0x5F => self.test_bit(register_to_use, 3),
+	    0x60..=0x67 => self.test_bit(register_to_use, 4),
+	    0x68..=0x6F => self.test_bit(register_to_use, 5),
+	    0x70..=0x77 => self.test_bit(register_to_use, 6),
+	    0x78..=0x7F => self.test_bit(register_to_use, 7),
             _ => panic!(
                 "CB prefixed instruction {:X?} was not implemented",
                 instruction.to_be_bytes()
@@ -140,23 +161,23 @@ impl Cpu {
     }
 
     fn rlc(&mut self, mut reg: u8) -> u8 {
-	let carry = reg & 0x80 > 0;
+        let carry = reg & 0x80 > 0;
         self.registers.set_carry_flag(carry);
-	reg = (reg << 1) | carry as u8;
+        reg = (reg << 1) | carry as u8;
         self.registers.set_zero_flag(reg == 0);
         self.registers.set_half_carry_flag(false);
         self.registers.set_was_prev_instr_sub(false);
-	reg
+        reg
     }
 
     fn rrc(&mut self, mut reg: u8) -> u8 {
-	let carry = reg & 0x1 > 0;
+        let carry = reg & 0x1 > 0;
         self.registers.set_carry_flag(carry);
-	reg = (reg >> 1) | (carry as u8) << 8;
+        reg = (reg >> 1) | (carry as u8) << 8;
         self.registers.set_zero_flag(reg == 0);
         self.registers.set_half_carry_flag(false);
         self.registers.set_was_prev_instr_sub(false);
-	reg
+        reg
     }
 
     fn rl(&mut self, mut reg: u8) -> u8 {
@@ -169,44 +190,42 @@ impl Cpu {
     }
 
     fn sla(&mut self, mut reg: u8) -> u8 {
-	let carry = reg & 0x80 > 0;
+        let carry = reg & 0x80 > 0;
         self.registers.set_carry_flag(carry);
-	reg <<= 1;
+        reg <<= 1;
         self.registers.set_zero_flag(reg == 0);
         self.registers.set_half_carry_flag(false);
         self.registers.set_was_prev_instr_sub(false);
-	reg
+        reg
     }
 
     fn sra(&mut self, mut reg: u8) -> u8 {
-	let carry = reg & 0x1 > 0;
+        let carry = reg & 0x1 > 0;
         self.registers.set_carry_flag(carry);
-	reg >>= 1;
+        reg >>= 1;
         self.registers.set_zero_flag(reg == 0);
         self.registers.set_half_carry_flag(false);
         self.registers.set_was_prev_instr_sub(false);
-	reg
+        reg
     }
 
     fn srl(&mut self, mut reg: u8) -> u8 {
-	self.registers.set_carry_flag(reg & 0x80 > 0);
-	reg >>= 1;
+        self.registers.set_carry_flag(reg & 0x80 > 0);
+        reg >>= 1;
         self.registers.set_zero_flag(reg == 0);
         self.registers.set_half_carry_flag(false);
         self.registers.set_was_prev_instr_sub(false);
-	reg
+        reg
     }
 
     fn swap(&mut self, reg: u8) -> u8 {
-	self.registers.set_zero_flag(reg == 0);
-	reg.swap_bytes()
+        self.registers.set_zero_flag(reg == 0);
+        reg.swap_bytes()
     }
 
-
-    fn test_bit(&mut self, reg: u8, bit_index: u8){
-	self.registers.set_zero_flag((reg >> bit_index) & 0x1 == 0);
-	self.registers.set_was_prev_instr_sub(false);
-	self.registers.set_half_carry_flag(false);
+    fn test_bit(&mut self, reg: u8, bit_index: u8) {
+        self.registers.set_zero_flag((reg >> bit_index) & 0x1 == 0);
+        self.registers.set_was_prev_instr_sub(false);
+        self.registers.set_half_carry_flag(false);
     }
 }
-
