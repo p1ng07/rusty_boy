@@ -29,6 +29,7 @@ impl CpuRegisters {
     }
 
     pub fn set_af(&mut self, n: u16) {
+	let n = n & 0b1111_1111_1111_0000u16;
         self.a = n.to_be_bytes()[0];
         self.f = n.to_be_bytes()[1];
     }
@@ -138,9 +139,8 @@ impl CpuRegisters {
 
     pub(crate) fn add_to_hl_u16(&mut self, n: u16) {
         let new_reg = self.get_hl().wrapping_add(n);
-        self.set_zero_flag(new_reg == 0);
-        self.set_carry_flag(self.get_hl() > self.get_hl());
-        self.set_half_carry_flag((self.get_hl() & 0x00FF) + (n & 0x00FF) > 0xFF);
+        self.set_carry_flag(new_reg < self.get_hl());
+        self.set_half_carry_flag((self.get_hl() & 0xFFF) + (n & 0xFFF) > 0xFFF);
         self.set_was_prev_instr_sub(false);
         self.set_hl(new_reg);
     }

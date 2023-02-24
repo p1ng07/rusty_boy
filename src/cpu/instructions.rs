@@ -556,11 +556,13 @@ impl Cpu {
                 self.registers.set_bc(popped_value);
             }
             0xC2 => {
-                let address = self.fetch_word();
-                if self.registers.is_zero_flag_high() {
-                    self.pc = address;
+                if !self.registers.is_zero_flag_high() {
+		    let address = self.fetch_word();
                     self.tick();
-                }
+                    self.pc = address;
+                } else {
+		    self.pc += 2;
+		}
             }
             0xC3 => {
                 let address = self.fetch_word();
