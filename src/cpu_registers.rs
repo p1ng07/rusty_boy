@@ -122,8 +122,9 @@ impl CpuRegisters {
     pub(crate) fn cp_u8(&mut self, value: u8) {
         let result = self.a.wrapping_sub(value);
         self.set_zero_flag(result == 0);
+	self.set_half_carry_flag((self.a & 0xF).wrapping_sub(value & 0xF) > 0xF);
         self.set_was_prev_instr_sub(true);
-        self.set_carry_flag(((self.a ^ value ^ result) & 0x10) > 0);
+        self.set_carry_flag(value > self.a);
     }
 
     // Adds a u8 to the A register and sets flags accordingly
@@ -186,15 +187,15 @@ impl CpuRegisters {
     }
 
     pub fn is_lower_carry_high(&self) -> bool {
-        self.f >> 5 == 1
+	(self.f & 0b0010_0000) > 0
     }
 
     pub fn is_carry_flag_high(&self) -> bool {
-        (self.f >> 4) == 1
+	(self.f & 0b0001_0000) > 0
     }
 
     pub fn is_zero_flag_high(&self) -> bool {
-        (self.f >> 7) == 1
+	(self.f & 0b1000_0000) > 0
     }
 
     // Receives a u8 and uses the 4 lower bits of the u8 as the flags register

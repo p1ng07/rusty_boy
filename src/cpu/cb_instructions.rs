@@ -4,9 +4,6 @@ impl Cpu {
     pub(crate) fn execute_cb(&mut self) {
         let instruction = self.fetch_byte();
 
-        // Print state of emulator to logger
-        self.log_to_file(instruction);
-
         // Register used in the operation depends
         let register_to_use = match ((instruction >> 4) & 0xF) % 8 {
             0 => self.registers.b,
@@ -392,8 +389,11 @@ impl Cpu {
     }
 
     fn rr(&mut self, mut reg: u8) -> u8 {
-        self.registers.set_carry_flag(reg & 0x80 > 0);
+	let old_carry = self.registers.is_carry_flag_high();
+        let new_carry = reg & 0x1 > 0;
+        self.registers.set_carry_flag(new_carry);
         reg >>= 1;
+	reg |= (old_carry as u8) << 7;
         self.registers.set_zero_flag(reg == 0);
         self.registers.set_half_carry_flag(false);
         self.registers.set_was_prev_instr_sub(false);
@@ -413,7 +413,7 @@ impl Cpu {
     fn rrc(&mut self, mut reg: u8) -> u8 {
         let carry = reg & 0x1 > 0;
         self.registers.set_carry_flag(carry);
-        reg = (reg >> 1) | (carry as u8) << 8;
+        reg = (reg >> 1) | (carry as u8) << 7;
         self.registers.set_zero_flag(reg == 0);
         self.registers.set_half_carry_flag(false);
         self.registers.set_was_prev_instr_sub(false);
@@ -421,8 +421,10 @@ impl Cpu {
     }
 
     fn rl(&mut self, mut reg: u8) -> u8 {
-        self.registers.set_carry_flag(reg & 0x80 > 0);
+        let carry = reg & 0x80 > 0;
+        self.registers.set_carry_flag(carry);
         reg <<= 1;
+	reg |= carry as u8;
         self.registers.set_zero_flag(reg == 0);
         self.registers.set_half_carry_flag(false);
         self.registers.set_was_prev_instr_sub(false);
@@ -450,7 +452,7 @@ impl Cpu {
     }
 
     fn srl(&mut self, mut reg: u8) -> u8 {
-        self.registers.set_carry_flag(reg & 0x80 > 0);
+	self.registers.set_carry_flag(reg & 0x1 > 0);
         reg >>= 1;
         self.registers.set_zero_flag(reg == 0);
         self.registers.set_half_carry_flag(false);

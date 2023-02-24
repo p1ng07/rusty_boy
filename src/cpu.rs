@@ -49,11 +49,6 @@ impl Cpu {
         // Cycle timing is done mid-instruction (i.e. is inside the instructions match statement using a self.tick() function to tick the machine 1 m-cycle forward)
         self.execute(first_byte);
 
-        // TODO: Update the timers
-        // self.mmu
-        //     .timer
-        //     .step(&self.state, delta_cycles, &mut self.mmu.interrupt_handler);
-
         self.handle_interrupts();
 
         self.delta_t_cycles = 0;
@@ -157,7 +152,7 @@ impl Cpu {
             format!("{:0>2X}", self.registers.l),
             format!("{:0>4X}", self.sp),
             format!("{:0>4X}", self.pc - 1),
-            format!("{:0>4X}", instruction),
+            format!("{:02X}", instruction),
             format!("{:02X}", self.mmu.fetch_byte(self.pc, &self.state)),
             format!("{:02X}", self.mmu.fetch_byte(self.pc + 1, &self.state)),
             format!("{:02X}", self.mmu.fetch_byte(self.pc + 2, &self.state))

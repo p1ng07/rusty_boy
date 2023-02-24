@@ -88,7 +88,7 @@ impl Cpu {
             }
             0x18 => {
                 let offset = self.fetch_byte() as i8;
-                self.pc += offset as u16;
+		self.pc = ((self.pc as i32) + (offset as i32)) as u16;
                 self.tick();
             }
             0x19 => {
@@ -107,30 +107,24 @@ impl Cpu {
             0x1D => self.registers.e = self.registers.dec_u8_reg(self.registers.e),
             0x1E => self.registers.e = self.fetch_byte(),
             0x1F => {
-                let old_carry = if self.registers.is_carry_flag_high() {
-                    1
-                } else {
-                    0
-                };
-                self.registers.set_flags(if self.registers.a & 0x01 > 0 {
-                    0b1000
-                } else {
-                    0b0000
-                });
-                self.registers.a >>= 1;
-                self.registers.a |= old_carry << 7;
+		// Rotate right through carry
+                let new_carry = self.registers.a & 0x1 == 1;
+		let old_carry = self.registers.is_carry_flag_high();
+		self.registers.a >>= 1;
+		self.registers.a |= (old_carry as u8) << 7;
+		self.registers.set_carry_flag(new_carry);
+		self.registers.set_was_prev_instr_sub(false);
+		self.registers.set_half_carry_flag(false);
+		self.registers.set_zero_flag(false);
             }
             0x20 => {
-                // JR NZ, i8
-                let offset = self.fetch_byte() as i8;
                 if !self.registers.is_zero_flag_high() {
+		    let offset = self.fetch_byte() as i8;
                     self.tick();
-                    if offset < 0 {
-                        self.pc = self.pc.wrapping_sub(offset.unsigned_abs() as u16);
-                    } else {
-                        self.pc = self.pc.wrapping_add(offset as u16);
-                    }
-                }
+		    self.pc = ((self.pc as i32) + (offset as i32)) as u16;
+                } else {
+		    self.pc += 1;
+		}
             }
             0x21 => {
                 let word = self.fetch_word();
@@ -151,15 +145,13 @@ impl Cpu {
             0x25 => self.registers.h = self.registers.dec_u8_reg(self.registers.h),
             0x26 => self.registers.h = self.fetch_byte(),
             0x28 => {
-                let offset = self.fetch_byte() as i8;
                 if self.registers.is_zero_flag_high() {
+		    let offset = self.fetch_byte() as i8;
                     self.tick();
-                    if offset < 0 {
-                        self.pc = self.pc.wrapping_sub(offset.unsigned_abs() as u16);
-                    } else {
-                        self.pc = self.pc.wrapping_sub(offset as u16);
-                    }
-                }
+		    self.pc = ((self.pc as i32) + (offset as i32)) as u16;
+                } else {
+		    self.pc += 1;
+		}
             }
             0x29 => {
                 self.registers.add_to_hl_u16(self.registers.get_hl());
@@ -182,15 +174,13 @@ impl Cpu {
                 self.registers.cpl();
             }
             0x30 => {
-                let offset = self.fetch_byte() as i8;
                 if !self.registers.is_carry_flag_high() {
+		    let offset = self.fetch_byte() as i8;
                     self.tick();
-                    if offset < 0 {
-                        self.pc = self.pc.wrapping_sub(offset.unsigned_abs() as u16);
-                    } else {
-                        self.pc = self.pc.wrapping_sub(offset as u16);
-                    }
-                }
+		    self.pc = ((self.pc as i32) + (offset as i32)) as u16;
+                } else {
+		    self.pc += 1;
+		}
             }
             0x31 => self.sp = self.fetch_word(),
             0x32 => {
@@ -232,15 +222,13 @@ impl Cpu {
             }
             0x37 => self.registers.set_carry_flag(true),
             0x38 => {
-                let offset = self.fetch_byte() as i8;
                 if self.registers.is_carry_flag_high() {
+		    let offset = self.fetch_byte() as i8;
                     self.tick();
-                    if offset < 0 {
-                        self.pc = self.pc.wrapping_sub(offset.unsigned_abs() as u16);
-                    } else {
-                        self.pc = self.pc.wrapping_sub(offset as u16);
-                    }
-                }
+		    self.pc = ((self.pc as i32) + (offset as i32)) as u16;
+                } else {
+		    self.pc += 1;
+		}
             }
             0x39 => {
                 self.registers.add_to_hl_u16(self.sp);
@@ -281,7 +269,7 @@ impl Cpu {
             0x4A => self.registers.c = self.registers.d,
             0x4B => self.registers.c = self.registers.e,
             0x4C => self.registers.c = self.registers.h,
-            0x4E => self.registers.c = self.registers.l,
+            0x4E => {self.tick();self.registers.c = self.mmu.fetch_byte(self.registers.get_hl(), &self.state);},
             0x4F => self.registers.c = self.registers.a,
             0x50 => self.registers.d = self.registers.b,
             0x51 => self.registers.d = self.registers.c,
