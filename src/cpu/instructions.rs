@@ -1,5 +1,6 @@
 use super::Cpu;
 
+#[allow(clippy::self_assignment)]
 impl Cpu {
     // Execute the instruction given and return the number of t-cycles it took to run it
     pub(crate) fn execute(&mut self, first_byte: u8) {
@@ -71,11 +72,7 @@ impl Cpu {
             0x16 => self.registers.d = self.fetch_byte(),
             0x17 => {
                 // RLA
-                let old_carry = if self.registers.is_carry_flag_high() {
-                    1
-                } else {
-                    0
-                };
+                let old_carry = self.registers.is_carry_flag_high() as u8;
                 self.registers.set_flags(if self.registers.a & 0x80 > 0 {
                     0b1000
                 } else {
@@ -176,11 +173,9 @@ impl Cpu {
                 self.tick();
             }
             0x35 => {
-                let mut value = self
-                    .mmu
-                    .fetch_byte(self.registers.get_hl(), &self.state);
+                let mut value = self.mmu.fetch_byte(self.registers.get_hl(), &self.state);
 
-		value = self.registers.dec_u8_reg(value);
+                value = self.registers.dec_u8_reg(value);
                 self.mmu
                     .write_byte(self.registers.get_hl(), value, &mut self.state);
 
@@ -684,12 +679,13 @@ impl Cpu {
             0xF7 => self.rst(0x30u16),
             0xF8 => {
                 let offset = self.fetch_byte() as i8 as i16 as u16;
-		let new_sp = self.sp.wrapping_add(offset);
+                let new_sp = self.sp.wrapping_add(offset);
 
-		self.registers.set_zero_flag(false);
-		self.registers.set_n_flag(false);
-		self.registers.set_carry_flag(new_sp < self.sp);
-		self.registers.set_half_carry_flag((self.sp & 0x0FFF) + (offset & 0x0FFF) > 0x0FFF);
+                self.registers.set_zero_flag(false);
+                self.registers.set_n_flag(false);
+                self.registers.set_carry_flag(new_sp < self.sp);
+                self.registers
+                    .set_half_carry_flag((self.sp & 0x0FFF) + (offset & 0x0FFF) > 0x0FFF);
                 self.registers.set_hl(new_sp);
             }
             0xF9 => {

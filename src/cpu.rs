@@ -102,8 +102,8 @@ impl Cpu {
                     .unrequest_interrupt(&interrupt_type);
 
                 // CALL interrupt_vector
-		self.push_u16_to_stack(self.pc);
-		self.pc = interrupt_type.jump_vector();
+                self.push_u16_to_stack(self.pc);
+                self.pc = interrupt_type.jump_vector();
 
                 // Disable IME
                 self.mmu.interrupt_handler.enabled = false;
@@ -119,10 +119,10 @@ impl Cpu {
 
     // calls a sub routine, takes 3 m-cycles
     fn call_u16(&mut self, condition: bool) {
-	let address = self.fetch_word();
-	if condition {
-	    self.rst(address);
-	}
+        let address = self.fetch_word();
+        if condition {
+            self.rst(address);
+        }
     }
 
     fn push_u16_to_stack(&mut self, value_to_push: u16) {
@@ -147,9 +147,9 @@ impl Cpu {
     }
 
     fn rst(&mut self, address: u16) {
-	self.push_u16_to_stack(self.pc);
-	self.pc = address;
-	self.tick();
+        self.push_u16_to_stack(self.pc);
+        self.pc = address;
+        self.tick();
     }
 
     fn jp_u16(&mut self, condition: bool) {

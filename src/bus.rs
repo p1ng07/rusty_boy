@@ -93,11 +93,11 @@ impl Bus {
             0xC000..=0xDFFF => {
                 let local_address = (address - 0xC000u16) as usize;
                 self.wram[local_address] = received_byte;
-	    }
-	    0xE000..=0xFDFF => {
-		let local_address = (address - 0xE000u16) as usize;
-		self.wram[local_address] = received_byte;
-	    },
+            }
+            0xE000..=0xFDFF => {
+                let local_address = (address - 0xE000u16) as usize;
+                self.wram[local_address] = received_byte;
+            }
             0xFE00..=0xFE9F => todo!("Writing to OAM RAM ({:X}), {}", address, received_byte),
             0xFF00 => self.joypad.write_to_byte(received_byte),
             0xFF01 => self.serial.write_to_transfer(received_byte),
