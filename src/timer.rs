@@ -47,7 +47,7 @@ impl Timer {
         };
 
         // If the timer bit is not high, then the time_counter should not count
-        if self.timer_control & 0x4 != 1 {
+        if self.timer_control & 0x4 == 0 {
             return;
         }
 
