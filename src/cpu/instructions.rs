@@ -230,6 +230,7 @@ impl Cpu {
             0x4A => self.registers.c = self.registers.d,
             0x4B => self.registers.c = self.registers.e,
             0x4C => self.registers.c = self.registers.h,
+            0x4D => self.registers.c = self.registers.l,
             0x4E => {
                 self.tick();
                 self.registers.c = self.bus.fetch_byte(self.registers.get_hl(), &self.state);
@@ -545,7 +546,7 @@ impl Cpu {
             0xCE => {
                 let number = self.fetch_byte();
                 self.registers
-                    .add_u8(number + self.registers.is_carry_flag_high() as u8);
+                    .add_u8(number.wrapping_add(self.registers.is_carry_flag_high() as u8));
             }
             0xCF => self.rst(0x08u16),
             0xD0 => {
