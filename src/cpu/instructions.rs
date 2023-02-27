@@ -547,7 +547,7 @@ impl Cpu {
                 }
             }
             0xC9 => self.ret(),
-            0xCA => self.jr_i8(self.registers.is_zero_flag_high()),
+            0xCA => self.jp_u16(self.registers.is_zero_flag_high()),
             0xCB => self.execute_cb(),
             0xCC => {
                 let jump_address = self.fetch_word();
@@ -715,14 +715,14 @@ impl Cpu {
             }
             0xF7 => self.call(0x30u16),
             0xF8 => {
-                let offset = self.fetch_byte() as i8;
-		let new_hl = ((self.registers.get_hl() as i32) + (offset as i32)) as u16;
-		self.registers.set_zero_flag(new_hl == 0);
-		self.registers.set_carry_flag(new_hl < self.registers.get_hl());
+                let offset = self.fetch_byte() as i8 as i16 as u16;
+		let new_sp = self.sp.wrapping_add(offset);
+
+		self.registers.set_zero_flag(false);
 		self.registers.set_n_flag(false);
-		self.registers.set_half_carry_flag(false);
-                self.registers.set_hl(new_hl);
-                self.tick();
+		self.registers.set_carry_flag(new_sp < self.sp);
+		self.registers.set_half_carry_flag((self.sp & 0x0FFF) + (offset & 0x0FFF) > 0x0FFF);
+                self.registers.set_hl(new_sp);
             }
             0xF9 => {
                 self.sp = self.registers.get_hl();
