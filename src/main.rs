@@ -51,9 +51,9 @@ fn main() {
     let mut cpu = cpu::Cpu::new(cpu::CpuState::NonBoot, mmu);
 
     while !rl.window_should_close() {
-        cpu.mmu
+        cpu.bus
             .joypad
-            .update_input(&mut rl, &mut cpu.mmu.interrupt_handler);
+            .update_input(&mut rl, &mut cpu.bus.interrupt_handler);
 
         // run 69905 t-cycles of cpu work, equating to 4MHz of t-cycles per second
         let mut ran_cycles = 0;

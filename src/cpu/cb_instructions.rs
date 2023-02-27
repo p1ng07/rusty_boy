@@ -14,7 +14,7 @@ impl Cpu {
             5 => self.registers.l,
             6 => {
                 self.tick();
-                self.mmu.fetch_byte(self.registers.get_hl(), &self.state)
+                self.bus.fetch_byte(self.registers.get_hl(), &self.state)
             }
             7 => self.registers.a,
             _ => 0, // This is impossible to reach because we are comparing the remainder of a division by 8
@@ -28,9 +28,9 @@ impl Cpu {
             0x04 => self.registers.h = self.rlc(self.registers.h),
             0x05 => self.registers.l = self.rlc(self.registers.l),
             0x06 => {
-                let _byte = self.mmu.fetch_byte(self.registers.get_hl(), &self.state);
+                let _byte = self.bus.fetch_byte(self.registers.get_hl(), &self.state);
                 let byte = self.rlc(self.registers.c);
-                self.mmu
+                self.bus
                     .write_byte(self.registers.get_hl(), byte, &mut self.state);
                 self.tick();
             }
@@ -42,9 +42,9 @@ impl Cpu {
             0x0C => self.registers.h = self.rrc(self.registers.h),
             0x0D => self.registers.l = self.rrc(self.registers.l),
             0x0E => {
-                let _byte = self.mmu.fetch_byte(self.registers.get_hl(), &self.state);
+                let _byte = self.bus.fetch_byte(self.registers.get_hl(), &self.state);
                 let byte = self.rrc(self.registers.c);
-                self.mmu
+                self.bus
                     .write_byte(self.registers.get_hl(), byte, &mut self.state);
                 self.tick();
             }
@@ -56,9 +56,9 @@ impl Cpu {
             0x14 => self.registers.h = self.rl(self.registers.h),
             0x15 => self.registers.l = self.rl(self.registers.l),
             0x16 => {
-                let _byte = self.mmu.fetch_byte(self.registers.get_hl(), &self.state);
+                let _byte = self.bus.fetch_byte(self.registers.get_hl(), &self.state);
                 let byte = self.rl(self.registers.c);
-                self.mmu
+                self.bus
                     .write_byte(self.registers.get_hl(), byte, &mut self.state);
                 self.tick();
             }
@@ -70,9 +70,9 @@ impl Cpu {
             0x1C => self.registers.h = self.rr(self.registers.h),
             0x1D => self.registers.l = self.rr(self.registers.l),
             0x1E => {
-                let _byte = self.mmu.fetch_byte(self.registers.get_hl(), &self.state);
+                let _byte = self.bus.fetch_byte(self.registers.get_hl(), &self.state);
                 let byte = self.rr(self.registers.c);
-                self.mmu
+                self.bus
                     .write_byte(self.registers.get_hl(), byte, &mut self.state);
                 self.tick();
             }
@@ -84,9 +84,9 @@ impl Cpu {
             0x24 => self.registers.h = self.sla(self.registers.h),
             0x25 => self.registers.l = self.sla(self.registers.l),
             0x26 => {
-                let _byte = self.mmu.fetch_byte(self.registers.get_hl(), &self.state);
+                let _byte = self.bus.fetch_byte(self.registers.get_hl(), &self.state);
                 let byte = self.sla(self.registers.c);
-                self.mmu
+                self.bus
                     .write_byte(self.registers.get_hl(), byte, &mut self.state);
                 self.tick();
             }
@@ -98,9 +98,9 @@ impl Cpu {
             0x2C => self.registers.h = self.sra(self.registers.h),
             0x2D => self.registers.l = self.sra(self.registers.l),
             0x2E => {
-                let _byte = self.mmu.fetch_byte(self.registers.get_hl(), &self.state);
+                let _byte = self.bus.fetch_byte(self.registers.get_hl(), &self.state);
                 let byte = self.sra(self.registers.c);
-                self.mmu
+                self.bus
                     .write_byte(self.registers.get_hl(), byte, &mut self.state);
                 self.tick();
             }
@@ -112,9 +112,9 @@ impl Cpu {
             0x34 => self.registers.h = self.swap(self.registers.h),
             0x35 => self.registers.l = self.swap(self.registers.l),
             0x36 => {
-                let _byte = self.mmu.fetch_byte(self.registers.get_hl(), &self.state);
+                let _byte = self.bus.fetch_byte(self.registers.get_hl(), &self.state);
                 let byte = self.swap(self.registers.c);
-                self.mmu
+                self.bus
                     .write_byte(self.registers.get_hl(), byte, &mut self.state);
                 self.tick();
             }
@@ -126,9 +126,9 @@ impl Cpu {
             0x3C => self.registers.h = self.srl(self.registers.h),
             0x3D => self.registers.l = self.srl(self.registers.l),
             0x3E => {
-                let _byte = self.mmu.fetch_byte(self.registers.get_hl(), &self.state);
+                let _byte = self.bus.fetch_byte(self.registers.get_hl(), &self.state);
                 let byte = self.srl(self.registers.c);
-                self.mmu
+                self.bus
                     .write_byte(self.registers.get_hl(), byte, &mut self.state);
                 self.tick();
             }
@@ -149,9 +149,9 @@ impl Cpu {
             0x85 => self.registers.l &= !(1 << 0),
             0x86 => {
                 self.tick();
-                self.mmu.write_byte(
+                self.bus.write_byte(
                     self.registers.get_hl(),
-                    self.mmu.fetch_byte(self.registers.get_hl(), &self.state) & !(1 << 0),
+                    self.bus.fetch_byte(self.registers.get_hl(), &self.state) & !(1 << 0),
                     &mut self.state,
                 );
             }
@@ -164,9 +164,9 @@ impl Cpu {
             0x8D => self.registers.l &= !(1 << 1),
             0x8E => {
                 self.tick();
-                self.mmu.write_byte(
+                self.bus.write_byte(
                     self.registers.get_hl(),
-                    self.mmu.fetch_byte(self.registers.get_hl(), &self.state) & !(1 << 1),
+                    self.bus.fetch_byte(self.registers.get_hl(), &self.state) & !(1 << 1),
                     &mut self.state,
                 );
             }
@@ -179,9 +179,9 @@ impl Cpu {
             0x95 => self.registers.l &= !(1 << 2),
             0x96 => {
                 self.tick();
-                self.mmu.write_byte(
+                self.bus.write_byte(
                     self.registers.get_hl(),
-                    self.mmu.fetch_byte(self.registers.get_hl(), &self.state) & !(1 << 2),
+                    self.bus.fetch_byte(self.registers.get_hl(), &self.state) & !(1 << 2),
                     &mut self.state,
                 );
             }
@@ -194,9 +194,9 @@ impl Cpu {
             0x9D => self.registers.l &= !(1 << 3),
             0x9E => {
                 self.tick();
-                self.mmu.write_byte(
+                self.bus.write_byte(
                     self.registers.get_hl(),
-                    self.mmu.fetch_byte(self.registers.get_hl(), &self.state) & !(1 << 3),
+                    self.bus.fetch_byte(self.registers.get_hl(), &self.state) & !(1 << 3),
                     &mut self.state,
                 );
             }
@@ -209,9 +209,9 @@ impl Cpu {
             0xA5 => self.registers.l &= !(1 << 4),
             0xA6 => {
                 self.tick();
-                self.mmu.write_byte(
+                self.bus.write_byte(
                     self.registers.get_hl(),
-                    self.mmu.fetch_byte(self.registers.get_hl(), &self.state) & !(1 << 4),
+                    self.bus.fetch_byte(self.registers.get_hl(), &self.state) & !(1 << 4),
                     &mut self.state,
                 );
             }
@@ -224,9 +224,9 @@ impl Cpu {
             0xAD => self.registers.l &= !(1 << 5),
             0xAE => {
                 self.tick();
-                self.mmu.write_byte(
+                self.bus.write_byte(
                     self.registers.get_hl(),
-                    self.mmu.fetch_byte(self.registers.get_hl(), &self.state) & !(1 << 5),
+                    self.bus.fetch_byte(self.registers.get_hl(), &self.state) & !(1 << 5),
                     &mut self.state,
                 );
             }
@@ -239,9 +239,9 @@ impl Cpu {
             0xB5 => self.registers.l &= !(1 << 6),
             0xB6 => {
                 self.tick();
-                self.mmu.write_byte(
+                self.bus.write_byte(
                     self.registers.get_hl(),
-                    self.mmu.fetch_byte(self.registers.get_hl(), &self.state) & !(1 << 6),
+                    self.bus.fetch_byte(self.registers.get_hl(), &self.state) & !(1 << 6),
                     &mut self.state,
                 );
             }
@@ -254,9 +254,9 @@ impl Cpu {
             0xBD => self.registers.l &= !(1 << 7),
             0xBE => {
                 self.tick();
-                self.mmu.write_byte(
+                self.bus.write_byte(
                     self.registers.get_hl(),
-                    self.mmu.fetch_byte(self.registers.get_hl(), &self.state) & !(1 << 7),
+                    self.bus.fetch_byte(self.registers.get_hl(), &self.state) & !(1 << 7),
                     &mut self.state,
                 );
             }
@@ -269,9 +269,9 @@ impl Cpu {
             0xC5 => self.registers.l |= 1 << 0,
             0xC6 => {
                 self.tick();
-                self.mmu.write_byte(
+                self.bus.write_byte(
                     self.registers.get_hl(),
-                    self.mmu.fetch_byte(self.registers.get_hl(), &self.state) | (1 << 0),
+                    self.bus.fetch_byte(self.registers.get_hl(), &self.state) | (1 << 0),
                     &mut self.state,
                 );
             }
@@ -284,9 +284,9 @@ impl Cpu {
             0xCD => self.registers.l |= 1 << 1,
             0xCE => {
                 self.tick();
-                self.mmu.write_byte(
+                self.bus.write_byte(
                     self.registers.get_hl(),
-                    self.mmu.fetch_byte(self.registers.get_hl(), &self.state) | (1 << 1),
+                    self.bus.fetch_byte(self.registers.get_hl(), &self.state) | (1 << 1),
                     &mut self.state,
                 );
             }
@@ -299,9 +299,9 @@ impl Cpu {
             0xD5 => self.registers.l |= 1 << 2,
             0xD6 => {
                 self.tick();
-                self.mmu.write_byte(
+                self.bus.write_byte(
                     self.registers.get_hl(),
-                    self.mmu.fetch_byte(self.registers.get_hl(), &self.state) | (1 << 2),
+                    self.bus.fetch_byte(self.registers.get_hl(), &self.state) | (1 << 2),
                     &mut self.state,
                 );
             }
@@ -314,9 +314,9 @@ impl Cpu {
             0xDD => self.registers.l |= 1 << 3,
             0xDE => {
                 self.tick();
-                self.mmu.write_byte(
+                self.bus.write_byte(
                     self.registers.get_hl(),
-                    self.mmu.fetch_byte(self.registers.get_hl(), &self.state) | (1 << 3),
+                    self.bus.fetch_byte(self.registers.get_hl(), &self.state) | (1 << 3),
                     &mut self.state,
                 );
             }
@@ -329,9 +329,9 @@ impl Cpu {
             0xE5 => self.registers.l |= 1 << 4,
             0xE6 => {
                 self.tick();
-                self.mmu.write_byte(
+                self.bus.write_byte(
                     self.registers.get_hl(),
-                    self.mmu.fetch_byte(self.registers.get_hl(), &self.state) | (1 << 4),
+                    self.bus.fetch_byte(self.registers.get_hl(), &self.state) | (1 << 4),
                     &mut self.state,
                 );
             }
@@ -344,9 +344,9 @@ impl Cpu {
             0xED => self.registers.l |= 1 << 5,
             0xEE => {
                 self.tick();
-                self.mmu.write_byte(
+                self.bus.write_byte(
                     self.registers.get_hl(),
-                    self.mmu.fetch_byte(self.registers.get_hl(), &self.state) | (1 << 5),
+                    self.bus.fetch_byte(self.registers.get_hl(), &self.state) | (1 << 5),
                     &mut self.state,
                 );
             }
@@ -359,9 +359,9 @@ impl Cpu {
             0xF5 => self.registers.l |= 1 << 6,
             0xF6 => {
                 self.tick();
-                self.mmu.write_byte(
+                self.bus.write_byte(
                     self.registers.get_hl(),
-                    self.mmu.fetch_byte(self.registers.get_hl(), &self.state) | (1 << 6),
+                    self.bus.fetch_byte(self.registers.get_hl(), &self.state) | (1 << 6),
                     &mut self.state,
                 );
             }
@@ -374,17 +374,13 @@ impl Cpu {
             0xFD => self.registers.l |= 1 << 7,
             0xFE => {
                 self.tick();
-                self.mmu.write_byte(
+                self.bus.write_byte(
                     self.registers.get_hl(),
-                    self.mmu.fetch_byte(self.registers.get_hl(), &self.state) | (1 << 7),
+                    self.bus.fetch_byte(self.registers.get_hl(), &self.state) | (1 << 7),
                     &mut self.state,
                 );
             }
             0xFF => self.registers.a |= 1 << 7,
-            _ => panic!(
-                "CB prefixed instruction {:X?} was not implemented",
-                instruction.to_be_bytes()
-            ),
         };
     }
 

@@ -1,4 +1,4 @@
-(setq rustic-run-arguments "roms/cpu_instrs/individual/02-interrupts.gb")
+(setq rustic-run-arguments "roms/cpu_instrs/individual/01-special.gb")
 (dap-register-debug-template "Rusty boy debug"
 			     (list
 			      :name "Rusty boy debug"

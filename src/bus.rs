@@ -40,12 +40,16 @@ impl Bus {
                 .to_owned(),
             0xA000..=0xBFFF => todo!("Reading from external ram ({:X})", address),
             0xC000..=0xDFFF => {
-                let local_address = (address - 0xC000) as usize;
-                self.wram.get(local_address).unwrap().to_owned()
+		let local_address = (address - 0xC000) as usize;
+		unsafe {
+		    return self.wram.get_unchecked(local_address).to_owned();
+		}
             }
             0xE000..=0xFDFF => {
                 let local_address = (address - 0xE000u16) as usize;
-                self.wram.get(local_address).unwrap().to_owned()
+		unsafe {
+		    return self.wram.get_unchecked(local_address).to_owned();
+		}
             }
             0xFE00..=0xFE9F => self
                 .ppu

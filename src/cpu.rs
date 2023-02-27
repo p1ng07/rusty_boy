@@ -8,7 +8,7 @@ use crate::interrupt_handler::*;
 pub enum CpuState {
     Boot,
     NonBoot,
-    Stopped,
+    Stopped
 }
 
 // Emulates the core cpu, is responsible for decoding instructions and executing them
@@ -16,7 +16,7 @@ pub enum CpuState {
 // and makes them do stuff, like the ppu or the timer
 pub struct Cpu {
     state: CpuState,
-    pub mmu: Bus,
+    pub bus: Bus,
     pc: u16,
     sp: u16,
     registers: CpuRegisters,
@@ -32,7 +32,7 @@ impl Cpu {
         let mut cpu = Cpu {
             pc: 0,
             sp: 0,
-            mmu,
+            bus: mmu,
             state: initial_state,
             delta_t_cycles: 0,
             registers: CpuRegisters::default(),
@@ -47,11 +47,14 @@ impl Cpu {
 
     // Cycle the cpu once, fetch an instruction and run it, returns the number of t-cycles it took to run it
     pub fn cycle(&mut self) -> i32 {
-        let first_byte = self.fetch_byte();
         let instruction_delta_t_cycles = self.delta_t_cycles;
+	// Halt state, cycle 4 t-cycles and skip the incrementing of pc
 
-        // Cycle timing is done mid-instruction (i.e. is inside the instructions match statement using a self.tick() function to tick the machine 1 m-cycle forward)
-        self.execute(first_byte);
+	let first_byte = self.fetch_byte();
+	// Cycle timing is done mid-instruction (i.e. is inside the
+	// instructions match statement using a self.tick() function
+	// to tick the machine 1 m-cycle forward)
+	self.execute(first_byte);
 
         self.handle_interrupts();
 
@@ -62,14 +65,14 @@ impl Cpu {
     // Ticks every component by 4 t-cycles
     fn tick(&mut self) {
         self.delta_t_cycles += 4;
-        self.mmu
+        self.bus
             .timer
-            .step(&self.state, 4, &mut self.mmu.interrupt_handler);
+            .step(&self.state, 4, &mut self.bus.interrupt_handler);
     }
 
     fn fetch_byte(&mut self) -> u8 {
         self.tick();
-        let byte = self.mmu.fetch_byte(self.pc, &self.state);
+        let byte = self.bus.fetch_byte(self.pc, &self.state);
         self.pc += 1;
         byte
     }
@@ -83,7 +86,7 @@ impl Cpu {
 
     // Services all serviciable interrupts and returns the number of t-cycles this handling took
     fn handle_interrupts(&mut self) {
-        if !self.mmu.interrupt_handler.enabled || self.mmu.interrupt_handler.IE == 0 {
+        if !self.bus.interrupt_handler.enabled || self.bus.interrupt_handler.IE == 0 {
             // It isn't possible to service any interrupt
             return;
         }
@@ -92,12 +95,12 @@ impl Cpu {
         // Check if it is requested and enabled, if it is then service it
         // IMPORTANT: This iterator uses the order in which the variants are set in the enum, therefore respecting the interrupt order
         for interrupt_type in Interrupt::iter() {
-            if interrupt_type.mask() & self.mmu.interrupt_handler.IF > 0
-                && interrupt_type.mask() & self.mmu.interrupt_handler.IE > 0
-                && self.mmu.interrupt_handler.enabled
+            if interrupt_type.mask() & self.bus.interrupt_handler.IF > 0
+                && interrupt_type.mask() & self.bus.interrupt_handler.IE > 0
+                && self.bus.interrupt_handler.enabled
             {
                 // Service interrupt, set ime to false and reset the respective IF bit on the handler
-                self.mmu
+                self.bus
                     .interrupt_handler
                     .unrequest_interrupt(&interrupt_type);
 
@@ -106,7 +109,7 @@ impl Cpu {
                 self.pc = interrupt_type.jump_vector();
 
                 // Disable IME
-                self.mmu.interrupt_handler.enabled = false;
+                self.bus.interrupt_handler.enabled = false;
             }
         }
     }
@@ -127,21 +130,21 @@ impl Cpu {
 
     fn push_u16_to_stack(&mut self, value_to_push: u16) {
         self.sp = self.sp.wrapping_sub(1);
-        self.mmu
+        self.bus
             .write_byte(self.sp, (value_to_push >> 8) as u8, &mut self.state);
         self.tick();
         self.sp = self.sp.wrapping_sub(1);
-        self.mmu
+        self.bus
             .write_byte(self.sp, value_to_push as u8, &mut self.state);
         self.tick();
     }
 
     fn pop_u16_from_stack(&mut self) -> u16 {
         self.tick();
-        let lower_byte = self.mmu.fetch_byte(self.sp, &self.state);
+        let lower_byte = self.bus.fetch_byte(self.sp, &self.state);
         self.sp = self.sp.wrapping_add(1);
         self.tick();
-        let high_byte = self.mmu.fetch_byte(self.sp, &self.state);
+        let high_byte = self.bus.fetch_byte(self.sp, &self.state);
         self.sp = self.sp.wrapping_add(1);
         (high_byte as u16) << 8 | lower_byte as u16
     }
@@ -205,9 +208,9 @@ impl Cpu {
             format!("{:0>4X}", self.sp),
             format!("{:0>4X}", self.pc - 1),
             format!("{:02X}", instruction),
-            format!("{:02X}", self.mmu.fetch_byte(self.pc, &self.state)),
-            format!("{:02X}", self.mmu.fetch_byte(self.pc + 1, &self.state)),
-            format!("{:02X}", self.mmu.fetch_byte(self.pc + 2, &self.state))
+            format!("{:02X}", self.bus.fetch_byte(self.pc, &self.state)),
+            format!("{:02X}", self.bus.fetch_byte(self.pc + 1, &self.state)),
+            format!("{:02X}", self.bus.fetch_byte(self.pc + 2, &self.state))
         );
     }
 }
