@@ -118,9 +118,9 @@ impl Cpu {
 		self.registers.set_zero_flag(false);
             }
             0x20 => {
+		self.tick();
                 if !self.registers.is_zero_flag_high() {
 		    let offset = self.fetch_byte() as i8;
-                    self.tick();
 		    self.pc = ((self.pc as i32) + (offset as i32)) as u16;
                 } else {
 		    self.pc += 1;
@@ -146,9 +146,9 @@ impl Cpu {
             0x26 => self.registers.h = self.fetch_byte(),
 	    0x27 => self.daa(),
             0x28 => {
+		self.tick();
                 if self.registers.is_zero_flag_high() {
 		    let offset = self.fetch_byte() as i8;
-                    self.tick();
 		    self.pc = ((self.pc as i32) + (offset as i32)) as u16;
                 } else {
 		    self.pc += 1;
@@ -175,9 +175,9 @@ impl Cpu {
                 self.registers.cpl();
             }
             0x30 => {
+		self.tick();
                 if !self.registers.is_carry_flag_high() {
 		    let offset = self.fetch_byte() as i8;
-                    self.tick();
 		    self.pc = ((self.pc as i32) + (offset as i32)) as u16;
                 } else {
 		    self.pc += 1;
@@ -223,9 +223,9 @@ impl Cpu {
             }
             0x37 => self.registers.set_carry_flag(true),
             0x38 => {
+		self.tick();
                 if self.registers.is_carry_flag_high() {
 		    let offset = self.fetch_byte() as i8;
-                    self.tick();
 		    self.pc = ((self.pc as i32) + (offset as i32)) as u16;
                 } else {
 		    self.pc += 1;
@@ -557,9 +557,8 @@ impl Cpu {
                 self.registers.set_bc(popped_value);
             }
             0xC2 => {
+		let address = self.fetch_word();
                 if !self.registers.is_zero_flag_high() {
-		    let address = self.fetch_word();
-                    self.tick();
                     self.pc = address;
                 } else {
 		    self.pc += 2;

@@ -7,6 +7,7 @@ use crate::timer::Timer;
 
 const KIBI_BYTE: usize = 1024;
 
+// Emulates the actions triggered by the reading and writing of bytes in the instructions 
 pub struct Bus {
     boot_rom: [u8; 256],
     hram: [u8; 0x7F],

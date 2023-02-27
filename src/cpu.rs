@@ -11,6 +11,9 @@ pub enum CpuState {
     Stopped,
 }
 
+// Emulates the core cpu, is responsible for decoding instructions and executing them
+// it "drives the whole system", basically the cpu is what ticks the other components
+// and makes them do stuff, like the ppu or the timer
 pub struct Cpu {
     state: CpuState,
     pub mmu: Bus,
@@ -20,6 +23,7 @@ pub struct Cpu {
     delta_t_cycles: i32, // t-cycles performed in the current instruction
 }
 
+// Instructions and cb-prefixed instructions are on separate files
 mod cb_instructions;
 mod instructions;
 
@@ -111,6 +115,7 @@ impl Cpu {
         self.pc = self.pop_u16_from_stack();
         self.tick();
     }
+
     // calls a sub routine, takes 3 m-cycles
     fn call(&mut self, address: u16) {
         self.push_u16_to_stack(self.pc);
