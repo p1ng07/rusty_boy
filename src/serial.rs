@@ -8,11 +8,11 @@ pub struct Serial {
 
 impl Serial {
     pub fn write_to_transfer(&mut self, data: u8) {
-	if data as char == '\n' {
-	    println!("{}", self.current_word);
-	    self.current_word = String::from("");
-	} else {
-	    self.current_word.push(data as char);
-	}
+        if data as char == '\n' {
+            println!("{}", self.current_word);
+            self.current_word = String::from("");
+        } else {
+            self.current_word.push(data as char);
+        }
     }
 }

@@ -29,7 +29,7 @@ impl CpuRegisters {
     }
 
     pub fn set_af(&mut self, n: u16) {
-	let n = n & 0b1111_1111_1111_0000u16;
+        let n = n & 0b1111_1111_1111_0000u16;
         self.a = n.to_be_bytes()[0];
         self.f = n.to_be_bytes()[1];
     }
@@ -123,7 +123,7 @@ impl CpuRegisters {
     pub(crate) fn cp_u8(&mut self, value: u8) {
         let result = self.a.wrapping_sub(value);
         self.set_zero_flag(result == 0);
-	self.set_half_carry_flag((self.a & 0xF).wrapping_sub(value & 0xF) > 0xF);
+        self.set_half_carry_flag((self.a & 0xF).wrapping_sub(value & 0xF) > 0xF);
         self.set_n_flag(true);
         self.set_carry_flag(value > self.a);
     }
@@ -187,19 +187,19 @@ impl CpuRegisters {
     }
 
     pub fn is_half_carry_flag_high(&self) -> bool {
-	(self.f & 0b0010_0000) > 0
+        (self.f & 0b0010_0000) > 0
     }
 
     pub fn is_carry_flag_high(&self) -> bool {
-	(self.f & 0b0001_0000) > 0
+        (self.f & 0b0001_0000) > 0
     }
 
     pub fn is_zero_flag_high(&self) -> bool {
-	(self.f & 0b1000_0000) > 0
+        (self.f & 0b1000_0000) > 0
     }
 
     pub fn is_n_flag_high(&self) -> bool {
-	(self.f & 0b0100_0000) > 0
+        (self.f & 0b0100_0000) > 0
     }
 
     // Receives a u8 and uses the 4 lower bits of the u8 as the flags register

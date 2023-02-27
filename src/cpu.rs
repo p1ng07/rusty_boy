@@ -1,8 +1,8 @@
 use strum::IntoEnumIterator;
 
+use crate::bus::Bus;
 use crate::cpu_registers::CpuRegisters;
 use crate::interrupt_handler::*;
-use crate::bus::Bus;
 
 #[derive(PartialEq)]
 pub enum CpuState {

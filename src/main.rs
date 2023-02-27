@@ -4,11 +4,11 @@ use log4rs::config::{Appender, Config, Root};
 use log4rs::encode::pattern::PatternEncoder;
 use std::env;
 
+mod bus;
 mod cpu;
 mod cpu_registers;
 mod interrupt_handler;
 mod joypad;
-mod bus;
 mod ppu;
 mod serial;
 mod timer;
