@@ -86,11 +86,7 @@ impl Cpu {
                 self.registers.a <<= 1;
                 self.registers.a |= old_carry;
             }
-            0x18 => {
-                let offset = self.fetch_byte() as i8;
-		self.pc = ((self.pc as i32) + (offset as i32)) as u16;
-                self.tick();
-            }
+            0x18 => self.jr_i8(true),
             0x19 => {
                 self.registers.add_to_hl_u16(self.registers.get_de());
                 self.tick();
@@ -117,15 +113,7 @@ impl Cpu {
 		self.registers.set_half_carry_flag(false);
 		self.registers.set_zero_flag(false);
             }
-            0x20 => {
-		self.tick();
-                if !self.registers.is_zero_flag_high() {
-		    let offset = self.fetch_byte() as i8;
-		    self.pc = ((self.pc as i32) + (offset as i32)) as u16;
-                } else {
-		    self.pc += 1;
-		}
-            }
+            0x20 => self.jr_i8(!self.registers.is_zero_flag_high()),
             0x21 => {
                 let word = self.fetch_word();
                 self.registers.set_hl(word);
@@ -145,15 +133,7 @@ impl Cpu {
             0x25 => self.registers.h = self.registers.dec_u8_reg(self.registers.h),
             0x26 => self.registers.h = self.fetch_byte(),
 	    0x27 => self.daa(),
-            0x28 => {
-		self.tick();
-                if self.registers.is_zero_flag_high() {
-		    let offset = self.fetch_byte() as i8;
-		    self.pc = ((self.pc as i32) + (offset as i32)) as u16;
-                } else {
-		    self.pc += 1;
-		}
-            }
+            0x28 => self.jr_i8(self.registers.is_zero_flag_high()),
             0x29 => {
                 self.registers.add_to_hl_u16(self.registers.get_hl());
                 self.tick();
@@ -174,15 +154,7 @@ impl Cpu {
             0x2F => {
                 self.registers.cpl();
             }
-            0x30 => {
-		self.tick();
-                if !self.registers.is_carry_flag_high() {
-		    let offset = self.fetch_byte() as i8;
-		    self.pc = ((self.pc as i32) + (offset as i32)) as u16;
-                } else {
-		    self.pc += 1;
-		}
-            }
+            0x30 => self.jr_i8(!self.registers.is_carry_flag_high()),
             0x31 => self.sp = self.fetch_word(),
             0x32 => {
                 self.mmu
@@ -222,15 +194,7 @@ impl Cpu {
                 self.tick();
             }
             0x37 => self.registers.set_carry_flag(true),
-            0x38 => {
-		self.tick();
-                if self.registers.is_carry_flag_high() {
-		    let offset = self.fetch_byte() as i8;
-		    self.pc = ((self.pc as i32) + (offset as i32)) as u16;
-                } else {
-		    self.pc += 1;
-		}
-            }
+            0x38 => self.jr_i8(self.registers.is_carry_flag_high()),
             0x39 => {
                 self.registers.add_to_hl_u16(self.sp);
                 self.tick();
@@ -814,6 +778,14 @@ impl Cpu {
                 first_byte.to_be_bytes()
             ),
         }
+    }
+
+    fn jr_i8(&mut self, jump_condition: bool) {
+	let offset = self.fetch_byte() as i8;
+	if jump_condition {
+	    self.pc = ((self.pc as i32) + (offset as i32)) as u16;
+	    self.tick();
+	}
     }
 
     fn daa(&mut self) {
