@@ -113,7 +113,7 @@ impl Cpu {
 		self.registers.a >>= 1;
 		self.registers.a |= (old_carry as u8) << 7;
 		self.registers.set_carry_flag(new_carry);
-		self.registers.set_was_prev_instr_sub(false);
+		self.registers.set_n_flag(false);
 		self.registers.set_half_carry_flag(false);
 		self.registers.set_zero_flag(false);
             }
@@ -144,6 +144,7 @@ impl Cpu {
             0x24 => self.registers.h = self.registers.inc_u8_reg(self.registers.h),
             0x25 => self.registers.h = self.registers.dec_u8_reg(self.registers.h),
             0x26 => self.registers.h = self.fetch_byte(),
+	    0x27 => self.daa(),
             0x28 => {
                 if self.registers.is_zero_flag_high() {
 		    let offset = self.fetch_byte() as i8;
@@ -248,7 +249,7 @@ impl Cpu {
             0x3D => self.registers.a = self.registers.dec_u8_reg(self.registers.a),
             0x3E => self.registers.a = self.fetch_byte(),
             0x3F => {
-                self.registers.set_was_prev_instr_sub(false);
+                self.registers.set_n_flag(false);
                 self.registers.set_half_carry_flag(false);
                 self.registers
                     .set_carry_flag(!self.registers.is_carry_flag_high());
@@ -716,7 +717,7 @@ impl Cpu {
             0xE8 => {
                 let number = self.fetch_byte() as i8;
                 self.registers.set_zero_flag(false);
-                self.registers.set_was_prev_instr_sub(false);
+                self.registers.set_n_flag(false);
 
                 self.tick();
                 self.tick();
@@ -814,5 +815,28 @@ impl Cpu {
                 first_byte.to_be_bytes()
             ),
         }
+    }
+
+    fn daa(&mut self) {
+        if !self.registers.is_n_flag_high() {
+		            // Last instruction was a addition
+		            if self.registers.is_carry_flag_high() || self.registers.a > 0x99 {
+			        self.registers.a = self.registers.a.wrapping_add(0x60);
+			        self.registers.set_carry_flag(true);
+		            };
+		            if self.registers.is_half_carry_flag_high() || (self.registers.a & 0x0F) > 0x9 {
+			        self.registers.a = self.registers.a.wrapping_add(0x6);
+		            }
+		        } else {
+		            // Last instruction was a subtraction
+		            if self.registers.is_carry_flag_high() {
+			        self.registers.a = self.registers.a.wrapping_sub(0x60);
+		            };
+		            if self.registers.is_half_carry_flag_high() {
+			        self.registers.a = self.registers.a.wrapping_sub(0x6);
+		            }
+		        }
+        self.registers.set_zero_flag(self.registers.a == 0);
+        self.registers.set_half_carry_flag(false);
     }
 }

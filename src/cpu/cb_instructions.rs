@@ -396,7 +396,7 @@ impl Cpu {
 	reg |= (old_carry as u8) << 7;
         self.registers.set_zero_flag(reg == 0);
         self.registers.set_half_carry_flag(false);
-        self.registers.set_was_prev_instr_sub(false);
+        self.registers.set_n_flag(false);
         reg
     }
 
@@ -406,7 +406,7 @@ impl Cpu {
         reg = (reg << 1) | carry as u8;
         self.registers.set_zero_flag(reg == 0);
         self.registers.set_half_carry_flag(false);
-        self.registers.set_was_prev_instr_sub(false);
+        self.registers.set_n_flag(false);
         reg
     }
 
@@ -416,7 +416,7 @@ impl Cpu {
         reg = (reg >> 1) | (carry as u8) << 7;
         self.registers.set_zero_flag(reg == 0);
         self.registers.set_half_carry_flag(false);
-        self.registers.set_was_prev_instr_sub(false);
+        self.registers.set_n_flag(false);
         reg
     }
 
@@ -427,7 +427,7 @@ impl Cpu {
 	reg |= carry as u8;
         self.registers.set_zero_flag(reg == 0);
         self.registers.set_half_carry_flag(false);
-        self.registers.set_was_prev_instr_sub(false);
+        self.registers.set_n_flag(false);
         reg
     }
 
@@ -437,7 +437,7 @@ impl Cpu {
         reg <<= 1;
         self.registers.set_zero_flag(reg == 0);
         self.registers.set_half_carry_flag(false);
-        self.registers.set_was_prev_instr_sub(false);
+        self.registers.set_n_flag(false);
         reg
     }
 
@@ -447,7 +447,7 @@ impl Cpu {
         reg >>= 1;
         self.registers.set_zero_flag(reg == 0);
         self.registers.set_half_carry_flag(false);
-        self.registers.set_was_prev_instr_sub(false);
+        self.registers.set_n_flag(false);
         reg
     }
 
@@ -456,7 +456,7 @@ impl Cpu {
         reg >>= 1;
         self.registers.set_zero_flag(reg == 0);
         self.registers.set_half_carry_flag(false);
-        self.registers.set_was_prev_instr_sub(false);
+        self.registers.set_n_flag(false);
         reg
     }
 
@@ -467,7 +467,7 @@ impl Cpu {
 
     fn test_bit(&mut self, reg: u8, bit_index: u8) {
         self.registers.set_zero_flag((reg >> bit_index) & 0x1 == 0);
-        self.registers.set_was_prev_instr_sub(false);
+        self.registers.set_n_flag(false);
         self.registers.set_half_carry_flag(false);
     }
 }
