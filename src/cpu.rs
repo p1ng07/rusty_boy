@@ -102,7 +102,8 @@ impl Cpu {
                     .unrequest_interrupt(&interrupt_type);
 
                 // CALL interrupt_vector
-                self.call(interrupt_type.jump_vector());
+		self.push_u16_to_stack(self.pc);
+		self.pc = interrupt_type.jump_vector();
 
                 // Disable IME
                 self.mmu.interrupt_handler.enabled = false;
@@ -117,10 +118,11 @@ impl Cpu {
     }
 
     // calls a sub routine, takes 3 m-cycles
-    fn call(&mut self, address: u16) {
-        self.push_u16_to_stack(self.pc);
-        self.pc = address;
-        self.tick();
+    fn call_u16(&mut self, condition: bool) {
+	let address = self.fetch_word();
+	if condition {
+	    self.rst(address);
+	}
     }
 
     fn push_u16_to_stack(&mut self, value_to_push: u16) {
@@ -142,6 +144,51 @@ impl Cpu {
         let high_byte = self.mmu.fetch_byte(self.sp, &self.state);
         self.sp = self.sp.wrapping_add(1);
         (high_byte as u16) << 8 | lower_byte as u16
+    }
+
+    fn rst(&mut self, address: u16) {
+	self.push_u16_to_stack(self.pc);
+	self.pc = address;
+	self.tick();
+    }
+
+    fn jp_u16(&mut self, condition: bool) {
+        let address = self.fetch_word();
+        if condition {
+            self.pc = address;
+            self.tick();
+        }
+    }
+
+    fn jr_i8(&mut self, jump_condition: bool) {
+        let offset = self.fetch_byte() as i8;
+        if jump_condition {
+            self.pc = ((self.pc as i32) + (offset as i32)) as u16;
+            self.tick();
+        }
+    }
+
+    fn daa(&mut self) {
+        if !self.registers.is_n_flag_high() {
+            // Last instruction was a addition
+            if self.registers.is_carry_flag_high() || self.registers.a > 0x99 {
+                self.registers.a = self.registers.a.wrapping_add(0x60);
+                self.registers.set_carry_flag(true);
+            };
+            if self.registers.is_half_carry_flag_high() || (self.registers.a & 0x0F) > 0x9 {
+                self.registers.a = self.registers.a.wrapping_add(0x6);
+            }
+        } else {
+            // Last instruction was a subtraction
+            if self.registers.is_carry_flag_high() {
+                self.registers.a = self.registers.a.wrapping_sub(0x60);
+            };
+            if self.registers.is_half_carry_flag_high() {
+                self.registers.a = self.registers.a.wrapping_sub(0x6);
+            }
+        }
+        self.registers.set_zero_flag(self.registers.a == 0);
+        self.registers.set_half_carry_flag(false);
     }
 
     fn log_to_file(&self, instruction: u8) {

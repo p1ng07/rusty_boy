@@ -525,12 +525,7 @@ impl Cpu {
             }
             0xC2 => self.jp_u16(!self.registers.is_zero_flag_high()),
             0xC3 => self.jp_u16(true),
-            0xC4 => {
-                let address = self.fetch_word();
-                if !self.registers.is_zero_flag_high() {
-                    self.call(address);
-                }
-            }
+            0xC4 => self.call_u16(!self.registers.is_zero_flag_high()),
             0xC5 => {
                 self.push_u16_to_stack(self.registers.get_bc());
                 self.tick();
@@ -539,7 +534,7 @@ impl Cpu {
                 let n = self.fetch_byte();
                 self.registers.add_u8(n);
             }
-            0xC7 => self.call(0x0u16),
+            0xC7 => self.rst(0x0u16),
             0xC8 => {
                 self.tick();
                 if self.registers.is_zero_flag_high() {
@@ -549,24 +544,14 @@ impl Cpu {
             0xC9 => self.ret(),
             0xCA => self.jp_u16(self.registers.is_zero_flag_high()),
             0xCB => self.execute_cb(),
-            0xCC => {
-                let jump_address = self.fetch_word();
-                if self.registers.is_zero_flag_high() {
-                    self.call(jump_address);
-                }
-            }
-            0xCD => {
-                let new_address = self.fetch_word();
-                self.call(new_address);
-            }
+            0xCC => self.call_u16(self.registers.is_zero_flag_high()),
+            0xCD => self.call_u16(true),
             0xCE => {
                 let number = self.fetch_byte();
                 self.registers
                     .add_u8(number + self.registers.is_carry_flag_high() as u8);
             }
-            0xCF => {
-                self.call(0x08u16);
-            }
+            0xCF => self.rst(0x08u16),
             0xD0 => {
                 self.tick();
                 if !self.registers.is_carry_flag_high() {
@@ -578,12 +563,7 @@ impl Cpu {
                 self.registers.set_de(popped_value);
             }
             0xD2 => self.jp_u16(!self.registers.is_carry_flag_high()),
-            0xD4 => {
-                let address = self.fetch_word();
-                if !self.registers.is_carry_flag_high() {
-                    self.call(address);
-                }
-            }
+            0xD4 => self.call_u16(!self.registers.is_carry_flag_high()),
             0xD5 => {
                 self.push_u16_to_stack(self.registers.get_de());
                 self.tick();
@@ -592,9 +572,7 @@ impl Cpu {
                 let n = self.fetch_byte();
                 self.registers.sub_u8(n);
             }
-            0xD7 => {
-                self.call(0x10u16);
-            }
+            0xD7 => self.rst(0x10u16),
             0xD8 => {
                 self.tick();
                 if self.registers.is_carry_flag_high() {
@@ -606,21 +584,13 @@ impl Cpu {
                 self.mmu.interrupt_handler.enabled = true;
             }
             0xDA => self.jp_u16(self.registers.is_carry_flag_high()),
-            0xDC => {
-                let jump_address = self.fetch_word();
-                if self.registers.is_carry_flag_high() {
-                    self.call(jump_address);
-                    self.tick();
-                }
-            }
+            0xDC => self.call_u16(self.registers.is_carry_flag_high()),
             0xDE => {
                 let number = self.fetch_byte();
                 self.registers
                     .sub_u8(number.wrapping_sub(self.registers.is_carry_flag_high() as u8));
             }
-            0xDF => {
-                self.call(0x18u16);
-            }
+            0xDF => self.rst(0x18u16),
             0xE0 => {
                 let address: u16 = 0xFF00 + (self.fetch_byte() as u16);
                 self.mmu
@@ -647,9 +617,7 @@ impl Cpu {
                 let reg = self.fetch_byte();
                 self.registers.and_u8(reg);
             }
-            0xE7 => {
-                self.call(0x20u16);
-            }
+            0xE7 => self.rst(0x20u16),
             0xE8 => {
                 let number = self.fetch_byte() as i8;
                 self.registers.set_zero_flag(false);
@@ -688,7 +656,7 @@ impl Cpu {
                 let byte = self.fetch_byte();
                 self.registers.xor_u8(byte);
             }
-            0xEF => self.call(0x28u16),
+            0xEF => self.rst(0x28u16),
             0xF0 => {
                 let add_on = self.fetch_byte() as u16;
                 self.registers.a = self.mmu.fetch_byte(0xFF00u16 + add_on, &self.state);
@@ -713,7 +681,7 @@ impl Cpu {
                 let byte = self.fetch_byte();
                 self.registers.or_u8(byte);
             }
-            0xF7 => self.call(0x30u16),
+            0xF7 => self.rst(0x30u16),
             0xF8 => {
                 let offset = self.fetch_byte() as i8 as i16 as u16;
 		let new_sp = self.sp.wrapping_add(offset);
@@ -749,44 +717,5 @@ impl Cpu {
                 first_byte.to_be_bytes()
             ),
         }
-    }
-
-    fn jp_u16(&mut self, condition: bool) {
-        let address = self.fetch_word();
-        if condition {
-            self.pc = address;
-            self.tick();
-        }
-    }
-
-    fn jr_i8(&mut self, jump_condition: bool) {
-        let offset = self.fetch_byte() as i8;
-        if jump_condition {
-            self.pc = ((self.pc as i32) + (offset as i32)) as u16;
-            self.tick();
-        }
-    }
-
-    fn daa(&mut self) {
-        if !self.registers.is_n_flag_high() {
-            // Last instruction was a addition
-            if self.registers.is_carry_flag_high() || self.registers.a > 0x99 {
-                self.registers.a = self.registers.a.wrapping_add(0x60);
-                self.registers.set_carry_flag(true);
-            };
-            if self.registers.is_half_carry_flag_high() || (self.registers.a & 0x0F) > 0x9 {
-                self.registers.a = self.registers.a.wrapping_add(0x6);
-            }
-        } else {
-            // Last instruction was a subtraction
-            if self.registers.is_carry_flag_high() {
-                self.registers.a = self.registers.a.wrapping_sub(0x60);
-            };
-            if self.registers.is_half_carry_flag_high() {
-                self.registers.a = self.registers.a.wrapping_sub(0x6);
-            }
-        }
-        self.registers.set_zero_flag(self.registers.a == 0);
-        self.registers.set_half_carry_flag(false);
     }
 }
