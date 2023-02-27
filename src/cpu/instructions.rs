@@ -7,9 +7,7 @@ impl Cpu {
         self.log_to_file(first_byte);
 
         match first_byte {
-            0x00 => {
-                self.tick();
-            }
+            0x00 => self.tick(),
             0x01 => {
                 let n = self.fetch_word();
                 self.registers.set_bc(n);
@@ -178,12 +176,14 @@ impl Cpu {
                 self.tick();
             }
             0x35 => {
-                let value = self
+                let mut value = self
                     .mmu
-                    .fetch_byte(self.registers.get_hl(), &self.state)
-                    .wrapping_sub(1);
+                    .fetch_byte(self.registers.get_hl(), &self.state);
+
+		value = self.registers.dec_u8_reg(value);
                 self.mmu
                     .write_byte(self.registers.get_hl(), value, &mut self.state);
+
                 self.tick();
                 self.tick();
             }
@@ -715,16 +715,14 @@ impl Cpu {
             }
             0xF7 => self.call(0x30u16),
             0xF8 => {
-                let number = self.fetch_byte() as i8;
-                let adder: u16;
-
+                let offset = self.fetch_byte() as i8;
+		let new_hl = ((self.registers.get_hl() as i32) + (offset as i32)) as u16;
+		self.registers.set_zero_flag(new_hl == 0);
+		self.registers.set_carry_flag(new_hl < self.registers.get_hl());
+		self.registers.set_n_flag(false);
+		self.registers.set_half_carry_flag(false);
+                self.registers.set_hl(new_hl);
                 self.tick();
-                if number >= 0 {
-                    adder = self.sp.wrapping_add(number.unsigned_abs() as u16);
-                } else {
-                    adder = self.sp.wrapping_sub(number.unsigned_abs() as u16);
-                }
-                self.registers.set_hl(adder);
             }
             0xF9 => {
                 self.sp = self.registers.get_hl();
