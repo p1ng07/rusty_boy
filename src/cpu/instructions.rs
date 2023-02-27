@@ -520,19 +520,8 @@ impl Cpu {
                 let popped_value = self.pop_u16_from_stack();
                 self.registers.set_bc(popped_value);
             }
-            0xC2 => {
-		let address = self.fetch_word();
-                if !self.registers.is_zero_flag_high() {
-                    self.pc = address;
-                } else {
-		    self.pc += 2;
-		}
-            }
-            0xC3 => {
-                let address = self.fetch_word();
-                self.pc = address;
-                self.tick();
-            }
+            0xC2 => self.jp_u16(!self.registers.is_zero_flag_high()),
+            0xC3 => self.jp_u16(true),
             0xC4 => {
                 let address = self.fetch_word();
                 if !self.registers.is_zero_flag_high() {
@@ -555,13 +544,7 @@ impl Cpu {
                 }
             }
             0xC9 => self.ret(),
-            0xCA => {
-                let jump = self.fetch_word();
-                if self.registers.is_zero_flag_high() {
-                    self.pc = jump;
-                    self.tick();
-                }
-            }
+            0xCA => self.jr_i8(self.registers.is_zero_flag_high()),
             0xCB => self.execute_cb(),
             0xCC => {
                 let jump_address = self.fetch_word();
@@ -591,13 +574,7 @@ impl Cpu {
                 let popped_value = self.pop_u16_from_stack();
                 self.registers.set_de(popped_value);
             }
-            0xD2 => {
-                let address = self.fetch_word();
-                if self.registers.is_carry_flag_high() {
-                    self.pc = address;
-                    self.tick();
-                }
-            }
+            0xD2 => self.jp_u16(!self.registers.is_carry_flag_high()),
             0xD4 => {
                 let address = self.fetch_word();
                 if !self.registers.is_carry_flag_high() {
@@ -625,14 +602,7 @@ impl Cpu {
                 self.ret();
                 self.mmu.interrupt_handler.enabled = true;
             }
-            0xDA => {
-                let jump = self.fetch_word();
-                self.tick();
-                if self.registers.is_carry_flag_high() {
-                    self.pc = jump;
-                    self.tick();
-                }
-            }
+            0xDA => self.jp_u16(self.registers.is_carry_flag_high()),
             0xDC => {
                 let jump_address = self.fetch_word();
                 if self.registers.is_carry_flag_high() {
@@ -777,6 +747,14 @@ impl Cpu {
                 "Instruction {:x?} not implemented",
                 first_byte.to_be_bytes()
             ),
+        }
+    }
+
+    fn jp_u16(&mut self, condition: bool) {
+        let address = self.fetch_word();
+        if condition {
+            self.pc = address;
+	    self.tick();
         }
     }
 
