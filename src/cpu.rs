@@ -47,7 +47,6 @@ impl Cpu {
 
     // Cycle the cpu once, fetch an instruction and run it, returns the number of t-cycles it took to run it
     pub fn cycle(&mut self) -> i32 {
-        let instruction_delta_t_cycles = self.delta_t_cycles;
 	// Halt state, cycle 4 t-cycles and skip the incrementing of pc
 
 	let first_byte = self.fetch_byte();
@@ -58,6 +57,7 @@ impl Cpu {
 
         self.handle_interrupts();
 
+        let instruction_delta_t_cycles = self.delta_t_cycles;
         self.delta_t_cycles = 0;
         instruction_delta_t_cycles
     }
