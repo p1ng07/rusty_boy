@@ -7,7 +7,7 @@ use crate::timer::Timer;
 
 const KIBI_BYTE: usize = 1024;
 
-pub struct Mmu {
+pub struct Bus {
     boot_rom: [u8; 256],
     hram: [u8; 0x7F],
     pub interrupt_handler: InterruptHandler,
@@ -20,7 +20,7 @@ pub struct Mmu {
     wram: [u8; 0x2000],
 }
 
-impl Mmu {
+impl Bus {
     pub fn fetch_byte(&self, address: u16, cpu_state: &CpuState) -> u8 {
         match address {
             0..=0x7FFF => match cpu_state {
