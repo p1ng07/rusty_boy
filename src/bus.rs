@@ -30,7 +30,7 @@ impl Bus {
                     _ => panic!("Tried to call boot rom after it was already ended"),
                 },
                 CpuState::NonBoot => *self.rom_0.get(address as usize).unwrap_or(&0xFFu8),
-                CpuState::Stopped => 0xFF,
+                _ => 0xFF,
             },
             0x8000..=0x9FFF => self
                 .ppu

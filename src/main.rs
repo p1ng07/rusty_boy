@@ -60,8 +60,6 @@ fn main() {
         while ran_cycles < 69905 {
             ran_cycles += cpu.cycle();
         }
-
         let mut d = rl.begin_drawing(&thread);
-        d.clear_background(Color::PURPLE);
     }
 }

@@ -249,7 +249,7 @@ impl Cpu {
             0x57 => self.registers.d = self.registers.a,
             0x58 => self.registers.e = self.registers.b,
             0x59 => self.registers.e = self.registers.c,
-            0x5A => self.registers.e = self.registers.e,
+            0x5A => self.registers.e = self.registers.d,
             0x5B => self.registers.e = self.registers.e,
             0x5C => self.registers.e = self.registers.h,
             0x5D => self.registers.e = self.registers.l,

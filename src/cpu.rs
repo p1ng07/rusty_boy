@@ -8,7 +8,7 @@ use crate::interrupt_handler::*;
 pub enum CpuState {
     Boot,
     NonBoot,
-    Stopped
+    Stopped,
 }
 
 // Emulates the core cpu, is responsible for decoding instructions and executing them
@@ -47,14 +47,11 @@ impl Cpu {
 
     // Cycle the cpu once, fetch an instruction and run it, returns the number of t-cycles it took to run it
     pub fn cycle(&mut self) -> i32 {
-	// Halt state, cycle 4 t-cycles and skip the incrementing of pc
-
 	let first_byte = self.fetch_byte();
 	// Cycle timing is done mid-instruction (i.e. is inside the
 	// instructions match statement using a self.tick() function
 	// to tick the machine 1 m-cycle forward)
 	self.execute(first_byte);
-
         self.handle_interrupts();
 
         let instruction_delta_t_cycles = self.delta_t_cycles;
@@ -90,6 +87,7 @@ impl Cpu {
             // It isn't possible to service any interrupt
             return;
         }
+
 
         // Go through every interrupt possible interrupt in order of priority (bit order ex: vblank is highest priority)
         // Check if it is requested and enabled, if it is then service it
