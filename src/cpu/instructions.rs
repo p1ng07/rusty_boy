@@ -501,8 +501,7 @@ impl Cpu {
             0xCD => self.call_u16(true),
             0xCE => {
                 let number = self.fetch_byte();
-                self.registers
-                    .add_u8(number.wrapping_add(self.registers.is_carry_flag_high() as u8));
+		self.registers.adc_u8(number);
             }
             0xCF => self.rst(0x08u16),
             0xD0 => {
@@ -540,8 +539,7 @@ impl Cpu {
             0xDC => self.call_u16(self.registers.is_carry_flag_high()),
             0xDE => {
                 let number = self.fetch_byte();
-                self.registers
-                    .sub_u8(number.wrapping_sub(self.registers.is_carry_flag_high() as u8));
+		self.registers.sbc_u8(number);
             }
             0xDF => self.rst(0x18u16),
             0xE0 => {
