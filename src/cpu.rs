@@ -1,6 +1,6 @@
 use strum::IntoEnumIterator;
 
-use crate::bus::Bus;
+use crate::bus::Mmu;
 use crate::cpu_registers::CpuRegisters;
 use crate::interrupt_handler::*;
 
@@ -16,7 +16,7 @@ pub enum CpuState {
 // and makes them do stuff, like the ppu or the timer
 pub struct Cpu {
     state: CpuState,
-    pub bus: Bus,
+    pub bus: Mmu,
     pc: u16,
     sp: u16,
     registers: CpuRegisters,
@@ -28,7 +28,7 @@ mod cb_instructions;
 mod instructions;
 
 impl Cpu {
-    pub fn new(initial_state: CpuState, mmu: Bus) -> Cpu {
+    pub fn new(initial_state: CpuState, mmu: Mmu) -> Cpu {
         let mut cpu = Cpu {
             pc: 0,
             sp: 0,

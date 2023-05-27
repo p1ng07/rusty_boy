@@ -1,4 +1,4 @@
-use crate::bus::Bus;
+use crate::bus::Mmu;
 use log4rs::append::file::FileAppender;
 use log4rs::config::{Appender, Config, Root};
 use log4rs::encode::pattern::PatternEncoder;
@@ -35,7 +35,7 @@ fn main() {
 
     log4rs::init_config(config).unwrap();
 
-    let mut mmu = Bus::new();
+    let mut mmu = Mmu::new();
 
     if let Some(rom_path) = args.get(1) {
         // There was a rom path, try to load it

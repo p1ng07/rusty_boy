@@ -8,7 +8,7 @@ use crate::timer::Timer;
 const KIBI_BYTE: usize = 1024;
 
 // Emulates the actions triggered by the reading and writing of bytes in the instructions
-pub struct Bus {
+pub struct Mmu {
     boot_rom: [u8; 256],
     hram: [u8; 0x7F],
     pub interrupt_handler: InterruptHandler,
@@ -21,7 +21,7 @@ pub struct Bus {
     wram: [u8; 0x2000],
 }
 
-impl Bus {
+impl Mmu {
     pub fn fetch_byte(&self, address: u16, cpu_state: &CpuState) -> u8 {
         match address {
             0..=0x7FFF => match cpu_state {
