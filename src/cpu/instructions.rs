@@ -626,9 +626,9 @@ impl Cpu {
 
                 self.registers.set_zero_flag(false);
                 self.registers.set_n_flag(false);
-                self.registers.set_carry_flag(new_sp < self.sp);
+		self.registers.set_carry_flag((offset & 0xFF) + (self.sp & 0xFF) > 0xFF);
                 self.registers
-                    .set_half_carry_flag((self.sp & 0x0FFF) + (offset & 0x0FFF) > 0x0FFF);
+                    .set_half_carry_flag((self.sp & 0x0F) + (offset & 0x0F) > 0x0F);
                 self.registers.set_hl(new_sp);
             }
             0xF9 => {
