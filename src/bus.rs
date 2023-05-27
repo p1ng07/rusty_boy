@@ -87,7 +87,7 @@ impl Bus {
 
     pub fn write_byte(&mut self, address: u16, received_byte: u8, cpu_state: &mut CpuState) {
         match address {
-            0..=0x7FFF => (), // Writing to ROM
+            0..=0x7FFF => todo!("Switch mbc banks"), // Writing to ROM
             0x8000..=0x9FFF => self.ppu.vram[(address - 0x8000) as usize] = received_byte,
             0xA000..=0xBFFF => todo!(
                 "Writing to External RAM: ({:X}), {}",

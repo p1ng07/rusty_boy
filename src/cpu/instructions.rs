@@ -137,6 +137,7 @@ impl Cpu {
             0x2A => {
                 self.registers.a = self.bus.fetch_byte(self.registers.get_hl(), &self.state);
                 self.registers.set_hl(self.registers.get_hl().wrapping_add(1));
+		self.tick();
             }
             0x2B => {
                 self.registers.dec_hl();
@@ -571,31 +572,16 @@ impl Cpu {
             }
             0xE7 => self.rst(0x20u16),
             0xE8 => {
-                let number = self.fetch_byte() as i8;
+                let number = self.fetch_byte() as i8 as i16 as u16;
                 self.registers.set_zero_flag(false);
                 self.registers.set_n_flag(false);
+		self.registers.set_half_carry_flag((number & 0xF) + (self.sp & 0xF) > 0xF);
+		self.registers.set_carry_flag((number & 0xFF) + (self.sp & 0xFF) > 0xFF);
 
                 self.tick();
                 self.tick();
-                if number < 0 {
-                    self.registers.set_carry_flag(self.sp < number as u16);
-                    self.registers.set_half_carry_flag(
-                        ((self.sp
-                            ^ number as u16
-                            ^ self.sp.wrapping_add(number.unsigned_abs() as u16))
-                            & 0x10)
-                            > 0,
-                    );
-                    self.sp = self.sp.wrapping_sub(number.unsigned_abs() as u16);
-                } else {
-                    self.registers.set_carry_flag(
-                        self.sp > self.sp.wrapping_add(number.unsigned_abs() as u16),
-                    );
-                    self.registers.set_half_carry_flag(
-                        (self.sp & 0xFFu16) + number.unsigned_abs() as u16 > 0xFF,
-                    );
-                    self.sp = self.sp.wrapping_add(number as u16);
-                }
+
+		self.sp = self.sp.wrapping_add(number);
             }
             0xE9 => self.pc = self.registers.get_hl(),
             0xEA => {
