@@ -2,6 +2,7 @@ use crate::bus::Bus;
 use log4rs::append::file::FileAppender;
 use log4rs::config::{Appender, Config, Root};
 use log4rs::encode::pattern::PatternEncoder;
+use raylib::prelude::*;
 use std::env;
 
 mod bus;
@@ -14,7 +15,6 @@ mod serial;
 mod timer;
 
 use log::LevelFilter;
-use raylib::prelude::*;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -61,5 +61,6 @@ fn main() {
             ran_cycles += cpu.cycle();
         }
         let mut d = rl.begin_drawing(&thread);
+	d.clear_background(Color::BLACK);
     }
 }
