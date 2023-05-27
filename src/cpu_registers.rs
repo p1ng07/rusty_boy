@@ -5,7 +5,7 @@ pub struct CpuRegisters {
     pub c: u8,
     pub d: u8,
     pub e: u8,
-    pub f: u8,
+    pub f: u8, // Zero - Subtraction - Half carry - Carry
     pub h: u8,
     pub l: u8,
 }
@@ -215,5 +215,16 @@ impl CpuRegisters {
         self.a ^= 0xFF;
         self.set_n_flag(true);
         self.set_half_carry_flag(true);
+    }
+
+    // Add 8 bit register to accumulator with carry
+    pub(crate) fn adc_u8(&mut self, reg: u8) {
+	let carry = if self.is_carry_flag_high() {1} else {0};
+
+	self.set_carry_flag(reg == 0xFF);
+	self.set_n_flag(false);
+	self.set_half_carry_flag(reg & 0xF == 0xF);
+
+	self.a = self.a.wrapping_add(reg.wrapping_add(carry));
     }
 }

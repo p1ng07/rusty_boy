@@ -135,10 +135,8 @@ impl Cpu {
                 self.tick();
             }
             0x2A => {
-                let add = self.registers.get_hl();
-                self.registers.a = self.bus.fetch_byte(add, &self.state);
-                let new_hl = add.wrapping_add(1);
-                self.registers.set_hl(new_hl);
+                self.registers.a = self.bus.fetch_byte(self.registers.get_hl(), &self.state);
+                self.registers.set_hl(self.registers.get_hl().wrapping_add(1));
             }
             0x2B => {
                 self.registers.dec_hl();
@@ -338,61 +336,18 @@ impl Cpu {
                 self.tick();
             }
             0x87 => self.registers.add_u8(self.registers.a),
-            0x88 => self.registers.add_u8(
-                self.registers
-                    .b
-                    .wrapping_add(self.registers.is_carry_flag_high() as u8),
-            ),
-            0x89 => {
-                self.registers.add_u8(
-                    self.registers
-                        .c
-                        .wrapping_add(self.registers.is_carry_flag_high() as u8),
-                );
-            }
-            0x8A => {
-                self.registers.add_u8(
-                    self.registers
-                        .d
-                        .wrapping_add(self.registers.is_carry_flag_high() as u8),
-                );
-            }
-            0x8B => {
-                self.registers.add_u8(
-                    self.registers
-                        .e
-                        .wrapping_add(self.registers.is_carry_flag_high() as u8),
-                );
-            }
-            0x8C => {
-                self.registers.add_u8(
-                    self.registers
-                        .h
-                        .wrapping_add(self.registers.is_carry_flag_high() as u8),
-                );
-            }
-            0x8D => {
-                self.registers.add_u8(
-                    self.registers
-                        .l
-                        .wrapping_add(self.registers.is_carry_flag_high() as u8),
-                );
-            }
+	    0x88 => self.registers.adc_u8(self.registers.b),
+	    0x89 => self.registers.adc_u8(self.registers.c),
+	    0x8A => self.registers.adc_u8(self.registers.d),
+	    0x8B => self.registers.adc_u8(self.registers.e),
+	    0x8C => self.registers.adc_u8(self.registers.h),
+	    0x8D => self.registers.adc_u8(self.registers.l),
             0x8E => {
-                self.registers.add_u8(
-                    self.bus
-                        .fetch_byte(self.registers.get_hl(), &self.state)
-                        .wrapping_add(self.registers.is_carry_flag_high() as u8),
-                );
+		let byte = self.bus.fetch_byte(self.registers.get_hl(), &self.state);
+		self.registers.adc_u8(byte);
                 self.tick();
             }
-            0x8F => {
-                self.registers.add_u8(
-                    self.registers
-                        .a
-                        .wrapping_add(self.registers.is_carry_flag_high() as u8),
-                );
-            }
+            0x8F => self.registers.adc_u8(self.registers.a),
             0x90 => self.registers.sub_u8(self.registers.b),
             0x91 => self.registers.sub_u8(self.registers.c),
             0x92 => self.registers.sub_u8(self.registers.d),

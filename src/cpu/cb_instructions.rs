@@ -133,14 +133,14 @@ impl Cpu {
                 self.tick();
             }
             0x3F => self.registers.a = self.srl(self.registers.a),
-            0x40..=0x47 => self.test_bit(register_to_use, 0),
-            0x48..=0x4F => self.test_bit(register_to_use, 1),
-            0x50..=0x57 => self.test_bit(register_to_use, 2),
-            0x58..=0x5F => self.test_bit(register_to_use, 3),
-            0x60..=0x67 => self.test_bit(register_to_use, 4),
-            0x68..=0x6F => self.test_bit(register_to_use, 5),
-            0x70..=0x77 => self.test_bit(register_to_use, 6),
-            0x78..=0x7F => self.test_bit(register_to_use, 7),
+            0x40..=0x47 => self.bit(register_to_use, 0),
+            0x48..=0x4F => self.bit(register_to_use, 1),
+            0x50..=0x57 => self.bit(register_to_use, 2),
+            0x58..=0x5F => self.bit(register_to_use, 3),
+            0x60..=0x67 => self.bit(register_to_use, 4),
+            0x68..=0x6F => self.bit(register_to_use, 5),
+            0x70..=0x77 => self.bit(register_to_use, 6),
+            0x78..=0x7F => self.bit(register_to_use, 7),
             0x80 => self.registers.b &= !(1 << 0),
             0x81 => self.registers.c &= !(1 << 0),
             0x82 => self.registers.d &= !(1 << 0),
@@ -399,7 +399,7 @@ impl Cpu {
     fn rlc(&mut self, mut reg: u8) -> u8 {
         let carry = reg & 0x80 > 0;
         self.registers.set_carry_flag(carry);
-        reg = (reg << 1) | carry as u8;
+        reg = (reg << 1) | if carry {1} else {0};
         self.registers.set_zero_flag(reg == 0);
         self.registers.set_half_carry_flag(false);
         self.registers.set_n_flag(false);
@@ -461,9 +461,9 @@ impl Cpu {
         reg.swap_bytes()
     }
 
-    fn test_bit(&mut self, reg: u8, bit_index: u8) {
-        self.registers.set_zero_flag((reg >> bit_index) & 0x1 == 0);
+    fn bit(&mut self, reg: u8, bit_index: u8) {
+        self.registers.set_zero_flag(reg & (1 << (bit_index as u32)) == 0);
         self.registers.set_n_flag(false);
-        self.registers.set_half_carry_flag(false);
+        self.registers.set_half_carry_flag(true);
     }
 }
