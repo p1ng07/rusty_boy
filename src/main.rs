@@ -1,11 +1,11 @@
-use crate::bus::Mmu;
+use crate::mmu::Mmu;
 use log4rs::append::file::FileAppender;
 use log4rs::config::{Appender, Config, Root};
 use log4rs::encode::pattern::PatternEncoder;
 use raylib::prelude::*;
 use std::env;
 
-mod bus;
+mod mmu;
 mod cpu;
 mod cpu_registers;
 mod interrupt_handler;
