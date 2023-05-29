@@ -8,7 +8,6 @@ pub struct Serial {
 
 impl Serial {
     pub fn write_to_transfer(&mut self, data: u8) {
-	self.current_word.push(data as char);
-	println!("{}", self.current_word);
+	print!("{}", data as char);
     }
 }
