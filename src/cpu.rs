@@ -57,7 +57,15 @@ impl Cpu {
 	// to tick the machine 1 m-cycle forward)
 
 	self.execute(first_byte);
-	self.handle_interrupts();
+
+	// If there are interrupts pending, and it is possible to service them, disable halt mode
+	if self.bus.interrupt_handler.IF.bitand(self.bus.interrupt_handler.IE) > 0{
+	    self.halt = false;
+	}
+	
+	if self.bus.interrupt_handler.enabled || self.bus.interrupt_handler.IE > 0 {
+	    self.handle_interrupts();
+	}
 
 	let instruction_delta_t_cycles = self.delta_t_cycles;
 	self.delta_t_cycles = 0;
@@ -92,17 +100,6 @@ impl Cpu {
 
     // Services all serviciable interrupts and returns the number of t-cycles this handling took
     fn handle_interrupts(&mut self) {
-	// If there are interrupts pending, and it is possible to service them, disable halt mode
-	if self.bus.interrupt_handler.IF.bitand(self.bus.interrupt_handler.IE) > 0{
-	    self.halt = false;
-	}
-	
-	if !self.bus.interrupt_handler.enabled || self.bus.interrupt_handler.IE == 0 {
-	    // It isn't possible to service any interrupt
-	    return;
-	}
-
-
 	// Go through every interrupt possible interrupt in order of priority (bit order ex: vblank is highest priority)
 	// Check if it is requested and enabled, if it is then service it
 	// IMPORTANT: This iterator uses the order in which the variants are set in the enum, therefore respecting the interrupt order
@@ -237,4 +234,5 @@ fn initialize_cpu_state_defaults(cpu: &mut Cpu) {
     cpu.registers.l = 0x4D;
     cpu.pc = 0x101;
     cpu.sp = 0xfffe;
+    // TODO: Enable ppu 
 }
