@@ -21,7 +21,7 @@ A: k
 - [x] 04-op_r_imm.gb
 - [x] 05-op_rp.gb
 - [x] 06-ld_r,r.gb
-- [ ] 07-jr,jp,call,ret,rst.gb
+- [x] 07-jr,jp,call,ret,rst.gb
 - [ ] 08-misc_instrs.gb
 - [ ] 09-op-r-r.gb
 - [ ] 10-bit-ops.gb
