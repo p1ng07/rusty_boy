@@ -8,7 +8,8 @@ A: k
 
 # TODOs
 
-- [ ] Halt
+- [x] Halt
+- [ ] Halt bug
 - [ ] Pixel processing unit
 - [ ] Pass blargg cpu tests
 
