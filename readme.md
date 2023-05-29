@@ -15,7 +15,7 @@ A: k
 # Blargg-cpu tests
 
 - [x] 01-special
-- [ ] 02-interrupts.gb
+- [x] 02-interrupts.gb, it passes, BUUUT the timer appears to be slower to fire an interrupt, when compared to the verified logs
 - [x] 03-op_sp_hl.gb
 - [x] 04-op_r_imm.gb
 - [x] 05-op_rp.gb
