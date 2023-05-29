@@ -12,6 +12,7 @@ A: k
 - [ ] Halt bug
 - [ ] Pixel processing unit
 - [ ] Pass blargg cpu tests
+- [ ] Mbc bank switching
 
 # Blargg-cpu tests
 
