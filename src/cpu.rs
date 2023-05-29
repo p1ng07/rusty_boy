@@ -63,7 +63,7 @@ impl Cpu {
 	    self.halt = false;
 	}
 	
-	if self.bus.interrupt_handler.enabled || self.bus.interrupt_handler.IE > 0 {
+	if self.bus.interrupt_handler.enabled && self.bus.interrupt_handler.IE > 0 {
 	    self.handle_interrupts();
 	}
 
