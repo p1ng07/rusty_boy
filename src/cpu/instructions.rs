@@ -1,5 +1,4 @@
 use super::Cpu;
-use super::CpuState;
 
 #[allow(clippy::self_assignment)]
 impl Cpu {

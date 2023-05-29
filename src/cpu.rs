@@ -1,3 +1,4 @@
+use std::fmt;
 use std::ops::BitAnd;
 
 use strum::IntoEnumIterator;
@@ -11,6 +12,16 @@ pub enum CpuState {
     Boot,
     NonBoot,
     Stopped,
+}
+
+impl std::fmt::Display for CpuState{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+	match *self {
+	    CpuState::Boot => write!(f,"Boot state"),
+	    CpuState::NonBoot => write!(f,"Running state"),
+	    CpuState::Stopped => write!(f,"Stopped state"),
+	}
+    }
 }
 
 // Emulates the core cpu, is responsible for decoding instructions and executing them
@@ -205,6 +216,9 @@ impl Cpu {
     }
 
     fn log_to_file(&self, instruction: u8) {
+	if self.pc < 0x100 {
+	    return;
+	}
 	log::info!(
 	    "A: {} F: {} B: {} C: {} D: {} E: {} H: {} L: {} SP: {} PC: 00:{} ({} {} {} {})",
 	    format!("{:0>2X}", self.registers.a),
@@ -232,7 +246,7 @@ fn initialize_cpu_state_defaults(cpu: &mut Cpu) {
     cpu.registers.e = 0xD8;
     cpu.registers.h = 0x1;
     cpu.registers.l = 0x4D;
-    cpu.pc = 0x101;
+    cpu.pc = 0x100;
     cpu.sp = 0xfffe;
     // TODO: Enable ppu 
 }

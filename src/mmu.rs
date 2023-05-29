@@ -30,7 +30,7 @@ impl Mmu {
                     _ => panic!("Tried to call boot rom after it was already ended"),
                 },
                 CpuState::NonBoot => *self.rom_0.get(address as usize).unwrap_or(&0xFFu8),
-                _ => 0xFF,
+                _ => panic!("Cant fetch byte {:X} for cpu state {}", address, cpu_state),
             },
             0x8000..=0x9FFF => self
                 .ppu
