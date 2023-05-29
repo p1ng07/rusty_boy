@@ -309,6 +309,7 @@ impl Cpu {
                     .write_byte(self.registers.get_hl(), self.registers.l, &mut self.state);
                 self.tick();
             }
+	    0x76 => self.halt = true,
             0x77 => {
                 self.bus
                     .write_byte(self.registers.get_hl(), self.registers.a, &mut self.state);
@@ -542,8 +543,8 @@ impl Cpu {
 		self.registers.sbc_u8(number);
             }
             0xDF => self.rst(0x18u16),
-            0xE0 => {
-                let address: u16 = 0xFF00 + (self.fetch_byte() as u16);
+	    0xE0 => {
+		let address = 0xFF00u16.wrapping_add(self.fetch_byte() as u16);
                 self.bus
                     .write_byte(address, self.registers.a, &mut self.state);
                 self.tick();

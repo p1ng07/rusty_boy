@@ -1,3 +1,5 @@
+use std::ops::BitAnd;
+
 use strum::IntoEnumIterator;
 
 use crate::mmu::Mmu;
@@ -21,6 +23,7 @@ pub struct Cpu {
     sp: u16,
     registers: CpuRegisters,
     delta_t_cycles: i32, // t-cycles performed in the current instruction
+    halt: bool,
 }
 
 // Instructions and cb-prefixed instructions are on separate files
@@ -36,6 +39,7 @@ impl Cpu {
 	    state: initial_state,
 	    delta_t_cycles: 0,
 	    registers: CpuRegisters::default(),
+	    halt: false
 	};
 
 	// Skip the bootrom, and go straight to running the program
@@ -48,9 +52,10 @@ impl Cpu {
     // Cycle the cpu once, fetch an instruction and run it, returns the number of t-cycles it took to run it
     pub fn cycle(&mut self) -> i32 {
 	let first_byte = self.fetch_byte();
-	// Cycle timing is done mid-instruction (i.e. is inside the
+	// Cycle timing is done mid-instruction (i.e. inside the
 	// instructions match statement using a self.tick() function
 	// to tick the machine 1 m-cycle forward)
+
 	self.execute(first_byte);
 	self.handle_interrupts();
 
@@ -70,7 +75,11 @@ impl Cpu {
     fn fetch_byte(&mut self) -> u8 {
 	self.tick();
 	let byte = self.bus.fetch_byte(self.pc, &self.state);
+
+	if !self.halt {
+	    // If the cpu is in halt mode, continually execute the instruction right after the halt mode enable
 	self.pc += 1;
+	}
 	byte
     }
 
@@ -83,6 +92,11 @@ impl Cpu {
 
     // Services all serviciable interrupts and returns the number of t-cycles this handling took
     fn handle_interrupts(&mut self) {
+	// If there are interrupts pending, and it is possible to service them, disable halt mode
+	if self.bus.interrupt_handler.IF.bitand(self.bus.interrupt_handler.IE) > 0{
+	    self.halt = false;
+	}
+	
 	if !self.bus.interrupt_handler.enabled || self.bus.interrupt_handler.IE == 0 {
 	    // It isn't possible to service any interrupt
 	    return;
@@ -97,6 +111,7 @@ impl Cpu {
 		&& interrupt_type.mask() & self.bus.interrupt_handler.IE > 0
 		&& self.bus.interrupt_handler.enabled
 	    {
+
 		// Service interrupt, set ime to false and reset the respective IF bit on the handler
 		self.bus
 		    .interrupt_handler
@@ -220,6 +235,6 @@ fn initialize_cpu_state_defaults(cpu: &mut Cpu) {
     cpu.registers.e = 0xD8;
     cpu.registers.h = 0x1;
     cpu.registers.l = 0x4D;
-    cpu.pc = 0x100;
+    cpu.pc = 0x101;
     cpu.sp = 0xfffe;
 }
