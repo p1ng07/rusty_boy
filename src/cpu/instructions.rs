@@ -644,12 +644,7 @@ impl Cpu {
                 let number = self.fetch_byte();
                 self.registers.cp_u8(number);
             }
-            0xFF => {
-                panic!(
-                    "Something went wrong, instruction 0xFF called, pc: {:X}",
-                    self.pc - 1
-                )
-            }
+            0xFF => self.rst(0x38u16),
             _ => panic!(
                 "Instruction {:x?} not implemented",
                 first_byte.to_be_bytes()
