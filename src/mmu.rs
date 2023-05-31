@@ -4,8 +4,7 @@ use crate::joypad::Joypad;
 use crate::ppu::Ppu;
 use crate::serial::Serial;
 use crate::timer::Timer;
-
-const KIBI_BYTE: usize = 1024;
+use crate::mbc::Mbc;
 
 // Emulates the actions triggered by the reading and writing of bytes in the instructions
 pub struct Mmu {
@@ -13,8 +12,7 @@ pub struct Mmu {
     hram: [u8; 0x7F],
     pub interrupt_handler: InterruptHandler,
     pub joypad: Joypad,
-    rom_0: Vec<u8>, // [u8; KIBI_BYTE * 16],
-    pub rom_path: String,
+    mbc: Box<dyn Mbc>,
     pub timer: Timer,
     ppu: Ppu,
     serial: Serial,
@@ -29,7 +27,7 @@ impl Mmu {
                     0..=255 => *self.boot_rom.get(address as usize).unwrap(),
                     _ => panic!("Tried to call boot rom after it was already ended"),
                 },
-                CpuState::NonBoot => *self.rom_0.get(address as usize).unwrap_or(&0xFFu8),
+                CpuState::NonBoot => self.mbc.read_byte(address),
                 _ => panic!("Cant fetch byte {:X} for cpu state {}", address, cpu_state),
             },
             0x8000..=0x9FFF => self
@@ -120,17 +118,16 @@ impl Mmu {
         };
     }
 
-    pub fn new() -> Self {
+    pub fn new(mbc: impl Mbc + 'static) -> Self {
         // Load the rom only cartridge, if there isn't a rom, load a load of nothing
         Self {
-            rom_0: [0; KIBI_BYTE * 16].to_vec(), //[0; KIBI_BYTE * 16],
+	    mbc: Box::new(mbc),
             hram: [0; 0x7F],
             wram: [0; 0x2000],
             ppu: Ppu::new(),
             joypad: Joypad::default(),
             serial: Serial::default(),
             timer: Timer::default(),
-            rom_path: String::from(""),
             interrupt_handler: InterruptHandler::default(),
             boot_rom: [
                 0x31, 0xFE, 0xFF, 0xAF, 0x21, 0xFF, 0x9F, 0x32, 0xCB, 0x7C, 0x20, 0xFB, 0x21, 0x26,
@@ -154,18 +151,5 @@ impl Mmu {
                 0x3E, 0x01, 0xE0, 0x50,
             ],
         }
-    }
-
-    // Tries to load the rom, returns true if it was sucessful, false otherwise
-    pub fn load_rom(&mut self, rom_path: String) -> bool {
-        // TODO: This is only dumping the rom into the temporary rom_0 vector, this will be an mbc controller
-        self.rom_path = rom_path;
-        if let Ok(vec) = std::fs::read(&self.rom_path) {
-            self.rom_0 = vec;
-        } else {
-            return false;
-        }
-
-        true
     }
 }

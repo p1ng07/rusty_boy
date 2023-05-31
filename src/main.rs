@@ -5,6 +5,7 @@ use log4rs::encode::pattern::PatternEncoder;
 use raylib::prelude::*;
 use std::env;
 
+mod mbc;
 mod mmu;
 mod cpu;
 mod cpu_registers;
@@ -35,18 +36,19 @@ fn main() {
 
     log4rs::init_config(config).unwrap();
 
-    let mut mmu = Mmu::new();
+    // Construct memory bank controller of game
+    let mut total_rom = [0u8].to_vec();
+    if let Some(rom_path) = args.get(1){
+	total_rom = std::fs::read(&rom_path).unwrap_or_else(|_err| panic!("Rom {} does not exist.", rom_path));
+    }
 
-    if let Some(rom_path) = args.get(1) {
-        // There was a rom path, try to load it
-        let loading_was_sucessful = mmu.load_rom(rom_path.to_owned());
-
-        if !loading_was_sucessful {
-            panic!("It wasn't possible to load the rom {}", rom_path);
-        }
-    } else {
-        // There wasn't a loaded rom, do whatever you like
+    let mbc_type_code = total_rom.get(147).unwrap_or_else(|| panic!("Loaded Rom is too tiny."));
+    let mbc = match mbc_type_code {
+	0x00 => mbc::no_mbc::NoMbc::new(total_rom),
+	_ => panic!("Mbc with code {:X} is not yet implemented", mbc_type_code)
     };
+
+    let mmu = Mmu::new(mbc);
 
     let mut cpu = cpu::Cpu::new(cpu::CpuState::NonBoot, mmu);
 
