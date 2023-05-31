@@ -47,7 +47,8 @@ impl NoMbc {
 	    rom[i] = total_rom[i];
 	}
 
-	let ram = match total_rom[149] {
+	let ram_type_code = total_rom[0x149];
+	let ram = match ram_type_code {
 	    2 => Some([0u8; 8 * KIBI_BYTE]),
 	    _ => None
 	};

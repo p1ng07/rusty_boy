@@ -42,10 +42,10 @@ fn main() {
 	total_rom = std::fs::read(&rom_path).unwrap_or_else(|_err| panic!("Rom {} does not exist.", rom_path));
     }
 
-    let mbc_type_code = total_rom.get(147).unwrap_or_else(|| panic!("Loaded Rom is too tiny."));
+    let mbc_type_code = total_rom.get(0x147).unwrap_or_else(|| panic!("Loaded Rom is too tiny."));
     let mbc = match mbc_type_code {
 	0x00 => mbc::no_mbc::NoMbc::new(total_rom),
-	_ => panic!("Mbc with code {:X} is not yet implemented", mbc_type_code)
+	_ => panic!("Memory bank controller with code {:X} is not yet implemented", mbc_type_code)
     };
 
     let mmu = Mmu::new(mbc);
@@ -63,6 +63,6 @@ fn main() {
             ran_cycles += cpu.cycle();
         }
         let mut d = rl.begin_drawing(&thread);
-	d.clear_background(Color::BLACK);
+	d.clear_background(Color::PINK);
     }
 }
