@@ -45,7 +45,7 @@ fn main() {
     let mbc_type_code = total_rom.get(0x147).unwrap_or_else(|| panic!("Loaded Rom is too tiny."));
     let mbc = match mbc_type_code {
 	0x00 => mbc::no_mbc::NoMbc::new(total_rom),
-	_ => panic!("Memory bank controller with code {:X} is not yet implemented", mbc_type_code)
+	_ => panic!("Mbc with code {:X} is not yet implemented", mbc_type_code)
     };
 
     let mmu = Mmu::new(mbc);

@@ -36,16 +36,16 @@ impl Mmu {
                 .get(address.wrapping_sub(0x8000) as usize)
                 .unwrap()
                 .to_owned(),
-            0xA000..=0xBFFF => todo!("Reading from external ram ({:X})", address),
+            0xA000..=0xBFFF => self.mbc.read_byte(address),
             0xC000..=0xDFFF => {
-		let local_address = (address - 0xC000) as usize;
 		unsafe {
+		    let local_address = (address - 0xC000) as usize;
 		    return self.wram.get_unchecked(local_address).to_owned();
 		}
             }
             0xE000..=0xFDFF => {
-                let local_address = (address - 0xE000u16) as usize;
 		unsafe {
+		    let local_address = (address - 0xE000u16) as usize;
 		    return self.wram.get_unchecked(local_address).to_owned();
 		}
             }
@@ -85,13 +85,9 @@ impl Mmu {
 
     pub fn write_byte(&mut self, address: u16, received_byte: u8, cpu_state: &mut CpuState) {
         match address {
-            0..=0x7FFF => todo!("Switch mbc banks"), // Writing to ROM
+            0..=0x7FFF => self.mbc.write_byte(address, received_byte), // Writing to ROM
             0x8000..=0x9FFF => self.ppu.vram[(address - 0x8000) as usize] = received_byte,
-            0xA000..=0xBFFF => todo!(
-                "Writing to External RAM: ({:X}), {}",
-                address,
-                received_byte
-            ),
+            0xA000..=0xBFFF => self.mbc.write_byte(address, received_byte),
             0xC000..=0xDFFF => {
                 let local_address = (address - 0xC000u16) as usize;
                 self.wram[local_address] = received_byte;
