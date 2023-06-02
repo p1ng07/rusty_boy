@@ -29,7 +29,7 @@ impl std::fmt::Display for CpuState{
 // and makes them do stuff, like the ppu or the timer
 pub struct Cpu {
     state: CpuState,
-    pub bus: Mmu,
+    pub mmu: Mmu,
     pc: u16,
     sp: u16,
     registers: CpuRegisters,
@@ -46,7 +46,7 @@ impl Cpu {
 	let mut cpu = Cpu {
 	    pc: 0,
 	    sp: 0,
-	    bus: mmu,
+	    mmu,
 	    state: initial_state,
 	    delta_t_cycles: 0,
 	    registers: CpuRegisters::default(),
@@ -70,11 +70,11 @@ impl Cpu {
 	self.execute(first_byte);
 
 	// If there are interrupts pending, and it is possible to service them, disable halt mode
-	if self.bus.interrupt_handler.IF.bitand(self.bus.interrupt_handler.IE) > 0{
+	if self.mmu.interrupt_handler.IF.bitand(self.mmu.interrupt_handler.IE) > 0{
 	    self.halt = false;
 	}
 	
-	if self.bus.interrupt_handler.enabled && self.bus.interrupt_handler.IE > 0 {
+	if self.mmu.interrupt_handler.enabled && self.mmu.interrupt_handler.IE > 0 {
 	    self.handle_interrupts();
 	}
 
@@ -86,14 +86,14 @@ impl Cpu {
     // Ticks every component by 4 t-cycles
     fn tick(&mut self) {
 	self.delta_t_cycles += 4;
-	self.bus
+	self.mmu
 	    .timer
-	    .step(&self.state, 4, &mut self.bus.interrupt_handler);
+	    .step(&self.state, 4, &mut self.mmu.interrupt_handler);
     }
 
     fn fetch_byte(&mut self) -> u8 {
 	self.tick();
-	let byte = self.bus.fetch_byte(self.pc, &self.state);
+	let byte = self.mmu.fetch_byte(self.pc, &self.state);
 
 	if !self.halt {
 	    // If the cpu is in halt mode, continually execute the instruction right after the halt mode enable
@@ -115,13 +115,13 @@ impl Cpu {
 	// Check if it is requested and enabled, if it is then service it
 	// IMPORTANT: This iterator uses the order in which the variants are set in the enum, therefore respecting the interrupt order
 	for interrupt_type in Interrupt::iter() {
-	    if interrupt_type.mask() & self.bus.interrupt_handler.IF > 0
-		&& interrupt_type.mask() & self.bus.interrupt_handler.IE > 0
-		&& self.bus.interrupt_handler.enabled
+	    if interrupt_type.mask() & self.mmu.interrupt_handler.IF > 0
+		&& interrupt_type.mask() & self.mmu.interrupt_handler.IE > 0
+		&& self.mmu.interrupt_handler.enabled
 	    {
 
 		// Service interrupt, set ime to false and reset the respective IF bit on the handler
-		self.bus
+		self.mmu
 		    .interrupt_handler
 		    .unrequest_interrupt(&interrupt_type);
 
@@ -130,7 +130,7 @@ impl Cpu {
 		self.pc = interrupt_type.jump_vector();
 
 		// Disable IME
-		self.bus.interrupt_handler.enabled = false;
+		self.mmu.interrupt_handler.enabled = false;
 	    }
 	}
     }
@@ -151,21 +151,21 @@ impl Cpu {
 
     fn push_u16_to_stack(&mut self, value_to_push: u16) {
 	self.sp = self.sp.wrapping_sub(1);
-	self.bus
+	self.mmu
 	    .write_byte(self.sp, (value_to_push >> 8) as u8, &mut self.state);
 	self.tick();
 	self.sp = self.sp.wrapping_sub(1);
-	self.bus
+	self.mmu
 	    .write_byte(self.sp, value_to_push as u8, &mut self.state);
 	self.tick();
     }
 
     fn pop_u16_from_stack(&mut self) -> u16 {
 	self.tick();
-	let lower_byte = self.bus.fetch_byte(self.sp, &self.state);
+	let lower_byte = self.mmu.fetch_byte(self.sp, &self.state);
 	self.sp = self.sp.wrapping_add(1);
 	self.tick();
-	let high_byte = self.bus.fetch_byte(self.sp, &self.state);
+	let high_byte = self.mmu.fetch_byte(self.sp, &self.state);
 	self.sp = self.sp.wrapping_add(1);
 	(high_byte as u16) << 8 | lower_byte as u16
     }
@@ -232,9 +232,9 @@ impl Cpu {
 	    format!("{:0>4X}", self.sp),
 	    format!("{:0>4X}", self.pc - 1),
 	    format!("{:02X}", instruction),
-	    format!("{:02X}", self.bus.fetch_byte(self.pc, &self.state)),
-	    format!("{:02X}", self.bus.fetch_byte(self.pc + 1, &self.state)),
-	    format!("{:02X}", self.bus.fetch_byte(self.pc + 2, &self.state))
+	    format!("{:02X}", self.mmu.fetch_byte(self.pc, &self.state)),
+	    format!("{:02X}", self.mmu.fetch_byte(self.pc + 1, &self.state)),
+	    format!("{:02X}", self.mmu.fetch_byte(self.pc + 2, &self.state))
 	);
     }
 }

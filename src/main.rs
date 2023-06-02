@@ -2,6 +2,8 @@ use crate::mmu::Mmu;
 use log4rs::append::file::FileAppender;
 use log4rs::config::{Appender, Config, Root};
 use log4rs::encode::pattern::PatternEncoder;
+use mbc::mbc1::Mbc1;
+use mbc::no_mbc::NoMbc;
 use raylib::prelude::*;
 use std::env;
 
@@ -42,9 +44,11 @@ fn main() {
 	total_rom = std::fs::read(&rom_path).unwrap_or_else(|_err| panic!("Rom {} does not exist.", rom_path));
     }
 
+    // TODO: add mbc1
     let mbc_type_code = total_rom.get(0x147).unwrap_or_else(|| panic!("Loaded Rom is too tiny."));
     let mbc = match mbc_type_code {
-	0x00 => mbc::no_mbc::NoMbc::new(total_rom),
+	0x00 => Box::new(NoMbc::new(total_rom)) as Box<dyn mbc::Mbc>,
+	0x01 => Box::new(Mbc1::new(total_rom)) as Box<dyn mbc::Mbc>,
 	_ => panic!("Mbc with code {:X} is not yet implemented", mbc_type_code)
     };
 
@@ -53,9 +57,9 @@ fn main() {
     let mut cpu = cpu::Cpu::new(cpu::CpuState::NonBoot, mmu);
 
     while !rl.window_should_close() {
-        cpu.bus
+        cpu.mmu
             .joypad
-            .update_input(&mut rl, &mut cpu.bus.interrupt_handler);
+            .update_input(&mut rl, &mut cpu.mmu.interrupt_handler);
 
         // run 69905 t-cycles of cpu work, equating to 4MHz of t-cycles per second
         let mut ran_cycles = 0;

@@ -4,7 +4,7 @@
 
 use super::Mbc;
 
-const KIBI_BYTE: usize = 1024;
+pub const KIBI_BYTE: usize = 1024;
 
 pub struct NoMbc {
     rom: [u8; 32 * KIBI_BYTE],
@@ -41,7 +41,7 @@ impl Mbc for NoMbc {
 
 impl NoMbc {
     /// Creates a new mbc of type no_mbc
-    pub fn new(total_rom: Vec<u8>) -> Self {
+    pub fn new(total_rom: Vec<u8>) -> Self{
 	let mut rom = [0u8; 32 * KIBI_BYTE];
 	for i in 0..=total_rom.len() -1 {
 	    rom[i] = total_rom[i];

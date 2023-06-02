@@ -114,10 +114,10 @@ impl Mmu {
         };
     }
 
-    pub fn new(mbc: impl Mbc + 'static) -> Self {
+    pub fn new(mbc: Box<dyn Mbc>) -> Self {
         // Load the rom only cartridge, if there isn't a rom, load a load of nothing
         Self {
-	    mbc: Box::new(mbc),
+	    mbc,
             hram: [0; 0x7F],
             wram: [0; 0x2000],
             ppu: Ppu::new(),
