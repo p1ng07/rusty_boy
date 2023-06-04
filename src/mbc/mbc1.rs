@@ -60,11 +60,19 @@ impl Mbc for Mbc1 {
 impl Mbc1 {
     pub fn new(total_rom: Vec<u8>) -> Self {
 
-	let num_of_banks = (32 * KIBI_BYTE) * ((1 as usize) << total_rom[0x148] as usize);
+	let num_of_banks = match total_rom[0x148] {
+	    0 => 2,
+	    1 => 4,
+	    2 => 8,
+	    3 => 16,
+	    4 => 32,
+	    _ => panic!("{} is not a valid bank value", total_rom[0x148])
+	};
 
 	let mut cartridge_total_iterator = 0usize;
 
 	let mut rom_banks: Vec<[u8; 16 * KIBI_BYTE]> = Vec::with_capacity(num_of_banks);
+
 	let rom_bank_mask = match num_of_banks {
 	    2 => 1u16,
 	    4 => 2u16,
@@ -84,7 +92,7 @@ impl Mbc1 {
 			cartridge_total_iterator += 1;
 			x.to_owned()
 		    }
-		    None => 0xFF,
+		    None => 0x00,
 		};
 	    }
 	    rom_banks.push(new_vec);
