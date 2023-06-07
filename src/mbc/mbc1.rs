@@ -16,9 +16,10 @@ impl Mbc for Mbc1 {
 	match address {
 	    ..=0x3FFF => self.rom_banks[0][address as usize], // Reading rom bank 0
 	    0x4000..=0x7FFF => {
-		match self.rom_banks.get(self.rom_bank_index) { // Reading rom bank 01-7F
-		    Some(rom_bank) => rom_bank[address as usize - 0x4000],
-		    None => 0xFF
+		if let Some(ref rom_bank) = self.rom_banks.get(self.rom_bank_index) {
+		    rom_bank[address as usize - 0x4000]
+		}else{
+		    panic!("{} rom bank", self.rom_bank_index);
 		}
 	    },
 	    0xA000..=0xBFFF => { // Reading ram bank 00-04
@@ -84,9 +85,9 @@ impl Mbc1 {
 
 	// Copy every rom bank on the cartridge
 	// Every bank is comprised of 16 KiB
-	for _ in 0..num_of_banks - 1 {
+	for _ in 0..num_of_banks {
 	    let mut new_vec: [u8; 16 * KIBI_BYTE] = [0; 16 * KIBI_BYTE];
-	    for j in 0..(16 * KIBI_BYTE) - 1 {
+	    for j in 0..new_vec.len() {
 		new_vec[j] = match total_rom.get(cartridge_total_iterator) {
 		    Some(x) => {
 			cartridge_total_iterator += 1;
@@ -97,6 +98,9 @@ impl Mbc1 {
 	    }
 	    rom_banks.push(new_vec);
 	}
+
+// TODO: MBC1 nao esta a funcionar direito, por alguma razao nao esta a ler as coisas como devia
+// acho que as roms nao estao a ser inicializadas corretamente
 
 	// Initialize ram based on the size given in the rom
 	let mut ram_banks = match total_rom[0x149] {
@@ -109,7 +113,7 @@ impl Mbc1 {
 	// Populate external ram
 	match ram_banks.as_mut(){
 	    Some(array) => {
-		for i in 0..array.len() {
+		for i in 0..array.len() - 1 {
 		    for j in 0..array[0].len() - 1 {
 			(*array)[i][j] = match total_rom.get(cartridge_total_iterator){
 			    Some(x) => {

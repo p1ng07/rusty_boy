@@ -39,16 +39,16 @@ fn main() {
     log4rs::init_config(config).unwrap();
 
     // Construct memory bank controller of game
-    let mut total_rom = [0u8].to_vec();
+    let mut total_rom = Vec::new();
     if let Some(rom_path) = args.get(1){
 	total_rom = std::fs::read(&rom_path).unwrap_or_else(|_err| panic!("Rom {} does not exist.", rom_path));
     }
 
-    // TODO: add mbc1
-    let mbc_type_code = total_rom.get(0x147).unwrap_or_else(|| panic!("Loaded Rom is too tiny."));
+    let mbc_type_code = total_rom[0x147];
+    
     let mbc = match mbc_type_code {
-	0x00 => Box::new(NoMbc::new(total_rom)) as Box<dyn mbc::Mbc>,
-	0x01 => Box::new(Mbc1::new(total_rom)) as Box<dyn mbc::Mbc>,
+	0 => Box::new(NoMbc::new(total_rom)) as Box<dyn mbc::Mbc>,
+	1 | 2 | 3 => Box::new(Mbc1::new(total_rom)) as Box<dyn mbc::Mbc>,
 	_ => panic!("Mbc with code {:X} is not yet implemented", mbc_type_code)
     };
 
