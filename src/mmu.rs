@@ -108,7 +108,7 @@ impl Mmu {
                     *cpu_state = CpuState::NonBoot
                 }
             }
-            0xFF80..=0xFFFE => self.hram[((address - 0xFF80u16) as usize)] = received_byte,
+            0xFF80..=0xFFFE => self.hram[(address - 0xFF80u16) as usize] = received_byte,
             0xFFFF => self.interrupt_handler.IE = received_byte,
             _ => (),
         };

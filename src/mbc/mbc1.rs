@@ -1,5 +1,3 @@
-use std::ops::{Mul, Add, Index, BitAnd};
-
 use super::{Mbc, no_mbc::KIBI_BYTE};
 
 pub struct Mbc1 {
@@ -38,20 +36,20 @@ impl Mbc for Mbc1 {
     fn write_byte(&mut self, address: u16, byte: u8) {
 	match address{
 	    ..=0x1FFF => {
-		if byte.bitand(0xF) == 0xA {
+		if byte & 0xF == 0xA {
 		    self.ram_enabled = true;
 		} else {
 		    self.ram_enabled = false;
 		}
 	    }
 	    0x2000..=0x3FFF =>{
-		self.rom_bank_index = self.rom_bank_mask.bitand(byte as u16) as usize;
+		self.rom_bank_index = (self.rom_bank_mask & (byte as u16)) as usize;
 		if self.rom_bank_index == 0 {
 		    self.rom_bank_index = 1;
 		}
 	    }
 	    0x4000..=0x5FFF => {
-		self.ram_bank_index = byte.bitand(2) as usize;
+		self.ram_bank_index = (byte & 2) as usize;
 	    }
 	    _ => ()
 	}
@@ -60,7 +58,6 @@ impl Mbc for Mbc1 {
 
 impl Mbc1 {
     pub fn new(total_rom: Vec<u8>) -> Self {
-
 	let num_of_banks = match total_rom[0x148] {
 	    0 => 2,
 	    1 => 4,
