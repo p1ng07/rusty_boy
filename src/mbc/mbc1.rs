@@ -96,9 +96,6 @@ impl Mbc1 {
 	    rom_banks.push(new_vec);
 	}
 
-// TODO: MBC1 nao esta a funcionar direito, por alguma razao nao esta a ler as coisas como devia
-// acho que as roms nao estao a ser inicializadas corretamente
-
 	// Initialize ram based on the size given in the rom
 	let mut ram_banks = match total_rom[0x149] {
 	    0 | 1 => None,
@@ -107,7 +104,7 @@ impl Mbc1 {
 	    _ => panic!("Ram size specified on the cartridge isn't available on this mbc.")
 	};
 
-	// Populate external ram
+	// Populate mirrors of external ram
 	match ram_banks.as_mut(){
 	    Some(array) => {
 		for i in 0..array.len() - 1 {

@@ -15,48 +15,33 @@ fn main() -> eframe::Result<()> {
     )
 }
 
-// when compiling to web using trunk.
-#[cfg(target_arch = "wasm32")]
-fn main() {
-    // Make sure panics are logged using `console.error`.
-    console_error_panic_hook::set_once();
+// TODO: compiling to web
+// #[cfg(target_arch = "wasm32")]
+// fn main() {
+//     // Make sure panics are logged using `console.error`.
+//     console_error_panic_hook::set_once();
 
-    // Redirect tracing to console.log and friends:
-    tracing_wasm::set_as_global_default();
+//     // Redirect tracing to console.log and friends:
+//     tracing_wasm::set_as_global_default();
 
-    let web_options = eframe::WebOptions::default();
+//     let web_options = eframe::WebOptions::default();
 
-    wasm_bindgen_futures::spawn_local(async {
-        eframe::start_web(
-            "game_id", // hardcode it
-            web_options,
-            Box::new(|cc| Box::new(eframe_template::GameApp::new(cc))),
-        )
-        .await
-        .expect("failed to start eframe");
-    });
-}
+//     wasm_bindgen_futures::spawn_local(async {
+//         eframe::start_web(
+//             "game_id", // hardcode it
+//             web_options,
+//             Box::new(|cc| Box::new(eframe_template::GameApp::new(cc))),
+//         )
+//         .await
+//         .expect("failed to start eframe");
+//     });
+// }
 
 // fn main() {
 //     let args: Vec<String> = env::args().collect();
 // TODO: Get rid of raylib
 //     let (mut rl, thread) = raylib::init().size(640, 480).title("Hello, World").build();
 //     rl.set_target_fps(60);
-
-//     // Configure logging
-// TODO: Make logging only happen when not on wasm compile target
-//     let logfile = FileAppender::builder()
-//         .append(false)
-//         .encoder(Box::new(PatternEncoder::new("{m}\n")))
-//         .build("log/output.log")
-//         .unwrap();
-
-//     let config = Config::builder()
-//         .appender(Appender::builder().build("logfile", Box::new(logfile)))
-//         .build(Root::builder().appender("logfile").build(LevelFilter::Info))
-//         .unwrap();
-
-//     log4rs::init_config(config).unwrap();
 
 //     // Construct memory bank controller of game
 //     let mut total_rom = Vec::new();

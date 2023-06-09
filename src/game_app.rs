@@ -1,20 +1,28 @@
-pub struct GameBoyApp {
-}
+use log::LevelFilter;
+use log4rs::{append::file::FileAppender, Config, encode::pattern::PatternEncoder, config::{Appender, Root}};
 
-impl Default for GameBoyApp {
-    fn default() -> Self {
-        Self {
-        }
-    }
+pub struct GameBoyApp {
+    current_rom_path: Option<String>,
 }
 
 impl GameBoyApp {
     /// Called once before the first frame.
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
-        // This is also where you can customize the look and feel of egui using
-        // `cc.egui_ctx.set_visuals` and `cc.egui_ctx.set_fonts`.
+	// This is also where you can customize the look and feel of egui using
+	// `cc.egui_ctx.set_visuals` and `cc.egui_ctx.set_fonts`.
 
-        Default::default()
+
+	// Log to file only when running on native and debug mode
+	// #[cfg(all(not(target_arch = "wasm32"), debug_assertions))]
+	// init_file_logger();
+
+	Self { current_rom_path: Default::default() }
+    }
+
+    fn load_rom(&self) {
+	if let Some(x) = &self.current_rom_path {
+	    println!("{} file was chosen", x)
+	}
     }
 }
 
@@ -33,6 +41,12 @@ impl eframe::App for GameBoyApp {
             // The top panel is often a good place for a menu bar:
             egui::menu::bar(ui, |ui| {
                 ui.menu_button("File", |ui| {
+                    if ui.button("Open Rom").clicked() {
+			if let Some(path) = rfd::FileDialog::new().pick_file() {
+			    self.current_rom_path = Some(path.display().to_string());
+			    self.load_rom();
+			}
+                    }
                     if ui.button("Quit").clicked() {
                         _frame.close();
                     }
@@ -42,20 +56,6 @@ impl eframe::App for GameBoyApp {
 
         egui::SidePanel::left("side_panel").show(ctx, |ui| {
             ui.heading("Side Panel");
-
-            ui.horizontal(|ui| {
-                ui.label("Write something: ");
-            });
-
-
-            ui.with_layout(egui::Layout::bottom_up(egui::Align::LEFT), |ui| {
-                ui.horizontal(|ui| {
-                    ui.spacing_mut().item_spacing.x = 0.0;
-                    ui.label("powered by ");
-                    ui.hyperlink_to("egui", "https://github.com/emilk/egui");
-                    ui.label(".");
-                });
-            });
         });
 
 	// TODO: Game window
@@ -81,4 +81,17 @@ impl eframe::App for GameBoyApp {
             });
         }
     }
+}
+
+fn init_file_logger() {
+        let logfile = FileAppender::builder()
+    .append(false)
+    .encoder(Box::new(PatternEncoder::new("{m}\n")))
+    .build("log/output.log")
+    .unwrap();
+        let config = Config::builder()
+    .appender(Appender::builder().build("logfile", Box::new(logfile)))
+    .build(Root::builder().appender("logfile").build(LevelFilter::Info))
+    .unwrap();
+    log4rs::init_config(config).unwrap();
 }

@@ -22,6 +22,7 @@ log4rs = "1.2.0"
 strum = "0.24.1"
 strum_macros = "0.24.3"
 egui_file = "0.9"
+rfd = "0.11.4"
 
 # native:
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
