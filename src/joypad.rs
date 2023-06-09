@@ -1,3 +1,4 @@
+use egui::Ui;
 use raylib::prelude::KeyboardKey::*;
 use raylib::RaylibHandle;
 
@@ -13,7 +14,7 @@ impl Joypad {
     // Updates the interal byte represetation of the input, returns true if a key has been pressed
     pub fn update_input(
         &mut self,
-        raylib_handle: &mut RaylibHandle,
+        ui: &Ui,
         interrupt_handler: &mut InterruptHandler,
     ) {
         let p15_mask = 0b0010_0000;
@@ -28,42 +29,42 @@ impl Joypad {
         // Go through every possible pressed button, if it pressed than unset it in the byte representation
         // All of the next operations are done in reverse, at the end of the function the byte is flipped
         // PS: This is some non ugly code but the raylib_handle.get_key_pressed() was not returning the key if it was held down
-        if raylib_handle.is_key_down(KEY_A)
-            || raylib_handle.is_key_down(KEY_W)
-            || raylib_handle.is_key_down(KEY_S)
-            || raylib_handle.is_key_down(KEY_D)
+        if ui.input(|i| i.key_pressed(egui::Key::A))
+            || ui.input(|i| i.key_pressed(egui::Key::W))
+            || ui.input(|i| i.key_pressed(egui::Key::S))
+            || ui.input(|i| i.key_pressed(egui::Key::D))
         {
             interrupt_handler.request_interrupt(Interrupt::Joypad);
             byte = p14_mask;
-            if raylib_handle.is_key_down(KEY_D) {
+            if ui.input(|i| i.key_pressed(egui::Key::D)) {
                 byte |= p10_mask;
             }
-            if raylib_handle.is_key_down(KEY_A) {
+            if ui.input(|i| i.key_pressed(egui::Key::A)) {
                 byte |= p11_mask;
             }
-            if raylib_handle.is_key_down(KEY_W) {
+            if ui.input(|i| i.key_pressed(egui::Key::W)) {
                 byte |= p12_mask;
             }
-            if raylib_handle.is_key_down(KEY_S) {
+            if ui.input(|i| i.key_pressed(egui::Key::S)) {
                 byte |= p13_mask;
             }
-        } else if raylib_handle.is_key_down(KEY_I)
-            || raylib_handle.is_key_down(KEY_U)
-            || raylib_handle.is_key_down(KEY_J)
-            || raylib_handle.is_key_down(KEY_K)
+        } else if ui.input(|i| i.key_pressed(egui::Key::I))
+            || ui.input(|i| i.key_pressed(egui::Key::U))
+            || ui.input(|i| i.key_pressed(egui::Key::J))
+            || ui.input(|i| i.key_pressed(egui::Key::K))
         {
             interrupt_handler.request_interrupt(Interrupt::Joypad);
             byte = p15_mask;
-            if raylib_handle.is_key_down(KEY_K) {
+            if ui.input(|i| i.key_pressed(egui::Key::K)) {
                 byte |= p10_mask;
             }
-            if raylib_handle.is_key_down(KEY_J) {
+            if ui.input(|i| i.key_pressed(egui::Key::J)) {
                 byte |= p11_mask;
             }
-            if raylib_handle.is_key_down(KEY_U) {
+            if ui.input(|i| i.key_pressed(egui::Key::U)) {
                 byte |= p12_mask;
             }
-            if raylib_handle.is_key_down(KEY_I) {
+            if ui.input(|i| i.key_pressed(egui::Key::I)) {
                 byte |= p13_mask;
             }
         }
