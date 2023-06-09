@@ -44,22 +44,7 @@ fn main() -> eframe::Result<()> {
 //     rl.set_target_fps(60);
 
 //     // Construct memory bank controller of game
-//     let mut total_rom = Vec::new();
-//     if let Some(rom_path) = args.get(1){
-// 	total_rom = std::fs::read(&rom_path).unwrap_or_else(|_err| panic!("Rom {} does not exist.", rom_path));
-//     }
 
-//     let mbc_type_code = total_rom[0x147];
-    
-//     let mbc = match mbc_type_code {
-// 	0 => Box::new(NoMbc::new(total_rom)) as Box<dyn mbc::Mbc>,
-// 	1 | 2 | 3 => Box::new(Mbc1::new(total_rom)) as Box<dyn mbc::Mbc>,
-// 	_ => panic!("Mbc with code {:X} is not yet implemented", mbc_type_code)
-//     };
-
-//     let mmu = Mmu::new(mbc);
-
-//     let mut cpu = cpu::Cpu::new(cpu::CpuState::NonBoot, mmu);
 
 //     while !rl.window_should_close() {
 //         cpu.mmu

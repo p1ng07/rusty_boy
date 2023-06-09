@@ -1,28 +1,45 @@
 use log::LevelFilter;
 use log4rs::{append::file::FileAppender, Config, encode::pattern::PatternEncoder, config::{Appender, Root}};
+ 
+use crate::{cpu, mbc::{self, no_mbc::NoMbc, mbc1::Mbc1}, mmu::Mmu};
+use crate::custom_errors::UnableToOpenSelectedFileError;
 
 pub struct GameBoyApp {
+    cpu: Option<cpu::Cpu>,
     current_rom_path: Option<String>,
 }
 
 impl GameBoyApp {
     /// Called once before the first frame.
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
-	// This is also where you can customize the look and feel of egui using
-	// `cc.egui_ctx.set_visuals` and `cc.egui_ctx.set_fonts`.
-
-
-	// Log to file only when running on native and debug mode
-	// #[cfg(all(not(target_arch = "wasm32"), debug_assertions))]
-	// init_file_logger();
-
-	Self { current_rom_path: Default::default() }
+	Self {current_rom_path: None}
     }
 
-    fn load_rom(&self) {
-	if let Some(x) = &self.current_rom_path {
-	    println!("{} file was chosen", x)
-	}
+    // TODO make this use results for the various types of errors
+    // Tries to load the selected rom
+    fn load_rom(&mut self) -> Option<cpu::Cpu> {
+	let mut total_rom = Vec::new();
+
+	match std::fs::read(&self.current_rom_path.clone().unwrap()) {
+	    Ok(byte_vec) => total_rom = byte_vec,
+	    Err(_) => return None
+	};
+
+	let mbc_type_code = total_rom[0x147];
+	
+	let mbc = match mbc_type_code {
+	    0 => Box::new(NoMbc::new(total_rom)) as Box<dyn mbc::Mbc>,
+	    1 | 2 | 3 => Box::new(Mbc1::new(total_rom)) as Box<dyn mbc::Mbc>,
+	    _ => {
+		println!("Mbc with code {:X} is not yet implemented", mbc_type_code);
+		return None
+	    }
+	};
+
+	let mmu = Mmu::new(mbc);
+	let cpu = cpu::Cpu::new(cpu::CpuState::NonBoot, mmu);
+
+	Some(cpu)
     }
 }
 
@@ -31,20 +48,17 @@ impl eframe::App for GameBoyApp {
     fn save(&mut self, storage: &mut dyn eframe::Storage) {
     }
 
-    /// Called each time the UI needs repainting, which may be many times per second.
-    /// Put your widgets into a `SidePanel`, `TopPanel`, `CentralPanel`, `Window` or `Area`.
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
 
-	// TODO Add file picker for choosing which rom is going to be loaded
-        #[cfg(not(target_arch = "wasm32"))] // no File->Quit on web pages!
+        #[cfg(not(target_arch = "wasm32"))]
         egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
-            // The top panel is often a good place for a menu bar:
             egui::menu::bar(ui, |ui| {
                 ui.menu_button("File", |ui| {
+		    // Open rom button
                     if ui.button("Open Rom").clicked() {
-			if let Some(path) = rfd::FileDialog::new().pick_file() {
+			if let Some(path) = rfd::FileDialog::new().add_filter("game-boy-filter", &["gb", "gbc"]).pick_file() {
 			    self.current_rom_path = Some(path.display().to_string());
-			    self.load_rom();
+			    self.cpu = self.load_rom();
 			}
                     }
                     if ui.button("Quit").clicked() {
@@ -61,15 +75,8 @@ impl eframe::App for GameBoyApp {
 	// TODO: Game window
 	// This is going to be the game window
         egui::CentralPanel::default().show(ctx, |ui| {
-            // The central panel the region left after adding TopPanel's and SidePanel's
+	    // Show the game window here
 
-            ui.heading("eframe template");
-            ui.hyperlink("https://github.com/emilk/eframe_template");
-            ui.add(egui::github_link_file!(
-                "https://github.com/emilk/eframe_template/blob/master/",
-                "Source code."
-            ));
-            egui::warn_if_debug_build(ui);
         });
 
         if true {

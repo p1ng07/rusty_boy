@@ -8,3 +8,4 @@ mod ppu;
 mod serial;
 mod timer;
 pub mod game_app;
+mod custom_errors;
