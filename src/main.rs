@@ -8,7 +8,7 @@ fn main() -> eframe::Result<()> {
     let native_options = eframe::NativeOptions::default();
 
     eframe::run_native(
-        "eframe template",
+        "Rusty boy: Your favourite gameboy emulator",
         native_options,
         Box::new(|cc| Box::new(GameBoyApp::new(cc))),
     )
@@ -34,17 +34,4 @@ fn main() -> eframe::Result<()> {
 //         .await
 //         .expect("failed to start eframe");
 //     });
-// }
-
-// fn main() {
-//     let args: Vec<String> = env::args().collect();
-// TODO: Get rid of raylib
-//     let (mut rl, thread) = raylib::init().size(640, 480).title("Hello, World").build();
-//     rl.set_target_fps(60);
-
-//     // Construct memory bank controller of game
-
-
-//     while !rl.window_should_close() {
-//     }
 // }

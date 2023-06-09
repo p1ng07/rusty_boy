@@ -16,7 +16,6 @@ eframe = { version = "0.22.0", default-features = false, features = [
     "glow",          # Use the glow rendering backend. Alternative: "wgpu".
     "persistence",   # Enable restoring app state when restarting the app.
 ] }
-raylib = { version = "3.7" }
 log = "0.4"
 log4rs = "1.2.0"
 strum = "0.24.1"
