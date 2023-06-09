@@ -2,7 +2,6 @@ use log::LevelFilter;
 use log4rs::{append::file::FileAppender, Config, encode::pattern::PatternEncoder, config::{Appender, Root}};
  
 use crate::{cpu, mbc::{self, no_mbc::NoMbc, mbc1::Mbc1}, mmu::Mmu};
-use crate::custom_errors::UnableToOpenSelectedFileError;
 
 pub struct GameBoyApp {
     cpu: Option<cpu::Cpu>,
@@ -11,14 +10,20 @@ pub struct GameBoyApp {
 
 impl GameBoyApp {
     /// Called once before the first frame.
-    pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
-	Self {current_rom_path: None}
+    pub fn new(_cc: &eframe::CreationContext<'_>) -> Self {
+	#[cfg(not(target_arch = "wasm32"))]
+	init_file_logger();
+
+	Self {
+	    cpu: None,
+	    current_rom_path: None
+	}
     }
 
     // TODO make this use results for the various types of errors
     // Tries to load the selected rom
     fn load_rom(&mut self) -> Option<cpu::Cpu> {
-	let mut total_rom = Vec::new();
+	let total_rom: Vec<u8>;
 
 	match std::fs::read(&self.current_rom_path.clone().unwrap()) {
 	    Ok(byte_vec) => total_rom = byte_vec,
@@ -45,48 +50,64 @@ impl GameBoyApp {
 
 impl eframe::App for GameBoyApp {
     /// Called by the frame work to save state before shutdown.
-    fn save(&mut self, storage: &mut dyn eframe::Storage) {
+    fn save(&mut self, _storage: &mut dyn eframe::Storage) {
     }
 
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
 
-        #[cfg(not(target_arch = "wasm32"))]
-        egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
-            egui::menu::bar(ui, |ui| {
-                ui.menu_button("File", |ui| {
+	#[cfg(not(target_arch = "wasm32"))]
+	egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
+	    egui::menu::bar(ui, |ui| {
+		ui.menu_button("File", |ui| {
 		    // Open rom button
-                    if ui.button("Open Rom").clicked() {
-			if let Some(path) = rfd::FileDialog::new().add_filter("game-boy-filter", &["gb", "gbc"]).pick_file() {
+		    if ui.button("Open Rom").clicked() {
+			let picked_path = rfd::FileDialog::new().add_filter("*.gb, *.gbc", &["gb", "gbc"]).pick_file();
+			if let Some(path) = picked_path {
 			    self.current_rom_path = Some(path.display().to_string());
 			    self.cpu = self.load_rom();
 			}
-                    }
-                    if ui.button("Quit").clicked() {
-                        _frame.close();
-                    }
-                });
-            });
-        });
+		    }
+		    if ui.button("Quit").clicked() {
+			_frame.close();
+		    }
+		});
+	    });
+	});
 
-        egui::SidePanel::left("side_panel").show(ctx, |ui| {
-            ui.heading("Side Panel");
-        });
+	egui::SidePanel::left("side_panel").show(ctx, |ui| {
+	    ui.heading("Side Panel");
+	});
 
 	// TODO: Game window
 	// This is going to be the game window
-        egui::CentralPanel::default().show(ctx, |ui| {
-	    // Show the game window here
+	egui::CentralPanel::default().show(ctx, |_ui| {
+	});
 
-        });
+	egui::Window::new("Window").show(ctx, |ui| {
+	    if self.cpu.is_none() { return; };
 
-        if true {
-            egui::Window::new("Window").show(ctx, |ui| {
-                ui.label("Windows can be moved by dragging them.");
-                ui.label("They are automatically sized based on contents.");
-                ui.label("You can turn on resizing and scrolling if you like.");
-                ui.label("You would normally choose either panels OR windows.");
-            });
-        }
+	    match self.cpu.as_mut() {
+		Some(cpu) => run_frame(cpu),
+		None => (),
+	    };
+
+	    if ui.input(|i| i.key_pressed(egui::Key::A)) {
+		println!("Ohhh yap");
+	    }
+
+	});
+    }
+}
+
+fn run_frame(cpu: &mut cpu::Cpu) {
+    // cpu.mmu
+    // 	.joypad
+    // 	.update_input(&mut rl, &mut cpu.mmu.interrupt_handler);
+
+    // run 69905 t-cycles of cpu work, equating to 4MHz of t-cycles per second
+    let mut ran_cycles = 0;
+    while ran_cycles < 69905 {
+	ran_cycles += cpu.cycle();
     }
 }
 
@@ -96,6 +117,7 @@ fn init_file_logger() {
     .encoder(Box::new(PatternEncoder::new("{m}\n")))
     .build("log/output.log")
     .unwrap();
+
         let config = Config::builder()
     .appender(Appender::builder().build("logfile", Box::new(logfile)))
     .build(Root::builder().appender("logfile").build(LevelFilter::Info))
