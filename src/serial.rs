@@ -1,3 +1,5 @@
+use std::io::Write;
+
 #[derive(Default)]
 pub struct Serial {
     pub serial_data_transfer: u8,
@@ -9,5 +11,6 @@ pub struct Serial {
 impl Serial {
     pub fn write_to_transfer(&mut self, data: u8) {
 	print!("{}", data as char);
+	std::io::stdout().flush();
     }
 }
