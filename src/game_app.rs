@@ -86,14 +86,16 @@ impl eframe::App for GameBoyApp {
 	    // let deadline = std::time::Instant::now().checked_add(Duration::from_micros(16600u64))?;
 	    // Todo: make game window run on 60 fps using timings and chrono
 	    match self.cpu.as_mut() {
-		Some(cpu) => run_frame(cpu, ui),
+		Some(cpu) => {
+		    run_frame(cpu, ui);  
+		    ctx.request_repaint();
+		},
 		None => (),
 	    };
 
 	    // TODO: render game window here
 	});
 
-	ctx.request_repaint();
     }
 
     /// Called by the frame work to save state before shutdown.
