@@ -162,10 +162,12 @@ impl Cpu {
                 self.tick();
             }
             0x34 => {
-                let value = self
+                let mut value = self
                     .mmu
-                    .fetch_byte(self.registers.get_hl(), &self.state)
-                    .wrapping_add(1);
+                    .fetch_byte(self.registers.get_hl(), &self.state);
+            
+		value = self.registers.inc_u8_reg(value);
+		
                 self.mmu
                     .write_byte(self.registers.get_hl(), value, &mut self.state);
                 self.tick();

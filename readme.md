@@ -28,7 +28,8 @@ A: k
 - [x] 05-op_rp.gb
 - [x] 06-ld_r,r.gb
 - [x] 07-jr,jp,call,ret,rst.gb
-- [ ] 08-misc_instrs.gb
-- [ ] 09-op-r-r.gb
-- [ ] 10-bit-ops.gb
-- [ ] 11-op-a,(hl).gb
+- [x] 08-misc_instrs.gb
+- [x] 09-op-r-r.gb
+- [x] 10-bit-ops.gb
+- [x] 11-op-a,(hl).gb
+- [ ] Full test

@@ -12,8 +12,8 @@ impl Cpu {
             0x04 => self.registers.h = self.rlc(self.registers.h),
             0x05 => self.registers.l = self.rlc(self.registers.l),
             0x06 => {
-                let _byte = self.mmu.fetch_byte(self.registers.get_hl(), &self.state);
-                let byte = self.rlc(self.registers.c);
+                let mut byte = self.mmu.fetch_byte(self.registers.get_hl(), &self.state);
+                byte = self.rlc(byte);
                 self.mmu
                     .write_byte(self.registers.get_hl(), byte, &mut self.state);
                 self.tick();
@@ -26,8 +26,8 @@ impl Cpu {
             0x0C => self.registers.h = self.rrc(self.registers.h),
             0x0D => self.registers.l = self.rrc(self.registers.l),
             0x0E => {
-                let _byte = self.mmu.fetch_byte(self.registers.get_hl(), &self.state);
-                let byte = self.rrc(self.registers.c);
+                let mut byte = self.mmu.fetch_byte(self.registers.get_hl(), &self.state);
+                byte = self.rrc(byte);
                 self.mmu
                     .write_byte(self.registers.get_hl(), byte, &mut self.state);
                 self.tick();
@@ -40,8 +40,8 @@ impl Cpu {
             0x14 => self.registers.h = self.rl(self.registers.h),
             0x15 => self.registers.l = self.rl(self.registers.l),
             0x16 => {
-                let _byte = self.mmu.fetch_byte(self.registers.get_hl(), &self.state);
-                let byte = self.rl(self.registers.c);
+                let mut byte = self.mmu.fetch_byte(self.registers.get_hl(), &self.state);
+		byte = self.rl(byte);
                 self.mmu
                     .write_byte(self.registers.get_hl(), byte, &mut self.state);
                 self.tick();
@@ -54,8 +54,8 @@ impl Cpu {
             0x1C => self.registers.h = self.rr(self.registers.h),
             0x1D => self.registers.l = self.rr(self.registers.l),
             0x1E => {
-                let _byte = self.mmu.fetch_byte(self.registers.get_hl(), &self.state);
-                let byte = self.rr(self.registers.c);
+                let mut byte = self.mmu.fetch_byte(self.registers.get_hl(), &self.state);
+                byte = self.rr(byte);
                 self.mmu
                     .write_byte(self.registers.get_hl(), byte, &mut self.state);
                 self.tick();
@@ -68,8 +68,8 @@ impl Cpu {
             0x24 => self.registers.h = self.sla(self.registers.h),
             0x25 => self.registers.l = self.sla(self.registers.l),
             0x26 => {
-                let _byte = self.mmu.fetch_byte(self.registers.get_hl(), &self.state);
-                let byte = self.sla(self.registers.c);
+                let mut byte = self.mmu.fetch_byte(self.registers.get_hl(), &self.state);
+                byte = self.sla(byte);
                 self.mmu
                     .write_byte(self.registers.get_hl(), byte, &mut self.state);
                 self.tick();
@@ -82,8 +82,8 @@ impl Cpu {
             0x2C => self.registers.h = self.sra(self.registers.h),
             0x2D => self.registers.l = self.sra(self.registers.l),
             0x2E => {
-                let _byte = self.mmu.fetch_byte(self.registers.get_hl(), &self.state);
-                let byte = self.sra(self.registers.c);
+                let mut byte = self.mmu.fetch_byte(self.registers.get_hl(), &self.state);
+                byte = self.sra(byte);
                 self.mmu
                     .write_byte(self.registers.get_hl(), byte, &mut self.state);
                 self.tick();
@@ -96,8 +96,8 @@ impl Cpu {
             0x34 => self.registers.h = self.swap(self.registers.h),
             0x35 => self.registers.l = self.swap(self.registers.l),
             0x36 => {
-                let _byte = self.mmu.fetch_byte(self.registers.get_hl(), &self.state);
-                let byte = self.swap(self.registers.c);
+                let mut byte = self.mmu.fetch_byte(self.registers.get_hl(), &self.state);
+                byte = self.swap(byte);
                 self.mmu
                     .write_byte(self.registers.get_hl(), byte, &mut self.state);
                 self.tick();
@@ -110,8 +110,8 @@ impl Cpu {
             0x3C => self.registers.h = self.srl(self.registers.h),
             0x3D => self.registers.l = self.srl(self.registers.l),
             0x3E => {
-                let _byte = self.mmu.fetch_byte(self.registers.get_hl(), &self.state);
-                let byte = self.srl(self.registers.c);
+                let mut byte = self.mmu.fetch_byte(self.registers.get_hl(), &self.state);
+                byte = self.srl(byte);
                 self.mmu
                     .write_byte(self.registers.get_hl(), byte, &mut self.state);
                 self.tick();
