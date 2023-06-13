@@ -16,8 +16,8 @@ pub struct Mmu {
     pub timer: Timer,
     ppu: Ppu,
     serial: Serial,
-    wram_0: [u8; 0x1000],
-    wram_switchable: [u8; 0x1000],
+    wram_0: [u8; 0x2000],
+    wram_n: [u8; 0x2000],
 }
 
 impl Mmu {
@@ -39,15 +39,15 @@ impl Mmu {
                 .to_owned(),
             0xA000..=0xBFFF => self.mbc.read_byte(address),
             0xC000..=0xCFFF => {
-		    let local_address = (address - 0xC000) as usize;
+		    let local_address = (address & 0x1FFF) as usize;
 		    self.wram_0[local_address]
             }
             0xD000..=0xDFFF => {
-		    let local_address = (address - 0xD000u16) as usize;
-		    self.wram_switchable[local_address]
+		    let local_address = (address & 0x1FFF) as usize;
+		    self.wram_n[local_address]
             }
             0xE000..=0xFDFF => {
-		    let local_address = ((address - 0xE000) & 0x1FFF) as usize;
+		    let local_address = (address & 0x1FFF) as usize;
 		    self.wram_0[local_address]
             }
             0xFE00..=0xFE9F => self
@@ -86,15 +86,15 @@ impl Mmu {
             0x8000..=0x9FFF => self.ppu.vram[(address - 0x8000) as usize] = received_byte,
             0xA000..=0xBFFF => self.mbc.write_byte(address, received_byte),
             0xC000..=0xCFFF => {
-                let local_address = (address - 0xC000u16) as usize;
+                let local_address = (address & 0x1FFF) as usize;
                 self.wram_0[local_address] = received_byte;
             }
             0xD000..=0xDFFF => {
-                let local_address = (address - 0xD000u16) as usize;
-                self.wram_switchable[local_address] = received_byte;
+                let local_address = (address & 0x1FFF) as usize;
+                self.wram_n[local_address] = received_byte;
             }
             0xE000..=0xFDFF => {
-                let local_address = (address & 0b0001_1111_1111_1111) as usize;
+                let local_address = (address & 0x1FFF) as usize;
                 self.wram_0[local_address] = received_byte;
             }
             0xFE00..=0xFE9F => todo!("Writing to OAM RAM ({:X}), {}", address, received_byte),
@@ -109,7 +109,9 @@ impl Mmu {
                     *cpu_state = CpuState::NonBoot
                 }
             }
-            0xFF80..=0xFFFE => self.hram[(address - 0xFF80u16) as usize] = received_byte,
+            0xFF80..=0xFFFE => {
+		self.hram[(address - 0xFF80) as usize] = received_byte;
+	    },
             0xFFFF => self.interrupt_handler.IE = received_byte,
             _ => (),
         };
@@ -120,8 +122,8 @@ impl Mmu {
         Self {
 	    mbc,
             hram: [0x00; 0x7F],
-            wram_0: [0x00; 0x1000],
-            wram_switchable: [0x00; 0x1000],
+            wram_0: [0x00; 0x2000],
+            wram_n: [0x00; 0x2000],
             ppu: Ppu::new(),
             joypad: Joypad::default(),
             serial: Serial::default(),

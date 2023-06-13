@@ -62,7 +62,7 @@ impl Cpu {
                     .write_byte(self.registers.get_hl(), byte, &mut self.state);
                 self.tick();
             }
-            0x17 => self.registers.a = self.rr(self.registers.a),
+            0x17 => self.registers.a = self.rl(self.registers.a),
             0x18 => self.registers.b = self.rr(self.registers.b),
             0x19 => self.registers.c = self.rr(self.registers.c),
             0x1A => self.registers.d = self.rr(self.registers.d),
@@ -76,7 +76,7 @@ impl Cpu {
                     .write_byte(self.registers.get_hl(), byte, &mut self.state);
                 self.tick();
             }
-            0x1F => self.registers.a = self.sla(self.registers.a),
+            0x1F => self.registers.a = self.rr(self.registers.a),
             0x20 => self.registers.b = self.sla(self.registers.b),
             0x21 => self.registers.c = self.sla(self.registers.c),
             0x22 => self.registers.d = self.sla(self.registers.d),
@@ -104,7 +104,7 @@ impl Cpu {
                     .write_byte(self.registers.get_hl(), byte, &mut self.state);
                 self.tick();
             }
-            0x2F => self.registers.a = self.swap(self.registers.a),
+            0x2F => self.registers.a = self.sra(self.registers.a),
             0x30 => self.registers.b = self.swap(self.registers.b),
             0x31 => self.registers.c = self.swap(self.registers.c),
             0x32 => self.registers.d = self.swap(self.registers.d),
@@ -155,7 +155,7 @@ impl Cpu {
                     &mut self.state,
                 );
             }
-            0x87 => self.registers.a &= !(1 << 1),
+            0x87 => self.registers.a &= !(1 << 0),
             0x88 => self.registers.b &= !(1 << 1),
             0x89 => self.registers.c &= !(1 << 1),
             0x8A => self.registers.d &= !(1 << 1),
@@ -185,7 +185,7 @@ impl Cpu {
                     &mut self.state,
                 );
             }
-            0x97 => self.registers.a &= !(1 << 3),
+            0x97 => self.registers.a &= !(1 << 2),
             0x98 => self.registers.b &= !(1 << 3),
             0x99 => self.registers.c &= !(1 << 3),
             0x9A => self.registers.d &= !(1 << 3),
@@ -275,7 +275,7 @@ impl Cpu {
                     &mut self.state,
                 );
             }
-            0xC7 => self.registers.a |= 1 << 1,
+            0xC7 => self.registers.a |= 1 << 0,
             0xC8 => self.registers.b |= 1 << 1,
             0xC9 => self.registers.c |= 1 << 1,
             0xCA => self.registers.d |= 1 << 1,
@@ -417,10 +417,12 @@ impl Cpu {
     }
 
     fn rl(&mut self, mut reg: u8) -> u8 {
-        let carry = reg & 0x80 > 0;
-        self.registers.set_carry_flag(carry);
-        reg <<= 1;
-        reg |= carry as u8;
+        let carry = self.registers.is_carry_flag_high() as u8;
+        self.registers.set_carry_flag(reg & 0x80 > 0);
+
+	reg <<= 1;
+	reg &= 0xFE;
+	reg |= carry as u8;
         self.registers.set_zero_flag(reg == 0);
         self.registers.set_half_carry_flag(false);
         self.registers.set_n_flag(false);
@@ -438,9 +440,11 @@ impl Cpu {
     }
 
     fn sra(&mut self, mut reg: u8) -> u8 {
-        let carry = reg & 0x1 > 0;
-        self.registers.set_carry_flag(carry);
+        let signal = reg & 0x80;
+        self.registers.set_carry_flag(reg & 0x1 > 0);
         reg >>= 1;
+	reg &= 0b01111111;
+	reg |= signal;
         self.registers.set_zero_flag(reg == 0);
         self.registers.set_half_carry_flag(false);
         self.registers.set_n_flag(false);
@@ -458,7 +462,12 @@ impl Cpu {
 
     fn swap(&mut self, reg: u8) -> u8 {
         self.registers.set_zero_flag(reg == 0);
-        reg.swap_bytes()
+	self.registers.set_half_carry_flag(false);
+	self.registers.set_carry_flag(false);
+	self.registers.set_n_flag(false);
+	let high = reg & 0xF0;
+	let low = reg & 0x0F;
+	low << 4 | high >> 4
     }
 
     fn bit(&mut self, reg: u8, bit_index: u8) {

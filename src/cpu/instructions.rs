@@ -4,8 +4,6 @@ use super::Cpu;
 impl Cpu {
     // Execute the instruction given and return the number of t-cycles it took to run it
     pub(crate) fn execute(&mut self, first_byte: u8) {
-        // Print state of emulator to logger
-        self.log_to_file(first_byte);
 
         match first_byte {
             0x00 => self.tick(),
@@ -73,13 +71,15 @@ impl Cpu {
             0x17 => {
                 // RLA
                 let old_carry = self.registers.is_carry_flag_high() as u8;
-                self.registers.set_flags(if self.registers.a & 0x80 > 0 {
-                    0b1000
-                } else {
-                    0b0000
-                });
-                self.registers.a <<= 1;
+		self.registers.set_carry_flag(self.registers.a & 0b1000_0000 > 0);
+
+                self.registers.a = self.registers.a.rotate_left(1);
+
+		self.registers.a &= 0b11111110;
                 self.registers.a |= old_carry;
+		self.registers.set_zero_flag(false);
+		self.registers.set_half_carry_flag(false);
+		self.registers.set_n_flag(false);
             }
             0x18 => self.jr_i8(true),
             0x19 => {
@@ -116,7 +116,9 @@ impl Cpu {
             0x22 => {
                 self.mmu
                     .write_byte(self.registers.get_hl(), self.registers.a, &mut self.state);
-                self.registers.set_hl(self.registers.get_hl() + 1);
+
+                let n = self.registers.get_hl().wrapping_add(1);
+                self.registers.set_hl(n);
                 self.tick();
             }
             0x23 => {
@@ -185,7 +187,11 @@ impl Cpu {
                     .write_byte(self.registers.get_hl(), byte, &mut self.state);
                 self.tick();
             }
-            0x37 => self.registers.set_carry_flag(true),
+            0x37 => {
+		self.registers.set_carry_flag(true);
+		self.registers.set_n_flag(false);
+		self.registers.set_half_carry_flag(false);
+	    },
             0x38 => self.jr_i8(self.registers.is_carry_flag_high()),
             0x39 => {
                 self.registers.add_to_hl_u16(self.sp);
@@ -360,61 +366,30 @@ impl Cpu {
             }
             0x97 => self.registers.sub_u8(self.registers.a),
             0x98 => {
-                self.registers.sub_u8(
-                    self.registers
-                        .b
-                        .wrapping_sub(self.registers.is_carry_flag_high() as u8),
-                );
+		self.registers.sbc_u8(self.registers.b);
             }
             0x99 => {
-                self.registers.sub_u8(
-                    self.registers
-                        .c
-                        .wrapping_sub(self.registers.is_carry_flag_high() as u8),
-                );
+		self.registers.sbc_u8(self.registers.c);
             }
             0x9A => {
-                self.registers.sub_u8(
-                    self.registers
-                        .d
-                        .wrapping_sub(self.registers.is_carry_flag_high() as u8),
-                );
+		self.registers.sbc_u8(self.registers.d);
             }
             0x9B => {
-                self.registers.sub_u8(
-                    self.registers
-                        .e
-                        .wrapping_sub(self.registers.is_carry_flag_high() as u8),
-                );
+		self.registers.sbc_u8(self.registers.e);
             }
             0x9C => {
-                self.registers.sub_u8(
-                    self.registers
-                        .h
-                        .wrapping_sub(self.registers.is_carry_flag_high() as u8),
-                );
+		self.registers.sbc_u8(self.registers.h);
             }
             0x9D => {
-                self.registers.sub_u8(
-                    self.registers
-                        .l
-                        .wrapping_sub(self.registers.is_carry_flag_high() as u8),
-                );
+		self.registers.sbc_u8(self.registers.l);
             }
             0x9E => {
-                self.registers.sub_u8(
-                    self.mmu
-                        .fetch_byte(self.registers.get_hl(), &self.state)
-                        .wrapping_sub(self.registers.is_carry_flag_high() as u8),
-                );
+		let number = self.mmu.fetch_byte(self.registers.get_hl(), &self.state); 
+		self.registers.sbc_u8(number);
                 self.tick();
             }
             0x9F => {
-                self.registers.sub_u8(
-                    self.registers
-                        .a
-                        .wrapping_sub(self.registers.is_carry_flag_high() as u8),
-                );
+		self.registers.sbc_u8(self.registers.a);
             }
             0xA0 => self.registers.and_u8(self.registers.b),
             0xA1 => self.registers.and_u8(self.registers.c),
@@ -552,7 +527,7 @@ impl Cpu {
             }
             0xE2 => {
                 self.mmu.write_byte(
-                    0xFFu16 + self.registers.c as u16,
+                    0xFF00u16 + self.registers.c as u16,
                     self.registers.a,
                     &mut self.state,
                 );
@@ -592,8 +567,8 @@ impl Cpu {
             }
             0xEF => self.rst(0x28u16),
             0xF0 => {
-                let add_on = self.fetch_byte() as u8 as u16;
-                self.registers.a = self.mmu.fetch_byte(0xFF00u16 + add_on, &self.state);
+                let add_on = self.fetch_byte() as u16;
+                self.registers.a = self.mmu.fetch_byte(0xFF00 | add_on, &self.state);
                 self.tick();
             }
             0xF1 => {

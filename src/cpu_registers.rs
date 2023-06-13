@@ -29,9 +29,10 @@ impl CpuRegisters {
     }
 
     pub fn set_af(&mut self, n: u16) {
-        let n = n & 0b1111_1111_1111_0000u16;
         self.a = n.to_be_bytes()[0];
         self.f = n.to_be_bytes()[1];
+
+	self.f &= 0xF0;
     }
     pub fn set_bc(&mut self, n: u16) {
         self.b = n.to_be_bytes()[0];

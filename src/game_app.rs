@@ -1,5 +1,4 @@
 use egui::Ui;
-use std::time::{Instant, Duration};
 use log::LevelFilter;
 use log4rs::{append::file::FileAppender, Config, encode::pattern::PatternEncoder, config::{Appender, Root}};
  
