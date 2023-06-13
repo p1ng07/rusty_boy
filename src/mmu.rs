@@ -16,7 +16,8 @@ pub struct Mmu {
     pub timer: Timer,
     ppu: Ppu,
     serial: Serial,
-    wram: [u8; 0x2000],
+    wram_0: [u8; 0x1000],
+    wram_switchable: [u8; 0x1000],
 }
 
 impl Mmu {
@@ -37,17 +38,17 @@ impl Mmu {
                 .unwrap()
                 .to_owned(),
             0xA000..=0xBFFF => self.mbc.read_byte(address),
-            0xC000..=0xDFFF => {
-		unsafe {
+            0xC000..=0xCFFF => {
 		    let local_address = (address - 0xC000) as usize;
-		    return self.wram.get_unchecked(local_address).to_owned();
-		}
+		    self.wram_0[local_address]
+            }
+            0xD000..=0xDFFF => {
+		    let local_address = (address - 0xD000u16) as usize;
+		    self.wram_switchable[local_address]
             }
             0xE000..=0xFDFF => {
-		unsafe {
-		    let local_address = (address - 0xE000u16) as usize;
-		    return self.wram.get_unchecked(local_address).to_owned();
-		}
+		    let local_address = ((address - 0xE000) & 0x1FFF) as usize;
+		    self.wram_0[local_address]
             }
             0xFE00..=0xFE9F => self
                 .ppu
@@ -66,12 +67,8 @@ impl Mmu {
                 "Reading LCD control, status, position, scroll and palletes, address {:X}",
                 address
             ),
-            0xFF80..=0xFFFE => self
-                .hram
-                .get((address - 0xFF80) as usize)
-                .unwrap()
-                .to_owned(),
-            0xFFFF => self.interrupt_handler.IE,
+	    0xFF80..=0xFFFE => self.hram[(address - 0xFF80) as usize],
+	    0xFFFF => self.interrupt_handler.IE,
             _ => 0xFF,
         }
     }
@@ -88,13 +85,17 @@ impl Mmu {
             0..=0x7FFF => self.mbc.write_byte(address, received_byte), // Writing to ROM
             0x8000..=0x9FFF => self.ppu.vram[(address - 0x8000) as usize] = received_byte,
             0xA000..=0xBFFF => self.mbc.write_byte(address, received_byte),
-            0xC000..=0xDFFF => {
+            0xC000..=0xCFFF => {
                 let local_address = (address - 0xC000u16) as usize;
-                self.wram[local_address] = received_byte;
+                self.wram_0[local_address] = received_byte;
+            }
+            0xD000..=0xDFFF => {
+                let local_address = (address - 0xD000u16) as usize;
+                self.wram_switchable[local_address] = received_byte;
             }
             0xE000..=0xFDFF => {
-                let local_address = (address - 0xE000u16) as usize;
-                self.wram[local_address] = received_byte;
+                let local_address = (address & 0b0001_1111_1111_1111) as usize;
+                self.wram_0[local_address] = received_byte;
             }
             0xFE00..=0xFE9F => todo!("Writing to OAM RAM ({:X}), {}", address, received_byte),
             0xFF00 => self.joypad.write_to_byte(received_byte),
@@ -118,8 +119,9 @@ impl Mmu {
         // Load the rom only cartridge, if there isn't a rom, load a load of nothing
         Self {
 	    mbc,
-            hram: [0; 0x7F],
-            wram: [0; 0x2000],
+            hram: [0x00; 0x7F],
+            wram_0: [0x00; 0x1000],
+            wram_switchable: [0x00; 0x1000],
             ppu: Ppu::new(),
             joypad: Joypad::default(),
             serial: Serial::default(),

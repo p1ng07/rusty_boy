@@ -145,9 +145,7 @@ impl Cpu {
             0x2C => self.registers.l = self.registers.inc_u8_reg(self.registers.l),
             0x2D => self.registers.l = self.registers.dec_u8_reg(self.registers.l),
             0x2E => self.registers.l = self.fetch_byte(),
-            0x2F => {
-                self.registers.cpl();
-            }
+            0x2F => self.registers.cpl(), 
             0x30 => self.jr_i8(!self.registers.is_carry_flag_high()),
             0x31 => self.sp = self.fetch_word(),
             0x32 => {
@@ -594,7 +592,7 @@ impl Cpu {
             }
             0xEF => self.rst(0x28u16),
             0xF0 => {
-                let add_on = self.fetch_byte() as u16;
+                let add_on = self.fetch_byte() as u8 as u16;
                 self.registers.a = self.mmu.fetch_byte(0xFF00u16 + add_on, &self.state);
                 self.tick();
             }

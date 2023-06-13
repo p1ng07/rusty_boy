@@ -11,6 +11,6 @@ pub struct Serial {
 impl Serial {
     pub fn write_to_transfer(&mut self, data: u8) {
 	print!("{}", data as char);
-	std::io::stdout().flush();
+	let _ = std::io::stdout().flush();
     }
 }

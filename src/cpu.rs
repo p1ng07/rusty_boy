@@ -103,10 +103,10 @@ impl Cpu {
     }
 
     pub fn fetch_word(&mut self) -> u16 {
-	let fetch_byte_big = self.fetch_byte() as u16;
-	let fetch_byte_small = self.fetch_byte() as u16;
+	let fetch_byte_lower = self.fetch_byte() as u16;
+	let fetch_byte_high = self.fetch_byte() as u16;
 
-	fetch_byte_small << 8 | fetch_byte_big
+	fetch_byte_high << 8 | fetch_byte_lower
     }
 
     // Services all serviciable interrupts and returns the number of t-cycles this handling took
