@@ -4,22 +4,6 @@ impl Cpu {
     pub(crate) fn execute_cb(&mut self) {
         let instruction = self.fetch_byte();
 
-        // Register used in the operation depends
-        let register_to_use = match ((instruction >> 4) & 0xF) % 8 {
-            0 => self.registers.b,
-            1 => self.registers.c,
-            2 => self.registers.d,
-            3 => self.registers.e,
-            4 => self.registers.h,
-            5 => self.registers.l,
-            6 => {
-                self.tick();
-                self.mmu.fetch_byte(self.registers.get_hl(), &self.state)
-            }
-            7 => self.registers.a,
-            _ => 0, // This is impossible to reach because we are comparing the remainder of a division by 8
-        };
-
         match instruction {
             0x00 => self.registers.b = self.rlc(self.registers.b),
             0x01 => self.registers.c = self.rlc(self.registers.c),
@@ -133,14 +117,94 @@ impl Cpu {
                 self.tick();
             }
             0x3F => self.registers.a = self.srl(self.registers.a),
-            0x40..=0x47 => self.bit(register_to_use, 0),
-            0x48..=0x4F => self.bit(register_to_use, 1),
-            0x50..=0x57 => self.bit(register_to_use, 2),
-            0x58..=0x5F => self.bit(register_to_use, 3),
-            0x60..=0x67 => self.bit(register_to_use, 4),
-            0x68..=0x6F => self.bit(register_to_use, 5),
-            0x70..=0x77 => self.bit(register_to_use, 6),
-            0x78..=0x7F => self.bit(register_to_use, 7),
+            0x40 => self.bit(self.registers.b, 0),
+            0x41 => self.bit(self.registers.c, 0),
+            0x42 => self.bit(self.registers.d, 0),
+            0x43 => self.bit(self.registers.e, 0),
+            0x44 => self.bit(self.registers.h, 0),
+            0x45 => self.bit(self.registers.l, 0),
+	    0x46 => {
+		self.tick();
+		self.bit(self.mmu.fetch_byte(self.registers.get_hl(), &self.state), 0);
+	    },
+            0x47 => self.bit(self.registers.a, 0),
+            0x48 => self.bit(self.registers.b, 1),
+            0x49 => self.bit(self.registers.c, 1),
+            0x4A => self.bit(self.registers.d, 1),
+            0x4B => self.bit(self.registers.e, 1),
+            0x4C => self.bit(self.registers.h, 1),
+            0x4D => self.bit(self.registers.l, 1),
+	    0x4E => {
+		self.tick();
+		self.bit(self.mmu.fetch_byte(self.registers.get_hl(), &self.state), 1);
+	    },
+            0x4F => self.bit(self.registers.a, 1),
+            0x50 => self.bit(self.registers.b, 2),
+            0x51 => self.bit(self.registers.c, 2),
+            0x52 => self.bit(self.registers.d, 2),
+            0x53 => self.bit(self.registers.e, 2),
+            0x54 => self.bit(self.registers.h, 2),
+            0x55 => self.bit(self.registers.l, 2),
+	    0x56 => {
+		self.tick();
+		self.bit(self.mmu.fetch_byte(self.registers.get_hl(), &self.state), 2);
+	    },
+            0x57 => self.bit(self.registers.a, 2),
+            0x58 => self.bit(self.registers.b, 3),
+            0x59 => self.bit(self.registers.c, 3),
+            0x5A => self.bit(self.registers.d, 3),
+            0x5B => self.bit(self.registers.e, 3),
+            0x5C => self.bit(self.registers.h, 3),
+            0x5D => self.bit(self.registers.l, 3),
+	    0x5E => {
+		self.tick();
+		self.bit(self.mmu.fetch_byte(self.registers.get_hl(), &self.state), 3);
+	    },
+            0x5F => self.bit(self.registers.a, 3),
+            0x60 => self.bit(self.registers.b, 4),
+            0x61 => self.bit(self.registers.c, 4),
+            0x62 => self.bit(self.registers.d, 4),
+            0x63 => self.bit(self.registers.e, 4),
+            0x64 => self.bit(self.registers.h, 4),
+            0x65 => self.bit(self.registers.l, 4),
+	    0x66 => {
+		self.tick();
+		self.bit(self.mmu.fetch_byte(self.registers.get_hl(), &self.state), 4);
+	    },
+            0x67 => self.bit(self.registers.a, 4),
+            0x68 => self.bit(self.registers.b, 5),
+            0x69 => self.bit(self.registers.c, 5),
+            0x6A => self.bit(self.registers.d, 5),
+            0x6B => self.bit(self.registers.e, 5),
+            0x6C => self.bit(self.registers.h, 5),
+            0x6D => self.bit(self.registers.l, 5),
+	    0x6E => {
+		self.tick();
+		self.bit(self.mmu.fetch_byte(self.registers.get_hl(), &self.state), 5);
+	    },
+            0x6F => self.bit(self.registers.a, 5),
+            0x70 => self.bit(self.registers.b, 6),
+            0x71 => self.bit(self.registers.c, 6),
+            0x72 => self.bit(self.registers.d, 6),
+            0x73 => self.bit(self.registers.e, 6),
+            0x74 => self.bit(self.registers.h, 6),
+            0x75 => self.bit(self.registers.l, 6),
+	    0x76 => {
+		self.tick();
+		self.bit(self.mmu.fetch_byte(self.registers.get_hl(), &self.state), 6);
+	    },
+            0x77 => self.bit(self.registers.a, 6),
+            0x78 => self.bit(self.registers.b, 7),
+            0x79 => self.bit(self.registers.c, 7),
+            0x7A => self.bit(self.registers.d, 7),
+            0x7B => self.bit(self.registers.e, 7),
+            0x7C => self.bit(self.registers.h, 7),
+            0x7D => self.bit(self.registers.l, 7),
+	    0x7E => {
+		self.tick();
+		self.bit(self.mmu.fetch_byte(self.registers.get_hl(), &self.state), 7);
+	    },
+            0x7F => self.bit(self.registers.a, 7),
             0x80 => self.registers.b &= !(1 << 0),
             0x81 => self.registers.c &= !(1 << 0),
             0x82 => self.registers.d &= !(1 << 0),
@@ -305,7 +369,7 @@ impl Cpu {
                     &mut self.state,
                 );
             }
-            0xD7 => self.registers.a |= 1 << 3,
+            0xD7 => self.registers.a |= 1 << 2,
             0xD8 => self.registers.b |= 1 << 3,
             0xD9 => self.registers.c |= 1 << 3,
             0xDA => self.registers.d |= 1 << 3,
@@ -471,7 +535,11 @@ impl Cpu {
     }
 
     fn bit(&mut self, reg: u8, bit_index: u8) {
-        self.registers.set_zero_flag(reg & (1 << (bit_index as u32)) == 0);
+	if (reg & (1 << bit_index)) == 0 {
+	    self.registers.set_zero_flag(true);
+	}else {
+	    self.registers.set_zero_flag(false);
+	}
         self.registers.set_n_flag(false);
         self.registers.set_half_carry_flag(true);
     }
