@@ -14,13 +14,16 @@ A: k
 4. Memory viewer
 5. Halt Bug
 6. Simple background only ppu
-7. Pass more blargg tests like instr_timing and rest of cpu
-8. MBC3 and MBC5
-9. Pass acid test
-10. Tetris
+7. Pass acid test
+8. Tetris
+9. Pass mem_timing blargg tests
+10. MBC3 and MBC5
 
-# Blargg tests
+# Tests
 
-- [ ] Full test (single test already pass)
+## Blargg
+
+- [ ] Full cpu_instrs test (there is an mbc1 issue, single test already passes)
 - [x] instr_timing
-- [ ] mem_timing
+- [x] mem_timing 1
+- [ ] mem_timing 2

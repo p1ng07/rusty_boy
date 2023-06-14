@@ -33,8 +33,8 @@ impl Cpu {
             }
 	    0x09 => {self.tick();self.registers.add_to_hl_u16(self.registers.get_bc());},
 	    0x0A => {
-		self.tick();
 self.registers.a = self.mmu.fetch_byte(self.registers.get_bc(), &self.state);
+		self.tick();
 	    },
             0x0B => {
                 self.registers.dec_bc();
@@ -159,21 +159,21 @@ self.registers.a = self.mmu.fetch_byte(self.registers.get_bc(), &self.state);
                     .mmu
                     .fetch_byte(self.registers.get_hl(), &self.state);
             
+                self.tick();
 		value = self.registers.inc_u8_reg(value);
 		
                 self.mmu
                     .write_byte(self.registers.get_hl(), value, &mut self.state);
                 self.tick();
-                self.tick();
             }
             0x35 => {
                 let mut value = self.mmu.fetch_byte(self.registers.get_hl(), &self.state);
+		self.tick();
 
                 value = self.registers.dec_u8_reg(value);
                 self.mmu
                     .write_byte(self.registers.get_hl(), value, &mut self.state);
 
-                self.tick();
                 self.tick();
             }
             0x36 => {
@@ -226,8 +226,8 @@ self.registers.a = self.mmu.fetch_byte(self.registers.get_bc(), &self.state);
             0x4C => self.registers.c = self.registers.h,
             0x4D => self.registers.c = self.registers.l,
             0x4E => {
-                self.tick();
                 self.registers.c = self.mmu.fetch_byte(self.registers.get_hl(), &self.state);
+                self.tick();
             }
             0x4F => self.registers.c = self.registers.a,
             0x50 => self.registers.d = self.registers.b,
