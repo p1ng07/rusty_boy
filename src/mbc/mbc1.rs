@@ -15,7 +15,7 @@ impl Mbc for Mbc1 {
 	match address {
 	    ..=0x3FFF => self.rom_banks[0][address as usize], // Reading rom bank 0
 	    0x4000..=0x7FFF => {
-		if let Some(ref rom_bank) = self.rom_banks.get(self.rom_bank_index) {
+		if let Some(ref rom_bank) = self.rom_banks.get(self.rom_bank_index & self.rom_bank_mask as usize) {
 		    rom_bank[address as usize - 0x4000]
 		}else{
 		    panic!("{} rom bank", self.rom_bank_index);
@@ -44,7 +44,7 @@ impl Mbc for Mbc1 {
 		}
 	    }
 	    0x2000..=0x3FFF =>{
-		self.rom_bank_index = (self.rom_bank_mask & (byte as u16)) as usize;
+		self.rom_bank_index = byte as usize & (self.rom_bank_mask & 0x1Fu16) as usize;
 		if self.rom_bank_index == 0 {
 		    self.rom_bank_index = 1;
 		}
