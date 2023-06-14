@@ -1,3 +1,5 @@
+use std::{time::{Duration, Instant}, ops::Sub};
+
 use egui::Ui;
 use log::LevelFilter;
 use log4rs::{append::file::FileAppender, Config, encode::pattern::PatternEncoder, config::{Appender, Root}};
@@ -55,6 +57,10 @@ impl GameBoyApp {
 
 impl eframe::App for GameBoyApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+
+	// Get the time at which a game update should happen
+	let deadline = std::time::Instant::now().checked_add(Duration::from_micros(16600u64)).unwrap();
+
 	#[cfg(not(target_arch = "wasm32"))]
 	egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
 	    egui::menu::bar(ui, |ui| {
@@ -99,30 +105,21 @@ impl eframe::App for GameBoyApp {
 	});
 
 	egui::Window::new("Game window").show(ctx, |ui| {
-	    if self.cpu.is_none() { return; };
+	    if self.paused || self.cpu.is_none() { return; };
 
-	    if self.paused {
-		// TODO Render the game
-
-		return;
-	    }
-
-	    // Run game at 60 Hz
-	    // Get deadline of execution
-	    // let current_timer = std::time::Instant::now();
-	    // let deadline = std::time::Instant::now().checked_add(Duration::from_micros(16600u64))?;
-	    // Todo: make game window run on 60 fps using timings and chrono
 	    match self.cpu.as_mut() {
 		Some(cpu) => {
 		    run_frame(cpu, ui);  
-		    ctx.request_repaint();
 		},
 		None => (),
 	    };
 
 	    // TODO: render game window here
+
 	});
 
+	// Update the context after 16.6 ms (forcing the fps to be 60)
+	ctx.request_repaint_after(deadline.sub(Instant::now()));
     }
 
     /// Called by the frame work to save state before shutdown.

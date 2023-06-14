@@ -8,7 +8,6 @@ A: k
 
 # TODO
 
-1. Main cycle timing
 2. Cpu information window
 3. Memory viewer
 4. Halt Bug
@@ -22,7 +21,7 @@ A: k
 
 ## Blargg
 
-- [x] Full cpu_instrs test (there is an mbc1 issue, single test already passes)
+- [x] cpu_instrs
 - [x] instr_timing
 - [x] mem_timing 1
 - [ ] mem_timing 2
