@@ -1,4 +1,5 @@
 use super::{Mbc, no_mbc::KIBI_BYTE};
+//TODO: MBC1 is not behaving correctly
 
 pub struct Mbc1 {
     ram_enabled: bool,
