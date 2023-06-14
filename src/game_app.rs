@@ -8,6 +8,7 @@ use crate::mmu::Mmu;
 
 pub struct GameBoyApp {
     cpu: Option<cpu::Cpu>,
+    paused: bool,
     current_rom_path: Option<String>,
 }
 
@@ -18,6 +19,7 @@ impl GameBoyApp {
 	init_file_logger();
 
 	Self {
+	    paused: true,
 	    cpu: None,
 	    current_rom_path: None
 	}
@@ -73,11 +75,37 @@ impl eframe::App for GameBoyApp {
 	});
 
 	egui::SidePanel::left("side_panel").show(ctx, |ui| {
-	    ui.heading("Toggle window to be (TODO)");
+
+	    ui.toggle_value(&mut self.paused, "Pause");
+
+	    if self.paused {
+		if ui.button("Step Frame").clicked() {
+		    match self.cpu.as_mut() {
+			Some(cpu) => {
+			    run_frame(cpu, ui);
+			}
+			None => (),
+		    }
+		}
+		if ui.button("Step PC").clicked() {
+		    match self.cpu.as_mut() {
+			Some(cpu) => {
+			    cpu.cycle();
+			}
+			None => (),
+		    }
+		}
+	    }
 	});
 
 	egui::Window::new("Game window").show(ctx, |ui| {
 	    if self.cpu.is_none() { return; };
+
+	    if self.paused {
+		// TODO Render the game
+
+		return;
+	    }
 
 	    // Run game at 60 Hz
 	    // Get deadline of execution

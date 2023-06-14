@@ -65,6 +65,8 @@ impl Mbc1 {
 	    2 => 8,
 	    3 => 16,
 	    4 => 32,
+	    5 => 64,
+	    6 => 128,
 	    _ => panic!("{} is not a valid bank value", total_rom[0x148])
 	};
 
@@ -78,6 +80,8 @@ impl Mbc1 {
 	    8 => 3u16,
 	    16 => 4u16,
 	    32 => 5u16,
+	    64 => 6u16,
+	    128 => 7u16,
 	    _ => panic!("{} is not a valid rom bank number.", num_of_banks)
 	};
 

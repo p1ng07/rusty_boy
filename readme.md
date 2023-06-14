@@ -9,15 +9,14 @@ A: k
 # TODO
 
 1. Main cycle timing
-2. Pause game, stepping
-3. Cpu information window
-4. Memory viewer
-5. Halt Bug
-6. Simple background only ppu
-7. Pass acid test
-8. Tetris
-9. Halt bug
-10. MBC3 and MBC5
+2. Cpu information window
+3. Memory viewer
+4. Halt Bug
+5. Simple background only ppu
+6. Pass acid test
+7. Tetris
+8. Halt bug
+9. MBC3 and MBC5
 
 # Tests
 
