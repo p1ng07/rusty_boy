@@ -8,14 +8,14 @@ A: k
 
 # TODO
 
-2. Cpu information window
-3. Memory viewer
-4. Halt Bug
-5. Simple background only ppu
-6. Pass acid test
-7. Tetris
-8. Halt bug
-9. MBC3 and MBC5
+1. Cpu information window
+2. Memory viewer
+3. Halt Bug
+4. Simple background only ppu
+5. Pass acid test
+6. Tetris
+7. Halt bug
+8. MBC3 and MBC5
 
 # Tests
 
