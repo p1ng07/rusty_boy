@@ -10,18 +10,17 @@ use crate::timer::Timer;
 pub struct Mmu {
     boot_rom: [u8; 256],
     hram: [u8; 0x7F],
-    pub interrupt_handler: InterruptHandler,
     pub joypad: Joypad,
     mbc: Box<dyn Mbc>,
     pub timer: Timer,
-    ppu: Ppu,
+    pub ppu: Ppu,
     serial: Serial,
     wram_0: [u8; 0x2000],
     wram_n: [u8; 0x2000],
 }
 
-impl Mmu {
-    pub fn fetch_byte(&self, address: u16, cpu_state: &CpuState) -> u8 {
+impl<'a> Mmu {
+    pub fn fetch_byte(&self, address: u16, cpu_state: &CpuState, interrupt_handler: &mut InterruptHandler) -> u8 {
 	match address {
 	    0..=0x7FFF => match cpu_state {
 		CpuState::Boot => match address {
@@ -60,7 +59,7 @@ impl Mmu {
             0xFF01 => self.serial.serial_data_transfer,
             0xFF02 => self.serial.serial_data_control,
             0xFF04..=0xFF07 => self.timer.read_byte(address),
-            0xFF0F => self.interrupt_handler.IF,
+            0xFF0F => interrupt_handler.IF,
             0xFF42 => 0, // TODO: Stubbed to 0x0 because 0xFF42 is SCY and some roms wait for SCY to be set to 0
             0xFF44 => 0x90, // TODO: Stubbed to 0x90 because 0xFF40 is LY and some roms wait for LY to be set to 0x90
             0xFF40..=0xFF4B => todo!(
@@ -68,19 +67,19 @@ impl Mmu {
                 address
             ),
             0xFF80..=0xFFFE => self.hram[(address - 0xFF80) as usize],
-            0xFFFF => self.interrupt_handler.IE,
+            0xFFFF => interrupt_handler.IE,
             _ => 0xFF,
         }
     }
 
-    pub fn write_word(&mut self, address: u16, word: u16, cpu_state: &mut CpuState) {
+    pub fn write_word(&mut self, address: u16, word: u16, cpu_state: &mut CpuState, interrupt_handler: &mut InterruptHandler) {
         let lower = word as u8;
-        self.write_byte(address, lower, cpu_state);
+        self.write_byte(address, lower, cpu_state, interrupt_handler);
         let high = (word >> 8) as u8;
-        self.write_byte(address + 1, high, cpu_state);
+        self.write_byte(address + 1, high, cpu_state, interrupt_handler);
     }
 
-    pub fn write_byte(&mut self, address: u16, received_byte: u8, cpu_state: &mut CpuState) {
+    pub fn write_byte(&mut self, address: u16, received_byte: u8, cpu_state: &mut CpuState, interrupt_handler: &mut InterruptHandler) {
         match address {
             0..=0x7FFF => self.mbc.write_byte(address, received_byte), // Writing to ROM
             0x8000..=0x9FFF => self.ppu.vram[(address - 0x8000) as usize] = received_byte,
@@ -102,7 +101,7 @@ impl Mmu {
             0xFF01 => self.serial.write_to_transfer(received_byte),
             0xFF02 => self.serial.serial_data_control = received_byte,
             0xFF04..=0xFF07 => self.timer.write_byte(address, received_byte),
-            0xFF0F => self.interrupt_handler.IF = received_byte,
+            0xFF0F => interrupt_handler.IF = received_byte,
             0xFF40..=0xFF4B => (), // TODO: bunch off ppu status and controls
             0xFF50 => {
                 if received_byte > 0 {
@@ -112,23 +111,21 @@ impl Mmu {
             0xFF80..=0xFFFE => {
                 self.hram[(address - 0xFF80) as usize] = received_byte;
             }
-            0xFFFF => self.interrupt_handler.IE = received_byte,
+            0xFFFF => interrupt_handler.IE = received_byte,
             _ => (),
         };
     }
 
     pub fn new(mbc: Box<dyn Mbc>) -> Self {
-        // Load the rom only cartridge, if there isn't a rom, load a load of nothing
-        Self {
+	Self {
             mbc,
             hram: [0x00; 0x7F],
             wram_0: [0x00; 0x2000],
             wram_n: [0x00; 0x2000],
-            ppu: Ppu::new(),
+	    ppu: Ppu::new(),
             joypad: Joypad::default(),
             serial: Serial::default(),
             timer: Timer::default(),
-            interrupt_handler: InterruptHandler::default(),
             boot_rom: [
                 0x31, 0xFE, 0xFF, 0xAF, 0x21, 0xFF, 0x9F, 0x32, 0xCB, 0x7C, 0x20, 0xFB, 0x21, 0x26,
                 0xFF, 0x0E, 0x11, 0x3E, 0x80, 0x32, 0xE2, 0x0C, 0x3E, 0xF3, 0xE2, 0x32, 0x3E, 0x77,

@@ -12,7 +12,7 @@ use log4rs::{
     Config,
 };
 
-use crate::cpu;
+use crate::{cpu, interrupt_handler};
 use crate::mbc::{mbc1::Mbc1, no_mbc::NoMbc, Mbc};
 use crate::mmu::Mmu;
 
@@ -133,7 +133,7 @@ impl eframe::App for GameBoyApp {
 fn run_frame(cpu: &mut cpu::Cpu, ui: &Ui) {
     cpu.mmu
         .joypad
-        .update_input(ui, &mut cpu.mmu.interrupt_handler);
+        .update_input(ui, &mut cpu.interrupt_handler);
 
     // run 69905 t-cycles of cpu work per frame, equating to 4MHz of t-cycles per second
     let mut ran_cycles = 0;

@@ -12,7 +12,7 @@ impl Cpu {
             }
             0x02 => {
                 self.mmu
-                    .write_byte(self.registers.get_bc(), self.registers.a, &mut self.state);
+                    .write_byte(self.registers.get_bc(), self.registers.a, &mut self.state, &mut self.interrupt_handler);
                 self.tick();
             }
             0x03 => {
@@ -22,11 +22,11 @@ impl Cpu {
             }
             0x04 => self.registers.b = self.registers.inc_u8_reg(self.registers.b),
             0x05 => self.registers.b = self.registers.dec_u8_reg(self.registers.b),
-            0x06 => self.registers.b = self.fetch_byte(),
+            0x06 => self.registers.b = self.fetch_byte_pc(),
             0x07 => self.registers.rlca(),
             0x08 => {
                 let word = self.fetch_word();
-                self.mmu.write_word(word, self.sp, &mut self.state);
+                self.mmu.write_word(word, self.sp, &mut self.state, &mut self.interrupt_handler);
                 self.tick();
                 self.tick();
             }
@@ -35,7 +35,7 @@ impl Cpu {
                 self.registers.add_to_hl_u16(self.registers.get_bc());
             }
             0x0A => {
-                self.registers.a = self.mmu.fetch_byte(self.registers.get_bc(), &self.state);
+                self.registers.a = self.mmu.fetch_byte(self.registers.get_bc(), &self.state, &mut self.interrupt_handler);
                 self.tick();
             }
             0x0B => {
@@ -44,7 +44,7 @@ impl Cpu {
             }
             0x0C => self.registers.c = self.registers.inc_u8_reg(self.registers.c),
             0x0D => self.registers.c = self.registers.dec_u8_reg(self.registers.c),
-            0x0E => self.registers.c = self.fetch_byte(),
+            0x0E => self.registers.c = self.fetch_byte_pc(),
             0x0F => {
                 let least_bit = self.registers.a & 0x1;
                 self.registers.set_flags(0);
@@ -57,7 +57,7 @@ impl Cpu {
             }
             0x12 => {
                 self.mmu
-                    .write_byte(self.registers.get_de(), self.registers.a, &mut self.state);
+                    .write_byte(self.registers.get_de(), self.registers.a, &mut self.state, &mut self.interrupt_handler);
                 self.tick();
             }
             0x13 => {
@@ -68,7 +68,7 @@ impl Cpu {
             }
             0x14 => self.registers.d = self.registers.inc_u8_reg(self.registers.d),
             0x15 => self.registers.d = self.registers.dec_u8_reg(self.registers.d),
-            0x16 => self.registers.d = self.fetch_byte(),
+            0x16 => self.registers.d = self.fetch_byte_pc(),
             0x17 => {
                 // RLA
                 let old_carry = self.registers.is_carry_flag_high() as u8;
@@ -89,7 +89,7 @@ impl Cpu {
                 self.registers.add_to_hl_u16(self.registers.get_de());
             }
             0x1A => {
-                self.registers.a = self.mmu.fetch_byte(self.registers.get_de(), &self.state);
+                self.registers.a = self.mmu.fetch_byte(self.registers.get_de(), &self.state, &mut self.interrupt_handler);
                 self.tick();
             }
             0x1B => {
@@ -98,7 +98,7 @@ impl Cpu {
             }
             0x1C => self.registers.e = self.registers.inc_u8_reg(self.registers.e),
             0x1D => self.registers.e = self.registers.dec_u8_reg(self.registers.e),
-            0x1E => self.registers.e = self.fetch_byte(),
+            0x1E => self.registers.e = self.fetch_byte_pc(),
             0x1F => {
                 // Rotate right through carry
                 let new_carry = self.registers.a & 0x1 == 1;
@@ -117,7 +117,7 @@ impl Cpu {
             }
             0x22 => {
                 self.mmu
-                    .write_byte(self.registers.get_hl(), self.registers.a, &mut self.state);
+                    .write_byte(self.registers.get_hl(), self.registers.a, &mut self.state, &mut self.interrupt_handler);
 
                 let n = self.registers.get_hl().wrapping_add(1);
                 self.registers.set_hl(n);
@@ -130,7 +130,7 @@ impl Cpu {
             }
             0x24 => self.registers.h = self.registers.inc_u8_reg(self.registers.h),
             0x25 => self.registers.h = self.registers.dec_u8_reg(self.registers.h),
-            0x26 => self.registers.h = self.fetch_byte(),
+            0x26 => self.registers.h = self.fetch_byte_pc(),
             0x27 => self.daa(),
             0x28 => self.jr_i8(self.registers.is_zero_flag_high()),
             0x29 => {
@@ -138,7 +138,7 @@ impl Cpu {
                 self.registers.add_to_hl_u16(self.registers.get_hl());
             }
             0x2A => {
-                self.registers.a = self.mmu.fetch_byte(self.registers.get_hl(), &self.state);
+                self.registers.a = self.mmu.fetch_byte(self.registers.get_hl(), &self.state, &mut self.interrupt_handler);
                 self.registers
                     .set_hl(self.registers.get_hl().wrapping_add(1));
                 self.tick();
@@ -149,13 +149,13 @@ impl Cpu {
             }
             0x2C => self.registers.l = self.registers.inc_u8_reg(self.registers.l),
             0x2D => self.registers.l = self.registers.dec_u8_reg(self.registers.l),
-            0x2E => self.registers.l = self.fetch_byte(),
+            0x2E => self.registers.l = self.fetch_byte_pc(),
             0x2F => self.registers.cpl(),
             0x30 => self.jr_i8(!self.registers.is_carry_flag_high()),
             0x31 => self.sp = self.fetch_word(),
             0x32 => {
                 self.mmu
-                    .write_byte(self.registers.get_hl(), self.registers.a, &mut self.state);
+                    .write_byte(self.registers.get_hl(), self.registers.a, &mut self.state, &mut self.interrupt_handler);
                 self.registers
                     .set_hl(self.registers.get_hl().wrapping_sub(1));
                 self.tick();
@@ -165,29 +165,29 @@ impl Cpu {
                 self.tick();
             }
             0x34 => {
-                let mut value = self.mmu.fetch_byte(self.registers.get_hl(), &self.state);
+                let mut value = self.mmu.fetch_byte(self.registers.get_hl(), &self.state, &mut self.interrupt_handler);
 
                 self.tick();
                 value = self.registers.inc_u8_reg(value);
 
                 self.mmu
-                    .write_byte(self.registers.get_hl(), value, &mut self.state);
+                    .write_byte(self.registers.get_hl(), value, &mut self.state, &mut self.interrupt_handler);
                 self.tick();
             }
             0x35 => {
-                let mut value = self.mmu.fetch_byte(self.registers.get_hl(), &self.state);
+                let mut value = self.mmu.fetch_byte(self.registers.get_hl(), &self.state, &mut self.interrupt_handler);
                 self.tick();
 
                 value = self.registers.dec_u8_reg(value);
                 self.mmu
-                    .write_byte(self.registers.get_hl(), value, &mut self.state);
+                    .write_byte(self.registers.get_hl(), value, &mut self.state, &mut self.interrupt_handler);
 
                 self.tick();
             }
             0x36 => {
-                let byte = self.fetch_byte();
+                let byte = self.fetch_byte_pc();
                 self.mmu
-                    .write_byte(self.registers.get_hl(), byte, &mut self.state);
+                    .write_byte(self.registers.get_hl(), byte, &mut self.state, &mut self.interrupt_handler);
                 self.tick();
             }
             0x37 => {
@@ -201,7 +201,7 @@ impl Cpu {
                 self.registers.add_to_hl_u16(self.sp)
             }
             0x3A => {
-                self.registers.a = self.mmu.fetch_byte(self.registers.get_hl(), &self.state);
+                self.registers.a = self.mmu.fetch_byte(self.registers.get_hl(), &self.state, &mut self.interrupt_handler);
                 self.registers
                     .set_hl(self.registers.get_hl().wrapping_sub(1));
                 self.tick();
@@ -212,7 +212,7 @@ impl Cpu {
             }
             0x3C => self.registers.a = self.registers.inc_u8_reg(self.registers.a),
             0x3D => self.registers.a = self.registers.dec_u8_reg(self.registers.a),
-            0x3E => self.registers.a = self.fetch_byte(),
+            0x3E => self.registers.a = self.fetch_byte_pc(),
             0x3F => {
                 self.registers.set_n_flag(false);
                 self.registers.set_half_carry_flag(false);
@@ -226,7 +226,7 @@ impl Cpu {
             0x44 => self.registers.b = self.registers.h,
             0x45 => self.registers.b = self.registers.l,
             0x46 => {
-                self.registers.b = self.mmu.fetch_byte(self.registers.get_hl(), &self.state);
+                self.registers.b = self.mmu.fetch_byte(self.registers.get_hl(), &self.state, &mut self.interrupt_handler);
                 self.tick();
             }
             0x47 => self.registers.b = self.registers.a,
@@ -237,7 +237,7 @@ impl Cpu {
             0x4C => self.registers.c = self.registers.h,
             0x4D => self.registers.c = self.registers.l,
             0x4E => {
-                self.registers.c = self.mmu.fetch_byte(self.registers.get_hl(), &self.state);
+                self.registers.c = self.mmu.fetch_byte(self.registers.get_hl(), &self.state, &mut self.interrupt_handler);
                 self.tick();
             }
             0x4F => self.registers.c = self.registers.a,
@@ -248,7 +248,7 @@ impl Cpu {
             0x54 => self.registers.d = self.registers.h,
             0x55 => self.registers.d = self.registers.l,
             0x56 => {
-                self.registers.d = self.mmu.fetch_byte(self.registers.get_hl(), &self.state);
+                self.registers.d = self.mmu.fetch_byte(self.registers.get_hl(), &self.state, &mut self.interrupt_handler);
                 self.tick();
             }
             0x57 => self.registers.d = self.registers.a,
@@ -259,7 +259,7 @@ impl Cpu {
             0x5C => self.registers.e = self.registers.h,
             0x5D => self.registers.e = self.registers.l,
             0x5E => {
-                self.registers.e = self.mmu.fetch_byte(self.registers.get_hl(), &self.state);
+                self.registers.e = self.mmu.fetch_byte(self.registers.get_hl(), &self.state, &mut self.interrupt_handler);
                 self.tick();
             }
             0x5F => self.registers.e = self.registers.a,
@@ -270,7 +270,7 @@ impl Cpu {
             0x64 => self.registers.h = self.registers.h,
             0x65 => self.registers.h = self.registers.l,
             0x66 => {
-                self.registers.h = self.mmu.fetch_byte(self.registers.get_hl(), &self.state);
+                self.registers.h = self.mmu.fetch_byte(self.registers.get_hl(), &self.state, &mut self.interrupt_handler);
                 self.tick();
             }
             0x67 => self.registers.h = self.registers.a,
@@ -281,44 +281,44 @@ impl Cpu {
             0x6C => self.registers.l = self.registers.h,
             0x6D => self.registers.l = self.registers.l,
             0x6E => {
-                self.registers.l = self.mmu.fetch_byte(self.registers.get_hl(), &self.state);
+                self.registers.l = self.mmu.fetch_byte(self.registers.get_hl(), &self.state, &mut self.interrupt_handler);
                 self.tick();
             }
             0x6F => self.registers.l = self.registers.a,
             0x70 => {
                 self.mmu
-                    .write_byte(self.registers.get_hl(), self.registers.b, &mut self.state);
+                    .write_byte(self.registers.get_hl(), self.registers.b, &mut self.state, &mut self.interrupt_handler);
                 self.tick();
             }
             0x71 => {
                 self.mmu
-                    .write_byte(self.registers.get_hl(), self.registers.c, &mut self.state);
+                    .write_byte(self.registers.get_hl(), self.registers.c, &mut self.state, &mut self.interrupt_handler);
                 self.tick();
             }
             0x72 => {
                 self.mmu
-                    .write_byte(self.registers.get_hl(), self.registers.d, &mut self.state);
+                    .write_byte(self.registers.get_hl(), self.registers.d, &mut self.state, &mut self.interrupt_handler);
                 self.tick();
             }
             0x73 => {
                 self.mmu
-                    .write_byte(self.registers.get_hl(), self.registers.e, &mut self.state);
+                    .write_byte(self.registers.get_hl(), self.registers.e, &mut self.state, &mut self.interrupt_handler);
                 self.tick();
             }
             0x74 => {
                 self.mmu
-                    .write_byte(self.registers.get_hl(), self.registers.h, &mut self.state);
+                    .write_byte(self.registers.get_hl(), self.registers.h, &mut self.state, &mut self.interrupt_handler);
                 self.tick();
             }
             0x75 => {
                 self.mmu
-                    .write_byte(self.registers.get_hl(), self.registers.l, &mut self.state);
+                    .write_byte(self.registers.get_hl(), self.registers.l, &mut self.state, &mut self.interrupt_handler);
                 self.tick();
             }
             0x76 => self.halt = true,
             0x77 => {
                 self.mmu
-                    .write_byte(self.registers.get_hl(), self.registers.a, &mut self.state);
+                    .write_byte(self.registers.get_hl(), self.registers.a, &mut self.state, &mut self.interrupt_handler);
                 self.tick();
             }
             0x78 => self.registers.a = self.registers.b,
@@ -328,7 +328,7 @@ impl Cpu {
             0x7C => self.registers.a = self.registers.h,
             0x7D => self.registers.a = self.registers.l,
             0x7E => {
-                self.registers.a = self.mmu.fetch_byte(self.registers.get_hl(), &self.state);
+                self.registers.a = self.mmu.fetch_byte(self.registers.get_hl(), &self.state, &mut self.interrupt_handler);
                 self.tick();
             }
             0x7F => self.registers.a = self.registers.a,
@@ -340,7 +340,7 @@ impl Cpu {
             0x85 => self.registers.add_u8(self.registers.l),
             0x86 => {
                 self.registers
-                    .add_u8(self.mmu.fetch_byte(self.registers.get_hl(), &self.state));
+                    .add_u8(self.mmu.fetch_byte(self.registers.get_hl(), &self.state, &mut self.interrupt_handler));
                 self.tick();
             }
             0x87 => self.registers.add_u8(self.registers.a),
@@ -351,7 +351,7 @@ impl Cpu {
             0x8C => self.registers.adc_u8(self.registers.h),
             0x8D => self.registers.adc_u8(self.registers.l),
             0x8E => {
-                let byte = self.mmu.fetch_byte(self.registers.get_hl(), &self.state);
+                let byte = self.mmu.fetch_byte(self.registers.get_hl(), &self.state, &mut self.interrupt_handler);
                 self.registers.adc_u8(byte);
                 self.tick();
             }
@@ -364,7 +364,7 @@ impl Cpu {
             0x95 => self.registers.sub_u8(self.registers.l),
             0x96 => {
                 self.registers
-                    .sub_u8(self.mmu.fetch_byte(self.registers.get_hl(), &self.state));
+                    .sub_u8(self.mmu.fetch_byte(self.registers.get_hl(), &self.state, &mut self.interrupt_handler));
                 self.tick();
             }
             0x97 => self.registers.sub_u8(self.registers.a),
@@ -387,7 +387,7 @@ impl Cpu {
                 self.registers.sbc_u8(self.registers.l);
             }
             0x9E => {
-                let number = self.mmu.fetch_byte(self.registers.get_hl(), &self.state);
+                let number = self.mmu.fetch_byte(self.registers.get_hl(), &self.state, &mut self.interrupt_handler);
                 self.registers.sbc_u8(number);
                 self.tick();
             }
@@ -402,7 +402,7 @@ impl Cpu {
             0xA5 => self.registers.and_u8(self.registers.l),
             0xA6 => {
                 self.registers
-                    .and_u8(self.mmu.fetch_byte(self.registers.get_hl(), &self.state));
+                    .and_u8(self.mmu.fetch_byte(self.registers.get_hl(), &self.state, &mut self.interrupt_handler));
                 self.tick();
             }
             0xA7 => self.registers.and_u8(self.registers.a),
@@ -414,7 +414,7 @@ impl Cpu {
             0xAD => self.registers.xor_u8(self.registers.l),
             0xAE => {
                 self.registers
-                    .xor_u8(self.mmu.fetch_byte(self.registers.get_hl(), &self.state));
+                    .xor_u8(self.mmu.fetch_byte(self.registers.get_hl(), &self.state, &mut self.interrupt_handler));
                 self.tick();
             }
             0xAF => self.registers.xor_u8(self.registers.a),
@@ -426,7 +426,7 @@ impl Cpu {
             0xB5 => self.registers.or_u8(self.registers.l),
             0xB6 => {
                 self.registers
-                    .or_u8(self.mmu.fetch_byte(self.registers.get_hl(), &self.state));
+                    .or_u8(self.mmu.fetch_byte(self.registers.get_hl(), &self.state, &mut self.interrupt_handler));
                 self.tick();
             }
             0xB7 => self.registers.or_u8(self.registers.a),
@@ -438,7 +438,7 @@ impl Cpu {
             0xBD => self.registers.cp_u8(self.registers.l),
             0xBE => {
                 self.registers
-                    .cp_u8(self.mmu.fetch_byte(self.registers.get_hl(), &self.state));
+                    .cp_u8(self.mmu.fetch_byte(self.registers.get_hl(), &self.state, &mut self.interrupt_handler));
                 self.tick();
             }
             0xBF => self.registers.cp_u8(self.registers.a),
@@ -460,7 +460,7 @@ impl Cpu {
                 self.tick();
             }
             0xC6 => {
-                let n = self.fetch_byte();
+                let n = self.fetch_byte_pc();
                 self.registers.add_u8(n);
             }
             0xC7 => self.rst(0x0u16),
@@ -476,7 +476,7 @@ impl Cpu {
             0xCC => self.call_u16(self.registers.is_zero_flag_high()),
             0xCD => self.call_u16(true),
             0xCE => {
-                let number = self.fetch_byte();
+                let number = self.fetch_byte_pc();
                 self.registers.adc_u8(number);
             }
             0xCF => self.rst(0x08u16),
@@ -497,7 +497,7 @@ impl Cpu {
                 self.tick();
             }
             0xD6 => {
-                let n = self.fetch_byte();
+                let n = self.fetch_byte_pc();
                 self.registers.sub_u8(n);
             }
             0xD7 => self.rst(0x10u16),
@@ -509,19 +509,19 @@ impl Cpu {
             }
             0xD9 => {
                 self.ret();
-                self.mmu.interrupt_handler.enabled = true;
+                self.interrupt_handler.enabled = true;
             }
             0xDA => self.jp_u16(self.registers.is_carry_flag_high()),
             0xDC => self.call_u16(self.registers.is_carry_flag_high()),
             0xDE => {
-                let number = self.fetch_byte();
+                let number = self.fetch_byte_pc();
                 self.registers.sbc_u8(number);
             }
             0xDF => self.rst(0x18u16),
             0xE0 => {
-                let address = 0xFF00u16.wrapping_add(self.fetch_byte() as u16);
+                let address = 0xFF00u16.wrapping_add(self.fetch_byte_pc() as u16);
                 self.mmu
-                    .write_byte(address, self.registers.a, &mut self.state);
+                    .write_byte(address, self.registers.a, &mut self.state, &mut self.interrupt_handler);
                 self.tick();
             }
             0xE1 => {
@@ -532,7 +532,7 @@ impl Cpu {
                 self.mmu.write_byte(
                     0xFF00u16 + self.registers.c as u16,
                     self.registers.a,
-                    &mut self.state,
+                    &mut self.state, &mut self.interrupt_handler,
                 );
                 self.tick();
             }
@@ -541,12 +541,12 @@ impl Cpu {
                 self.tick();
             }
             0xE6 => {
-                let reg = self.fetch_byte();
+                let reg = self.fetch_byte_pc();
                 self.registers.and_u8(reg);
             }
             0xE7 => self.rst(0x20u16),
             0xE8 => {
-                let number = self.fetch_byte() as i8 as i16 as u16;
+                let number = self.fetch_byte_pc() as i8 as i16 as u16;
                 self.registers.set_zero_flag(false);
                 self.registers.set_n_flag(false);
                 self.registers
@@ -563,17 +563,17 @@ impl Cpu {
             0xEA => {
                 let address = self.fetch_word();
                 self.mmu
-                    .write_byte(address, self.registers.a, &mut self.state);
+                    .write_byte(address, self.registers.a, &mut self.state, &mut self.interrupt_handler);
                 self.tick();
             }
             0xEE => {
-                let byte = self.fetch_byte();
+                let byte = self.fetch_byte_pc();
                 self.registers.xor_u8(byte);
             }
             0xEF => self.rst(0x28u16),
             0xF0 => {
-                let add_on = self.fetch_byte() as u16;
-                self.registers.a = self.mmu.fetch_byte(0xFF00 | add_on, &self.state);
+                let add_on = self.fetch_byte_pc() as u16;
+                self.registers.a = self.mmu.fetch_byte(0xFF00 | add_on, &self.state, &mut self.interrupt_handler);
                 self.tick();
             }
             0xF1 => {
@@ -583,21 +583,21 @@ impl Cpu {
             0xF2 => {
                 self.registers.a = self
                     .mmu
-                    .fetch_byte(0xFF00u16.wrapping_add(self.registers.c as u16), &self.state);
+                    .fetch_byte(0xFF00u16.wrapping_add(self.registers.c as u16), &self.state, &mut self.interrupt_handler);
                 self.tick();
             }
-            0xF3 => self.mmu.interrupt_handler.enabled = false,
+            0xF3 => self.interrupt_handler.enabled = false,
             0xF5 => {
                 self.push_u16_to_stack(self.registers.get_af());
                 self.tick();
             }
             0xF6 => {
-                let byte = self.fetch_byte();
+                let byte = self.fetch_byte_pc();
                 self.registers.or_u8(byte);
             }
             0xF7 => self.rst(0x30u16),
             0xF8 => {
-                let offset = self.fetch_byte() as i8 as i16 as u16;
+                let offset = self.fetch_byte_pc() as i8 as i16 as u16;
                 self.tick();
                 let new_sp = self.sp.wrapping_add(offset);
 
@@ -615,12 +615,12 @@ impl Cpu {
             }
             0xFA => {
                 let word = self.fetch_word();
-                self.registers.a = self.mmu.fetch_byte(word, &self.state);
+                self.registers.a = self.mmu.fetch_byte(word, &self.state, &mut self.interrupt_handler);
                 self.tick();
             }
-            0xFB => self.mmu.interrupt_handler.enabled = true,
+            0xFB => self.interrupt_handler.enabled = true,
             0xFE => {
-                let number = self.fetch_byte();
+                let number = self.fetch_byte_pc();
                 self.registers.cp_u8(number);
             }
             0xFF => self.rst(0x38u16),

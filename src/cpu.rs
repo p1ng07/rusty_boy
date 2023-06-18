@@ -32,6 +32,7 @@ pub struct Cpu {
     pub mmu: Mmu,
     pc: u16,
     sp: u16,
+    pub interrupt_handler: InterruptHandler,
     registers: CpuRegisters,
     delta_t_cycles: i32, // t-cycles performed in the current instruction
     halt: bool,
@@ -51,6 +52,7 @@ impl Cpu {
             delta_t_cycles: 0,
             registers: CpuRegisters::default(),
             halt: false,
+            interrupt_handler: InterruptHandler::default(),
         };
 
         // Skip the bootrom, and go straight to running the program
@@ -65,7 +67,7 @@ impl Cpu {
         // Print state of emulator to logger
         self.log_to_file();
 
-        let first_byte = self.fetch_byte();
+        let first_byte = self.fetch_byte_pc();
         // Cycle timing is done mid-instruction (i.e. inside the
         // instructions match statement using a self.tick() function
         // to tick the machine 1 m-cycle forward)
@@ -74,16 +76,15 @@ impl Cpu {
 
         // If there are interrupts pending, and it is possible to service them, disable halt mode
         if self
-            .mmu
             .interrupt_handler
             .IF
-            .bitand(self.mmu.interrupt_handler.IE)
+            .bitand(self.interrupt_handler.IE)
             > 0
         {
             self.halt = false;
         }
 
-        if self.mmu.interrupt_handler.enabled && self.mmu.interrupt_handler.IE > 0 {
+        if self.interrupt_handler.enabled && self.interrupt_handler.IE > 0 {
             self.handle_interrupts();
         }
 
@@ -97,12 +98,14 @@ impl Cpu {
         self.delta_t_cycles += 4;
         self.mmu
             .timer
-            .step(&self.state, 4, &mut self.mmu.interrupt_handler);
+            .step(&self.state, &mut self.interrupt_handler);
+
+	self.mmu.ppu.tick(&mut self.interrupt_handler);
     }
 
-    fn fetch_byte(&mut self) -> u8 {
+    fn fetch_byte_pc(&mut self) -> u8 {
         self.tick();
-        let byte = self.mmu.fetch_byte(self.pc, &self.state);
+        let byte = self.mmu.fetch_byte(self.pc, &self.state, &mut self.interrupt_handler);
 
         if !self.halt {
             // If the cpu is in halt mode, continually execute the instruction right after the halt mode enable
@@ -112,8 +115,8 @@ impl Cpu {
     }
 
     pub fn fetch_word(&mut self) -> u16 {
-        let fetch_byte_lower = self.fetch_byte() as u16;
-        let fetch_byte_high = self.fetch_byte() as u16;
+        let fetch_byte_lower = self.fetch_byte_pc() as u16;
+        let fetch_byte_high = self.fetch_byte_pc() as u16;
 
         fetch_byte_high << 8 | fetch_byte_lower
     }
@@ -124,13 +127,12 @@ impl Cpu {
         // Check if it is requested and enabled, if it is then service it
         // IMPORTANT: This iterator uses the order in which the variants are set in the enum, therefore respecting the interrupt order
         for interrupt_type in Interrupt::iter() {
-            if interrupt_type.mask() & self.mmu.interrupt_handler.IF > 0
-                && interrupt_type.mask() & self.mmu.interrupt_handler.IE > 0
-                && self.mmu.interrupt_handler.enabled
+            if interrupt_type.mask() & self.interrupt_handler.IF > 0
+                && interrupt_type.mask() & self.interrupt_handler.IE > 0
+                && self.interrupt_handler.enabled
             {
                 // Service interrupt, set ime to false and reset the respective IF bit on the handler
-                self.mmu
-                    .interrupt_handler
+                self.interrupt_handler
                     .unrequest_interrupt(&interrupt_type);
 
                 // CALL interrupt_vector
@@ -138,7 +140,7 @@ impl Cpu {
                 self.pc = interrupt_type.jump_vector();
 
                 // Disable IME
-                self.mmu.interrupt_handler.enabled = false;
+                self.interrupt_handler.enabled = false;
             }
         }
     }
@@ -160,20 +162,20 @@ impl Cpu {
     fn push_u16_to_stack(&mut self, value_to_push: u16) {
         self.sp = self.sp.wrapping_sub(1);
         self.mmu
-            .write_byte(self.sp, (value_to_push >> 8) as u8, &mut self.state);
+            .write_byte(self.sp, (value_to_push >> 8) as u8, &mut self.state, &mut self.interrupt_handler);
         self.tick();
         self.sp = self.sp.wrapping_sub(1);
         self.mmu
-            .write_byte(self.sp, value_to_push as u8, &mut self.state);
+            .write_byte(self.sp, value_to_push as u8, &mut self.state, &mut self.interrupt_handler);
         self.tick();
     }
 
     fn pop_u16_from_stack(&mut self) -> u16 {
         self.tick();
-        let lower_byte = self.mmu.fetch_byte(self.sp, &self.state);
+        let lower_byte = self.mmu.fetch_byte(self.sp, &self.state, &mut self.interrupt_handler);
         self.sp = self.sp.wrapping_add(1);
         self.tick();
-        let high_byte = self.mmu.fetch_byte(self.sp, &self.state);
+        let high_byte = self.mmu.fetch_byte(self.sp, &self.state, &mut self.interrupt_handler);
         self.sp = self.sp.wrapping_add(1);
         (high_byte as u16) << 8 | lower_byte as u16
     }
@@ -193,7 +195,7 @@ impl Cpu {
     }
 
     fn jr_i8(&mut self, jump_condition: bool) {
-        let offset = self.fetch_byte() as i8;
+        let offset = self.fetch_byte_pc() as i8;
         if jump_condition {
             self.pc = ((self.pc as i32) + (offset as i32)) as u16;
             self.tick();
@@ -224,43 +226,43 @@ impl Cpu {
     }
 
     fn log_to_file(&self) {
-        if self.pc < 0x100 {
-            return;
-        }
-        // log::info!(
-        //     "A:{} F:{} B:{} C:{} D:{} E:{} H:{} L:{} SP:{} PC:{} PCMEM:{},{},{},{}",
-        //     format!("{:0>2X}", self.registers.a),
-        //     format!("{:0>2X}", self.registers.f),
-        //     format!("{:0>2X}", self.registers.b),
-        //     format!("{:0>2X}", self.registers.c),
-        //     format!("{:0>2X}", self.registers.d),
-        //     format!("{:0>2X}", self.registers.e),
-        //     format!("{:0>2X}", self.registers.h),
-        //     format!("{:0>2X}", self.registers.l),
-        //     format!("{:0>4X}", self.sp),
-        //     format!("{:0>4X}", self.pc - 1),
-        //     format!("{:02X}", instruction),
-        //     format!("{:02X}", self.mmu.fetch_byte(self.pc, &self.state)),
-        //     format!("{:02X}", self.mmu.fetch_byte(self.pc + 1, &self.state)),
-        //     format!("{:02X}", self.mmu.fetch_byte(self.pc + 2, &self.state))
-        // );
-        log::info!(
-            "A: {} F: {} B: {} C: {} D: {} E: {} H: {} L: {} SP: {} PC: 00:{} ({} {} {} {})",
-            format!("{:0>2X}", self.registers.a),
-            format!("{:0>2X}", self.registers.f),
-            format!("{:0>2X}", self.registers.b),
-            format!("{:0>2X}", self.registers.c),
-            format!("{:0>2X}", self.registers.d),
-            format!("{:0>2X}", self.registers.e),
-            format!("{:0>2X}", self.registers.h),
-            format!("{:0>2X}", self.registers.l),
-            format!("{:0>4X}", self.sp),
-            format!("{:0>4X}", self.pc),
-            format!("{:02X}", self.mmu.fetch_byte(self.pc, &self.state)),
-            format!("{:02X}", self.mmu.fetch_byte(self.pc + 1, &self.state)),
-            format!("{:02X}", self.mmu.fetch_byte(self.pc + 2, &self.state)),
-            format!("{:02X}", self.mmu.fetch_byte(self.pc + 3, &self.state))
-        );
+    //     if self.pc < 0x100 {
+    //         return;
+    //     }
+    //     // log::info!(
+    //     //     "A:{} F:{} B:{} C:{} D:{} E:{} H:{} L:{} SP:{} PC:{} PCMEM:{},{},{},{}",
+    //     //     format!("{:0>2X}", self.registers.a),
+    //     //     format!("{:0>2X}", self.registers.f),
+    //     //     format!("{:0>2X}", self.registers.b),
+    //     //     format!("{:0>2X}", self.registers.c),
+    //     //     format!("{:0>2X}", self.registers.d),
+    //     //     format!("{:0>2X}", self.registers.e),
+    //     //     format!("{:0>2X}", self.registers.h),
+    //     //     format!("{:0>2X}", self.registers.l),
+    //     //     format!("{:0>4X}", self.sp),
+    //     //     format!("{:0>4X}", self.pc - 1),
+    //     //     format!("{:02X}", instruction),
+    //     //     format!("{:02X}", self.mmu.fetch_byte(self.pc, &self.state)),
+    //     //     format!("{:02X}", self.mmu.fetch_byte(self.pc + 1, &self.state)),
+    //     //     format!("{:02X}", self.mmu.fetch_byte(self.pc + 2, &self.state))
+    //     // );
+    //     log::info!(
+    //         "A: {} F: {} B: {} C: {} D: {} E: {} H: {} L: {} SP: {} PC: 00:{} ({} {} {} {})",
+    //         format!("{:0>2X}", self.registers.a),
+    //         format!("{:0>2X}", self.registers.f),
+    //         format!("{:0>2X}", self.registers.b),
+    //         format!("{:0>2X}", self.registers.c),
+    //         format!("{:0>2X}", self.registers.d),
+    //         format!("{:0>2X}", self.registers.e),
+    //         format!("{:0>2X}", self.registers.h),
+    //         format!("{:0>2X}", self.registers.l),
+    //         format!("{:0>4X}", self.sp),
+    //         format!("{:0>4X}", self.pc),
+    //         format!("{:02X}", self.fetch_byte_mmu(self.pc, &self.state, &self.interrupt_handler)),
+    //         format!("{:02X}", self.fetch_byte_mmu(self.pc + 1, &self.state, &self.interrupt_handler)),
+    //         format!("{:02X}", self.fetch_byte_mmu(self.pc + 2, &self.state, &self.interrupt_handler)),
+    //         format!("{:02X}", self.fetch_byte_mmu(self.pc + 3, &self.state, &self.interrupt_handler))
+    //     );
     }
 }
 
