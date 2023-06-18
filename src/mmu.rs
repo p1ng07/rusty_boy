@@ -17,6 +17,7 @@ pub struct Mmu {
     serial: Serial,
     wram_0: [u8; 0x2000],
     wram_n: [u8; 0x2000],
+    pub dma_register: u16,
 }
 
 impl<'a> Mmu {
@@ -27,8 +28,7 @@ impl<'a> Mmu {
                     0..=255 => *self.boot_rom.get(address as usize).unwrap(),
                     _ => panic!("Tried to call boot rom after it was already ended"),
                 },
-                CpuState::NonBoot => self.mbc.read_byte(address),
-                _ => panic!("Cant fetch byte {:X} for cpu state {}", address, cpu_state),
+                _ => self.mbc.read_byte(address),
             },
             0x8000..=0x9FFF => self.ppu.fetch_vram(address - 0x8000),
             0xA000..=0xBFFF => self.mbc.read_byte(address),
@@ -92,6 +92,7 @@ impl<'a> Mmu {
             0xFF02 => self.serial.serial_data_control = received_byte,
             0xFF04..=0xFF07 => self.timer.write_byte(address, received_byte),
             0xFF0F => interrupt_handler.IF = received_byte,
+	    0xFF46 => self.request_dma(received_byte, cpu_state),
             0xFF40..=0xFF4B => (), // TODO: bunch off ppu status and controls
             0xFF50 => {
                 if received_byte > 0 {
@@ -116,6 +117,7 @@ impl<'a> Mmu {
             joypad: Joypad::default(),
             serial: Serial::default(),
             timer: Timer::default(),
+	    dma_register: 0,
             boot_rom: [
                 0x31, 0xFE, 0xFF, 0xAF, 0x21, 0xFF, 0x9F, 0x32, 0xCB, 0x7C, 0x20, 0xFB, 0x21, 0x26,
                 0xFF, 0x0E, 0x11, 0x3E, 0x80, 0x32, 0xE2, 0x0C, 0x3E, 0xF3, 0xE2, 0x32, 0x3E, 0x77,
@@ -138,5 +140,10 @@ impl<'a> Mmu {
                 0x3E, 0x01, 0xE0, 0x50,
             ],
         }
+    }
+
+    fn request_dma(&mut self, byte: u8, cpu_state: &mut CpuState) {
+	self.dma_register = ((byte as u16) << 8) | 0x00;
+	*cpu_state = CpuState::DMA; // This requests the dma
     }
 }

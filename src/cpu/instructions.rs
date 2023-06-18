@@ -1,4 +1,4 @@
-use super::Cpu;
+use super::{Cpu, CpuState};
 
 #[allow(clippy::self_assignment)]
 impl Cpu {
@@ -315,7 +315,7 @@ impl Cpu {
                     .write_byte(self.registers.get_hl(), self.registers.l, &mut self.state, &mut self.interrupt_handler);
                 self.tick();
             }
-            0x76 => self.halt = true,
+            0x76 => self.state = CpuState::Halt,
             0x77 => {
                 self.mmu
                     .write_byte(self.registers.get_hl(), self.registers.a, &mut self.state, &mut self.interrupt_handler);

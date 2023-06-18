@@ -12,7 +12,7 @@ use log4rs::{
     Config,
 };
 
-use crate::{cpu, interrupt_handler};
+use crate::cpu;
 use crate::mbc::{mbc1::Mbc1, no_mbc::NoMbc, Mbc};
 use crate::mmu::Mmu;
 
@@ -58,6 +58,8 @@ impl GameBoyApp {
 
         let mmu = Mmu::new(mbc);
         let cpu = cpu::Cpu::new(cpu::CpuState::NonBoot, mmu);
+
+	println!("loading rom");
 
         Some(cpu)
     }
@@ -119,6 +121,7 @@ impl eframe::App for GameBoyApp {
             if let Some(cpu) = self.cpu.as_mut() {
                 run_frame(cpu, ui);
             };
+
             // TODO: render game window here
         });
 

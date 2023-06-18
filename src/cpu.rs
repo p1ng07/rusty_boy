@@ -1,4 +1,3 @@
-use std::fmt;
 use std::ops::BitAnd;
 
 use strum::IntoEnumIterator;
@@ -12,16 +11,8 @@ pub enum CpuState {
     Boot,
     NonBoot,
     Stopped,
-}
-
-impl std::fmt::Display for CpuState {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match *self {
-            CpuState::Boot => write!(f, "Boot state"),
-            CpuState::NonBoot => write!(f, "Running state"),
-            CpuState::Stopped => write!(f, "Stopped state"),
-        }
-    }
+    DMA,
+    Halt
 }
 
 // Emulates the core cpu, is responsible for decoding instructions and executing them
@@ -32,10 +23,10 @@ pub struct Cpu {
     pub mmu: Mmu,
     pc: u16,
     sp: u16,
+    elapsed_dma_cycles: u8,  // m-cycles that a dma transfer has been active
     pub interrupt_handler: InterruptHandler,
     registers: CpuRegisters,
     delta_t_cycles: i32, // t-cycles performed in the current instruction
-    halt: bool,
 }
 
 // Instructions and cb-prefixed instructions are on separate files
@@ -51,8 +42,8 @@ impl Cpu {
             state: initial_state,
             delta_t_cycles: 0,
             registers: CpuRegisters::default(),
-            halt: false,
             interrupt_handler: InterruptHandler::default(),
+            elapsed_dma_cycles: 0,
         };
 
         // Skip the bootrom, and go straight to running the program
@@ -67,26 +58,55 @@ impl Cpu {
         // Print state of emulator to logger
         self.log_to_file();
 
+	if self.state == CpuState::Halt {
+	    println!("halted");
+	    self.tick();
+	    // If there are interrupts pending, and it is possible to service them, disable halt mode
+	    if self.interrupt_handler.IF & self.interrupt_handler.IE > 0
+	    {
+		self.state = CpuState::NonBoot;
+	    }
+
+	    if self.interrupt_handler.enabled && self.interrupt_handler.IE > 0 {
+		self.handle_interrupts();
+	    }
+
+	    let instruction_delta_t_cycles = self.delta_t_cycles;
+	    self.delta_t_cycles = 0;
+	    return instruction_delta_t_cycles;
+	}
+
+	if self.state == CpuState::DMA {
+
+	    let dma_byte = self.mmu.fetch_byte(self.mmu.dma_register, &self.state, &mut self.interrupt_handler);
+	    self.mmu.dma_register = self.mmu.dma_register.wrapping_add(1);
+
+	    let destination = 0xFE00u16 | (self.mmu.dma_register & 0xF) as u16;
+
+	    // Write the dma transfer byte
+	    self.mmu.ppu.oam_ram[destination as usize] = dma_byte;
+
+	    self.elapsed_dma_cycles += 1;
+	    
+	    // A dma transfer lasts 160 m-cycles
+	    if self.elapsed_dma_cycles >= 160 {
+		self.state = CpuState::NonBoot;
+		self.elapsed_dma_cycles = 0;
+	    }
+	}
+
         let first_byte = self.fetch_byte_pc();
+
+	// Service interrupts
+        if self.interrupt_handler.enabled && self.interrupt_handler.IE > 0 {
+            self.handle_interrupts();
+        }
+
         // Cycle timing is done mid-instruction (i.e. inside the
         // instructions match statement using a self.tick() function
         // to tick the machine 1 m-cycle forward)
 
         self.execute(first_byte);
-
-        // If there are interrupts pending, and it is possible to service them, disable halt mode
-        if self
-            .interrupt_handler
-            .IF
-            .bitand(self.interrupt_handler.IE)
-            > 0
-        {
-            self.halt = false;
-        }
-
-        if self.interrupt_handler.enabled && self.interrupt_handler.IE > 0 {
-            self.handle_interrupts();
-        }
 
         let instruction_delta_t_cycles = self.delta_t_cycles;
         self.delta_t_cycles = 0;
@@ -104,13 +124,10 @@ impl Cpu {
     }
 
     fn fetch_byte_pc(&mut self) -> u8 {
-        self.tick();
         let byte = self.mmu.fetch_byte(self.pc, &self.state, &mut self.interrupt_handler);
+        self.tick();
+	self.pc = self.pc.wrapping_add(1);
 
-        if !self.halt {
-            // If the cpu is in halt mode, continually execute the instruction right after the halt mode enable
-            self.pc += 1;
-        }
         byte
     }
 
@@ -225,7 +242,7 @@ impl Cpu {
         self.registers.set_half_carry_flag(false);
     }
 
-    fn log_to_file(&self) {
+    fn log_to_file(&mut self) {
     //     if self.pc < 0x100 {
     //         return;
     //     }
@@ -246,23 +263,23 @@ impl Cpu {
     //     //     format!("{:02X}", self.mmu.fetch_byte(self.pc + 1, &self.state)),
     //     //     format!("{:02X}", self.mmu.fetch_byte(self.pc + 2, &self.state))
     //     // );
-    //     log::info!(
-    //         "A: {} F: {} B: {} C: {} D: {} E: {} H: {} L: {} SP: {} PC: 00:{} ({} {} {} {})",
-    //         format!("{:0>2X}", self.registers.a),
-    //         format!("{:0>2X}", self.registers.f),
-    //         format!("{:0>2X}", self.registers.b),
-    //         format!("{:0>2X}", self.registers.c),
-    //         format!("{:0>2X}", self.registers.d),
-    //         format!("{:0>2X}", self.registers.e),
-    //         format!("{:0>2X}", self.registers.h),
-    //         format!("{:0>2X}", self.registers.l),
-    //         format!("{:0>4X}", self.sp),
-    //         format!("{:0>4X}", self.pc),
-    //         format!("{:02X}", self.fetch_byte_mmu(self.pc, &self.state, &self.interrupt_handler)),
-    //         format!("{:02X}", self.fetch_byte_mmu(self.pc + 1, &self.state, &self.interrupt_handler)),
-    //         format!("{:02X}", self.fetch_byte_mmu(self.pc + 2, &self.state, &self.interrupt_handler)),
-    //         format!("{:02X}", self.fetch_byte_mmu(self.pc + 3, &self.state, &self.interrupt_handler))
-    //     );
+        log::info!(
+            "A: {} F: {} B: {} C: {} D: {} E: {} H: {} L: {} SP: {} PC: 00:{} ({} {} {} {})",
+            format!("{:0>2X}", self.registers.a),
+            format!("{:0>2X}", self.registers.f),
+            format!("{:0>2X}", self.registers.b),
+            format!("{:0>2X}", self.registers.c),
+            format!("{:0>2X}", self.registers.d),
+            format!("{:0>2X}", self.registers.e),
+            format!("{:0>2X}", self.registers.h),
+            format!("{:0>2X}", self.registers.l),
+            format!("{:0>4X}", self.sp),
+            format!("{:0>4X}", self.pc),
+            format!("{:02X}", self.mmu.fetch_byte(self.pc, &self.state, &mut self.interrupt_handler)),
+            format!("{:02X}", self.mmu.fetch_byte(self.pc + 1, &self.state, &mut self.interrupt_handler)),
+            format!("{:02X}", self.mmu.fetch_byte(self.pc + 2, &self.state, &mut self.interrupt_handler)),
+            format!("{:02X}", self.mmu.fetch_byte(self.pc + 3, &self.state, &mut self.interrupt_handler)),
+        );
     }
 }
 

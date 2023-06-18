@@ -16,7 +16,7 @@ pub struct Ppu {
     wy: u8,        // Window y position
     wx: u8         // Window x position + 7
 }
-
+#[allow(dead_code)]
 pub enum LCDCBit {
     LcdEnabled,
     WindowTileMapArea,
@@ -28,6 +28,7 @@ pub enum LCDCBit {
     BgWinEnablePriority
 }
 
+#[allow(dead_code)]
 enum PpuModes {
     Mode0, // Horizontal blank
     Mode1, // Vertical Blank
