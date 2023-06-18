@@ -50,6 +50,34 @@ impl Ppu {
 	}
     }
 
+    pub fn fetch_oam(&self, address: u16) -> u8 {
+	match self.mode {
+	    PpuModes::Mode2 | PpuModes::Mode3 => 0xFF,
+	    _ => self.oam_ram[address as usize]
+	}
+    }
+
+    pub fn write_oam(&mut self, address: u16, byte: u8) {
+	match self.mode {
+	    PpuModes::Mode2 | PpuModes::Mode3 => (),
+	    _ => self.oam_ram[address as usize] = byte
+	}
+    }
+
+    pub fn write_vram(&mut self, address: u16, byte:u8) {
+	match self.mode {
+	    PpuModes::Mode3 => (),
+	    _ => self.vram[address as usize] = byte
+	}
+    }
+
+    pub fn fetch_vram(&self, address: u16) -> u8 {
+	match self.mode {
+	    PpuModes::Mode3 => 0xFF,
+	    _ => self.vram[address as usize]
+	}
+    }
+
     fn is_lcdc_bit_high(&self, lcdc_bit: LCDCBit) -> bool {
 	return match lcdc_bit {
 	    LCDCBit::LcdEnabled => self.lcdc & 0x80 > 0,
