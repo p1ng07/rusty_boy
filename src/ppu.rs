@@ -5,10 +5,16 @@ pub struct Ppu {
     pub vram: [u8; 8196], // 8 kibibytes of vram
     pub oam_ram: [u8; 0xA0],
     mode: PpuModes,
+    current_scanline: u8,
+    current_elapsed_dots: u8,
+    scy: u8,
+    scx: u8,
     ly: u8,
     lyc: u8,
     lcdc: u8,
     status: u8,
+    wy: u8,        // Window y position
+    wx: u8         // Window x position + 7
 }
 
 pub enum LCDCBit {
@@ -35,10 +41,16 @@ impl Ppu {
             vram: [0; 8196],
             oam_ram: [0; 0xA0],
 	    mode: PpuModes::Mode2,
+	    current_elapsed_dots: 0,
             ly: 0,
             lyc: 0,
             lcdc: 0,
-	    status: 0
+	    status: 0,
+            scy: 0,
+            scx: 0,
+	    wy: 0,
+	    wx: 0,
+	    current_scanline: 0
         }
     }
 
@@ -94,7 +106,9 @@ impl Ppu {
 
     // Advances the ppu state machine 1 m-cycle forward
     pub fn tick(&mut self, interrupt_handler: &mut InterruptHandler){
-	
+	if !self.is_lcdc_bit_high(LCDCBit::LcdEnabled) {
+	    return;
+	}
     }
 
     pub fn fetch_byte(&self, _address: u16) -> u8 {
