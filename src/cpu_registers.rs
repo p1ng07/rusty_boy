@@ -32,7 +32,7 @@ impl CpuRegisters {
         self.a = n.to_be_bytes()[0];
         self.f = n.to_be_bytes()[1];
 
-	self.f &= 0xF0;
+        self.f &= 0xF0;
     }
     pub fn set_bc(&mut self, n: u16) {
         self.b = n.to_be_bytes()[0];
@@ -220,25 +220,25 @@ impl CpuRegisters {
 
     // Add 8 bit register to accumulator with carry
     pub(crate) fn adc_u8(&mut self, reg: u8) {
-	let carry = if self.is_carry_flag_high() {1u8} else {0u8} ;
+        let carry = if self.is_carry_flag_high() { 1u8 } else { 0u8 };
 
-	self.set_carry_flag((self.a as u32) + carry as u32 + (reg as u32) > 0xFF);
-	self.set_n_flag(false);
-	self.set_half_carry_flag((self.a & 0xF) + carry + (reg & 0xF) > 0xF);
+        self.set_carry_flag((self.a as u32) + carry as u32 + (reg as u32) > 0xFF);
+        self.set_n_flag(false);
+        self.set_half_carry_flag((self.a & 0xF) + carry + (reg & 0xF) > 0xF);
 
-	self.a = self.a.wrapping_add(reg.wrapping_add(carry));
-	self.set_zero_flag(self.a == 0);
+        self.a = self.a.wrapping_add(reg.wrapping_add(carry));
+        self.set_zero_flag(self.a == 0);
     }
 
     // Sub 8 bit register to accumulator with carry
     pub(crate) fn sbc_u8(&mut self, reg: u8) {
-	let carry = if self.is_carry_flag_high() {1u8} else {0u8} ;
+        let carry = if self.is_carry_flag_high() { 1u8 } else { 0u8 };
 
-	self.set_carry_flag((self.a as u32) < carry as u32 + (reg as u32));
-	self.set_n_flag(true);
-	self.set_half_carry_flag((self.a & 0xF) < carry + (reg & 0xF));
+        self.set_carry_flag((self.a as u32) < carry as u32 + (reg as u32));
+        self.set_n_flag(true);
+        self.set_half_carry_flag((self.a & 0xF) < carry + (reg & 0xF));
 
-	self.a = self.a.wrapping_sub(reg).wrapping_sub(carry);
-	self.set_zero_flag(self.a == 0);
+        self.a = self.a.wrapping_sub(reg).wrapping_sub(carry);
+        self.set_zero_flag(self.a == 0);
     }
 }

@@ -32,7 +32,7 @@ impl Interrupt {
     }
 }
 
-#[allow(dead_code, non_snake_case)]
+#[allow(non_snake_case)]
 #[derive(Default)]
 pub struct InterruptHandler {
     pub enabled: bool,

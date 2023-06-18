@@ -1,10 +1,10 @@
-mod mbc;
-pub mod mmu;
 mod cpu;
 mod cpu_registers;
+pub mod game_app;
 mod interrupt_handler;
 mod joypad;
+mod mbc;
+pub mod mmu;
 mod ppu;
 mod serial;
 mod timer;
-pub mod game_app;

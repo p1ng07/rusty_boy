@@ -3,5 +3,5 @@ pub trait Mbc {
     fn write_byte(&mut self, address: u16, byte: u8);
 }
 
-pub mod no_mbc;
 pub mod mbc1;
+pub mod no_mbc;

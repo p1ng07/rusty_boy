@@ -1,10 +1,10 @@
 use crate::cpu::CpuState;
 use crate::interrupt_handler::InterruptHandler;
 use crate::joypad::Joypad;
+use crate::mbc::Mbc;
 use crate::ppu::Ppu;
 use crate::serial::Serial;
 use crate::timer::Timer;
-use crate::mbc::Mbc;
 
 // Emulates the actions triggered by the reading and writing of bytes in the instructions
 pub struct Mmu {
@@ -22,9 +22,9 @@ pub struct Mmu {
 
 impl Mmu {
     pub fn fetch_byte(&self, address: u16, cpu_state: &CpuState) -> u8 {
-        match address {
-            0..=0x7FFF => match cpu_state {
-                CpuState::Boot => match address {
+	match address {
+	    0..=0x7FFF => match cpu_state {
+		CpuState::Boot => match address {
                     0..=255 => *self.boot_rom.get(address as usize).unwrap(),
                     _ => panic!("Tried to call boot rom after it was already ended"),
                 },
@@ -39,16 +39,16 @@ impl Mmu {
                 .to_owned(),
             0xA000..=0xBFFF => self.mbc.read_byte(address),
             0xC000..=0xCFFF => {
-		    let local_address = (address & 0x1FFF) as usize;
-		    self.wram_0[local_address]
+                let local_address = (address & 0x1FFF) as usize;
+                self.wram_0[local_address]
             }
             0xD000..=0xDFFF => {
-		    let local_address = (address & 0x1FFF) as usize;
-		    self.wram_n[local_address]
+                let local_address = (address & 0x1FFF) as usize;
+                self.wram_n[local_address]
             }
             0xE000..=0xFDFF => {
-		    let local_address = (address & 0x1FFF) as usize;
-		    self.wram_0[local_address]
+                let local_address = (address & 0x1FFF) as usize;
+                self.wram_0[local_address]
             }
             0xFE00..=0xFE9F => self
                 .ppu
@@ -67,8 +67,8 @@ impl Mmu {
                 "Reading LCD control, status, position, scroll and palletes, address {:X}",
                 address
             ),
-	    0xFF80..=0xFFFE => self.hram[(address - 0xFF80) as usize],
-	    0xFFFF => self.interrupt_handler.IE,
+            0xFF80..=0xFFFE => self.hram[(address - 0xFF80) as usize],
+            0xFFFF => self.interrupt_handler.IE,
             _ => 0xFF,
         }
     }
@@ -110,8 +110,8 @@ impl Mmu {
                 }
             }
             0xFF80..=0xFFFE => {
-		self.hram[(address - 0xFF80) as usize] = received_byte;
-	    },
+                self.hram[(address - 0xFF80) as usize] = received_byte;
+            }
             0xFFFF => self.interrupt_handler.IE = received_byte,
             _ => (),
         };
@@ -120,7 +120,7 @@ impl Mmu {
     pub fn new(mbc: Box<dyn Mbc>) -> Self {
         // Load the rom only cartridge, if there isn't a rom, load a load of nothing
         Self {
-	    mbc,
+            mbc,
             hram: [0x00; 0x7F],
             wram_0: [0x00; 0x2000],
             wram_n: [0x00; 0x2000],
