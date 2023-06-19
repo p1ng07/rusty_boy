@@ -7,6 +7,9 @@ pub struct Ppu {
     mode: PpuModes,
     current_scanline: u8,
     current_elapsed_dots: u8,
+    pub bgp: u8,        // Bg palette data
+    pub obp0: u8,       // Obj palette 0
+    pub obp1: u8,       // Obj palette 1
     pub scy: u8,
     pub scx: u8,
     pub ly: u8,

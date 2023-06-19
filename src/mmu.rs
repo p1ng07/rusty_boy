@@ -18,7 +18,7 @@ pub struct Mmu {
     wram_0: [u8; 0x2000],
     wram_n: [u8; 0x2000],
     pub dma_register: u16,
-    dma_source: u16,
+    dma_source: u8,
 }
 
 // TODO: Add fetching and writing of ppu registers
@@ -59,9 +59,9 @@ impl<'a> Mmu {
             0xFF44 => self.ppu.ly,
             0xFF45 => self.ppu.lyc,
 	    0xFF46 => self.dma_source,
-	    0xFF47 => todo!("BG color pallet"),
-	    0xFF48 => todo!("obj palette 0 data"),
-	    0xFF49 => todo!("obj palette 1 data"),
+	    0xFF47 => self.ppu.bgp,
+	    0xFF48 => self.ppu.obp0,
+	    0xFF49 => self.ppu.obp1,
 	    0xFF4A => self.ppu.wy,
 	    0xFF4B => self.ppu.wx,
             0xFF80..=0xFFFE => self.hram[(address - 0xFF80) as usize],
@@ -106,9 +106,9 @@ impl<'a> Mmu {
             0xFF43 => self.ppu.scx = received_byte,
             0xFF45 => self.ppu.lyc = received_byte,
 	    0xFF46 => self.request_dma(received_byte, cpu_state),
-	    0xFF47 => todo!("BG color pallet"),
-	    0xFF48 => todo!("obj palette 0 data"),
-	    0xFF49 => todo!("obj palette 1 data"),
+	    0xFF47 => self.ppu.bgp = received_byte,
+	    0xFF48 => self.ppu.obp0 = received_byte,
+	    0xFF49 => self.ppu.obp1 = received_byte,
 	    0xFF4A => self.ppu.wy = received_byte,
 	    0xFF4B => self.ppu.wx = received_byte,
             0xFF50 => {
@@ -162,7 +162,7 @@ impl<'a> Mmu {
 
     fn request_dma(&mut self, byte: u8, cpu_state: &mut CpuState) {
 	self.dma_register = ((byte as u16) << 8) | 0x00;
-	self.dma_source = ((byte as u16) << 8) | 0x00;
+	self.dma_source = byte;
 	*cpu_state = CpuState::DMA; // This requests the dma
     }
 }

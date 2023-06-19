@@ -3,7 +3,7 @@ use std::ops::BitAnd;
 use strum::IntoEnumIterator;
 
 use crate::cpu_registers::CpuRegisters;
-use crate::interrupt_handler::*;
+use crate::{interrupt_handler::*, ppu};
 use crate::mmu::Mmu;
 
 #[derive(PartialEq)]
@@ -34,12 +34,13 @@ mod cb_instructions;
 mod instructions;
 
 impl Cpu {
-    pub fn new(initial_state: CpuState, mmu: Mmu) -> Cpu {
+    // TODO find a better way to run or not to run bootrom when the cpu starts
+    pub fn new(run_boot: bool, mmu: Mmu) -> Cpu {
         let mut cpu = Cpu {
             pc: 0,
             sp: 0,
             mmu,
-            state: initial_state,
+            state: CpuState::Boot,
             delta_t_cycles: 0,
             registers: CpuRegisters::default(),
             interrupt_handler: InterruptHandler::default(),
@@ -47,7 +48,7 @@ impl Cpu {
         };
 
         // Skip the bootrom, and go straight to running the program
-        if cpu.state == CpuState::NonBoot {
+        if !run_boot {
             initialize_cpu_state_defaults(&mut cpu);
         }
         cpu
@@ -292,5 +293,6 @@ fn initialize_cpu_state_defaults(cpu: &mut Cpu) {
     cpu.registers.l = 0x4D;
     cpu.pc = 0x100;
     cpu.sp = 0xfffe;
+    cpu.state = CpuState::NonBoot;
     // TODO: Enable ppu
 }

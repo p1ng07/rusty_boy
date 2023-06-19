@@ -29,7 +29,7 @@ impl GameBoyApp {
         init_file_logger();
 
         Self {
-            paused: true,
+            paused: false,
             cpu: None,
             current_rom_path: None,
         }
@@ -57,7 +57,7 @@ impl GameBoyApp {
         };
 
         let mmu = Mmu::new(mbc);
-        let cpu = cpu::Cpu::new(cpu::CpuState::NonBoot, mmu);
+        let cpu = cpu::Cpu::new(false, mmu);
 
 	println!("loading rom");
 
