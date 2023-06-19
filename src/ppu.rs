@@ -19,6 +19,7 @@ pub struct Ppu {
     pub wy: u8,        // Window y position
     pub wx: u8         // Window x position + 7
 }
+
 #[allow(dead_code)]
 pub enum LCDCBit {
     LcdEnabled,
@@ -54,7 +55,10 @@ impl Ppu {
             scx: 0,
 	    wy: 0,
 	    wx: 0,
-	    current_scanline: 0
+	    current_scanline: 0,
+            bgp: 0,
+            obp0: 0,
+            obp1: 0,
         }
     }
 
