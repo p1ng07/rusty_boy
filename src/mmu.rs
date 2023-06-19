@@ -18,8 +18,10 @@ pub struct Mmu {
     wram_0: [u8; 0x2000],
     wram_n: [u8; 0x2000],
     pub dma_register: u16,
+    dma_source: u16,
 }
 
+// TODO: Add fetching and writing of ppu registers
 impl<'a> Mmu {
     pub fn fetch_byte(&self, address: u16, cpu_state: &CpuState, interrupt_handler: &mut InterruptHandler) -> u8 {
 	match address {
@@ -50,12 +52,18 @@ impl<'a> Mmu {
             0xFF02 => self.serial.serial_data_control,
             0xFF04..=0xFF07 => self.timer.read_byte(address),
             0xFF0F => interrupt_handler.IF,
-            0xFF42 => 0, // TODO: Stubbed to 0x0 because 0xFF42 is SCY and some roms wait for SCY to be set to 0
-            0xFF44 => 0x90, // TODO: Stubbed to 0x90 because 0xFF40 is LY and some roms wait for LY to be set to 0x90
-            0xFF40..=0xFF4B => todo!(
-                "Reading LCD control, status, position, scroll and palletes, address {:X}",
-                address
-            ),
+            0xFF40 => self.ppu.lcdc,
+            0xFF41 => self.ppu.status,
+            0xFF42 => self.ppu.scy,
+            0xFF43 => self.ppu.scx,
+            0xFF44 => self.ppu.ly,
+            0xFF45 => self.ppu.lyc,
+	    0xFF46 => self.dma_source,
+	    0xFF47 => todo!("BG color pallet"),
+	    0xFF48 => todo!("obj palette 0 data"),
+	    0xFF49 => todo!("obj palette 1 data"),
+	    0xFF4A => self.ppu.wy,
+	    0xFF4B => self.ppu.wx,
             0xFF80..=0xFFFE => self.hram[(address - 0xFF80) as usize],
             0xFFFF => interrupt_handler.IE,
             _ => 0xFF,
@@ -92,8 +100,17 @@ impl<'a> Mmu {
             0xFF02 => self.serial.serial_data_control = received_byte,
             0xFF04..=0xFF07 => self.timer.write_byte(address, received_byte),
             0xFF0F => interrupt_handler.IF = received_byte,
+            0xFF40 => self.ppu.lcdc = received_byte,
+            0xFF41 => self.ppu.status = received_byte,
+            0xFF42 => self.ppu.scy = received_byte,
+            0xFF43 => self.ppu.scx = received_byte,
+            0xFF45 => self.ppu.lyc = received_byte,
 	    0xFF46 => self.request_dma(received_byte, cpu_state),
-            0xFF40..=0xFF4B => (), // TODO: bunch off ppu status and controls
+	    0xFF47 => todo!("BG color pallet"),
+	    0xFF48 => todo!("obj palette 0 data"),
+	    0xFF49 => todo!("obj palette 1 data"),
+	    0xFF4A => self.ppu.wy = received_byte,
+	    0xFF4B => self.ppu.wx = received_byte,
             0xFF50 => {
                 if received_byte > 0 {
                     *cpu_state = CpuState::NonBoot
@@ -118,6 +135,7 @@ impl<'a> Mmu {
             serial: Serial::default(),
             timer: Timer::default(),
 	    dma_register: 0,
+	    dma_source: 0,
             boot_rom: [
                 0x31, 0xFE, 0xFF, 0xAF, 0x21, 0xFF, 0x9F, 0x32, 0xCB, 0x7C, 0x20, 0xFB, 0x21, 0x26,
                 0xFF, 0x0E, 0x11, 0x3E, 0x80, 0x32, 0xE2, 0x0C, 0x3E, 0xF3, 0xE2, 0x32, 0x3E, 0x77,
@@ -144,6 +162,7 @@ impl<'a> Mmu {
 
     fn request_dma(&mut self, byte: u8, cpu_state: &mut CpuState) {
 	self.dma_register = ((byte as u16) << 8) | 0x00;
+	self.dma_source = ((byte as u16) << 8) | 0x00;
 	*cpu_state = CpuState::DMA; // This requests the dma
     }
 }

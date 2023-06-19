@@ -7,14 +7,14 @@ pub struct Ppu {
     mode: PpuModes,
     current_scanline: u8,
     current_elapsed_dots: u8,
-    scy: u8,
-    scx: u8,
-    ly: u8,
-    lyc: u8,
-    lcdc: u8,
-    status: u8,
-    wy: u8,        // Window y position
-    wx: u8         // Window x position + 7
+    pub scy: u8,
+    pub scx: u8,
+    pub ly: u8,
+    pub lyc: u8,
+    pub lcdc: u8,
+    pub status: u8,
+    pub wy: u8,        // Window y position
+    pub wx: u8         // Window x position + 7
 }
 #[allow(dead_code)]
 pub enum LCDCBit {
@@ -58,7 +58,6 @@ impl Ppu {
     fn check_ly_lyc(&mut self, interrupt_handler: &mut InterruptHandler){
 	if self.ly == self.lyc {
 	    self.status |= 0b0000_0100;
-	    // TODO: maybe request an interrupt here, i dont know
 	    interrupt_handler.request_interrupt(Interrupt::Stat);
 	}
     }
