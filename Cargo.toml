@@ -21,6 +21,7 @@ strum = "0.24.1"
 strum_macros = "0.24.3"
 egui_file = "0.9"
 rfd = "0.11.4"
+epaint = "0.22.0"
 
 # native:
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]

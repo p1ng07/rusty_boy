@@ -1,9 +1,11 @@
 use std::{
-    ops::Sub,
+    ops::{Sub, Mul},
     time::{Duration, Instant},
 };
 
-use egui::Ui;
+use egui::{Ui, Image};
+use eframe::Frame;
+use epaint::{ColorImage, Color32, ImageDelta, Vec2};
 use log::LevelFilter;
 use log4rs::{
     append::file::FileAppender,
@@ -16,8 +18,12 @@ use crate::cpu;
 use crate::mbc::{mbc1::Mbc1, no_mbc::NoMbc, Mbc};
 use crate::mmu::Mmu;
 
+const IMAGE_WIDTH: usize = 160;
+const IMAGE_HEIGHT: usize = 144;
+
 pub struct GameBoyApp {
     cpu: Option<cpu::Cpu>,
+    gameImage: ColorImage,
     paused: bool,
     current_rom_path: Option<String>,
 }
@@ -32,6 +38,7 @@ impl GameBoyApp {
             paused: false,
             cpu: None,
             current_rom_path: None,
+	    gameImage:ColorImage::new([IMAGE_WIDTH,IMAGE_HEIGHT], Color32::BLACK)
         }
     }
 
@@ -63,10 +70,29 @@ impl GameBoyApp {
 
         Some(cpu)
     }
+
+    fn run_frame(&mut self, ui: &Ui) {
+	let cpu = match self.cpu.as_mut() {
+	    Some(x) => x,
+	    None => return
+	};
+
+	cpu.mmu
+	    .joypad
+	    .update_input(ui, &mut cpu.interrupt_handler);
+
+	// run 69905 t-cycles of cpu work per frame, equating to 4MHz of t-cycles per second
+	let mut ran_cycles = 0;
+	while ran_cycles <= 70224 {
+	    ran_cycles += cpu.cycle();
+	}
+
+	// TODO Update current game image with the newly rendered ppu image inside self.cpu.mmu.ppu
+    }
 }
 
 impl eframe::App for GameBoyApp {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+    fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
         // Get the time at which a game update should happen
         let deadline = std::time::Instant::now()
             .checked_add(Duration::from_micros(16600u64))
@@ -87,7 +113,7 @@ impl eframe::App for GameBoyApp {
                         }
                     }
                     if ui.button("Quit").clicked() {
-                        _frame.close();
+                        frame.close();
                     }
                 });
             });
@@ -100,7 +126,7 @@ impl eframe::App for GameBoyApp {
                 if ui.button("Step Frame").clicked() {
                     match self.cpu.as_mut() {
                         Some(cpu) => {
-                            run_frame(cpu, ui);
+                            self.run_frame(ui);
                         }
                         None => (),
                     }
@@ -113,15 +139,21 @@ impl eframe::App for GameBoyApp {
             }
         });
 
-        egui::Window::new("Game window").show(ctx, |ui| {
+	egui::Window::new("Game window")
+	    .default_size(Vec2::new(300f32, 100f32))
+	    .show(ctx, |ui| {
+
+
             if self.paused || self.cpu.is_none() {
+		render_game_window(ctx, ui);
                 return;
             };
 
             if let Some(cpu) = self.cpu.as_mut() {
-                run_frame(cpu, ui);
+                self.run_frame(ui);
             };
 
+	    render_game_window(ctx, ui);
             // TODO: render game window here
         });
 
@@ -133,17 +165,20 @@ impl eframe::App for GameBoyApp {
     fn save(&mut self, _storage: &mut dyn eframe::Storage) {}
 }
 
-fn run_frame(cpu: &mut cpu::Cpu, ui: &Ui) {
-    cpu.mmu
-        .joypad
-        .update_input(ui, &mut cpu.interrupt_handler);
+fn render_game_window(ctx: &egui::Context, ui: &mut Ui) {
+    // Create the main black image
+    let image = ColorImage::new([IMAGE_WIDTH,IMAGE_HEIGHT], Color32::BLACK);
 
-    // run 69905 t-cycles of cpu work per frame, equating to 4MHz of t-cycles per second
-    let mut ran_cycles = 0;
-    while ran_cycles <= 70224 {
-        ran_cycles += cpu.cycle();
-    }
+    // Change a sub-square of that image
+    let delta = ImageDelta::partial([0,0], ColorImage::new([144,144], Color32::WHITE), egui::TextureOptions::default());
+
+    let tex = egui::Context::load_texture(ctx, "main_image", image, egui::TextureOptions::default());
+    
+    // Change the texture using the created imageDelta
+    ctx.tex_manager().write().set(tex.id(), delta);
+    ui.add(egui::Image::new(&tex, tex.size_vec2()));
 }
+
 
 fn init_file_logger() {
     let logfile = FileAppender::builder()
