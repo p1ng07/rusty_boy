@@ -179,7 +179,9 @@ impl Ppu {
 	    self.ly += 1;
 
 	    if self.ly == 144 {
-		// Check if a vblank interrupt should fire
+		interrupt_handler.request_interrupt(Interrupt::Vblank);
+
+		// Check if a stat interrupt should fire
 		if self.lcd_status & 0b0001_0000 > 0 {
 		    interrupt_handler.request_interrupt(Interrupt::Stat);
 		}
