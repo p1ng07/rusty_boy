@@ -53,7 +53,7 @@ impl InterruptHandler {
     }
 
     // Disables the interrupt in the IF register
-    pub(crate) fn unrequest_interrupt(&mut self, interrupt_type: &Interrupt) {
+    pub(crate) fn consume_interrupt(&mut self, interrupt_type: &Interrupt) {
         self.IF ^= interrupt_type.mask();
     }
 }

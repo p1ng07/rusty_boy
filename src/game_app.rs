@@ -23,7 +23,7 @@ const IMAGE_HEIGHT: usize = 144;
 
 pub struct GameBoyApp {
     cpu: Option<cpu::Cpu>,
-    gameImage: ColorImage,
+    game_image: ColorImage,
     paused: bool,
     current_rom_path: Option<String>,
 }
@@ -38,7 +38,7 @@ impl GameBoyApp {
             paused: false,
             cpu: None,
             current_rom_path: None,
-	    gameImage:ColorImage::new([IMAGE_WIDTH,IMAGE_HEIGHT], Color32::BLACK)
+	    game_image:ColorImage::new([IMAGE_WIDTH,IMAGE_HEIGHT], Color32::BLACK)
         }
     }
 
@@ -167,15 +167,20 @@ impl eframe::App for GameBoyApp {
 
 fn render_game_window(ctx: &egui::Context, ui: &mut Ui) {
     // Create the main black image
-    let image = ColorImage::new([IMAGE_WIDTH,IMAGE_HEIGHT], Color32::BLACK);
+    let mut image = ColorImage::new([IMAGE_WIDTH,IMAGE_HEIGHT], Color32::BLACK);
 
-    // Change a sub-square of that image
-    let delta = ImageDelta::partial([0,0], ColorImage::new([144,144], Color32::WHITE), egui::TextureOptions::default());
+    // // Change single pixel of image
+    image.pixels.fill(Color32::BLUE);
 
+    for i in 0..IMAGE_WIDTH.mul(40) {
+	if let Some(pixel) = image.pixels.get_mut(i) {
+	    *pixel = Color32::DEBUG_COLOR;
+	}
+    }
     let tex = egui::Context::load_texture(ctx, "main_image", image, egui::TextureOptions::default());
     
     // Change the texture using the created imageDelta
-    ctx.tex_manager().write().set(tex.id(), delta);
+    // ctx.tex_manager().write().set(tex.id(), delta);
     ui.add(egui::Image::new(&tex, tex.size_vec2()));
 }
 

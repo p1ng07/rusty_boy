@@ -121,6 +121,10 @@ impl Cpu {
             .timer
             .step(&self.state, &mut self.interrupt_handler);
 
+	// Advance the ppu 4 dots
+	self.mmu.ppu.tick(&mut self.interrupt_handler);
+	self.mmu.ppu.tick(&mut self.interrupt_handler);
+	self.mmu.ppu.tick(&mut self.interrupt_handler);
 	self.mmu.ppu.tick(&mut self.interrupt_handler);
     }
 
@@ -151,7 +155,7 @@ impl Cpu {
             {
                 // Service interrupt, set ime to false and reset the respective IF bit on the handler
                 self.interrupt_handler
-                    .unrequest_interrupt(&interrupt_type);
+                    .consume_interrupt(&interrupt_type);
 
                 // CALL interrupt_vector
                 self.push_u16_to_stack(self.pc);
