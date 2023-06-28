@@ -3,7 +3,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use egui::Ui;
+use egui::{Ui, TextureFilter, TextureOptions};
 use epaint::{Color32, ColorImage, Vec2};
 use log::LevelFilter;
 use log4rs::{
@@ -94,12 +94,21 @@ impl GameBoyApp {
         // Print the current framebuffer
         image.pixels = self.game_framebuffer.to_vec();
 
-        let tex =
-            egui::Context::load_texture(ctx, "main_image", image, egui::TextureOptions::default());
-
         // Change the texture using the created imageDelta
         // ctx.tex_manager().write().set(tex.id(), delta);
-        ui.add(egui::Image::new(&tex, tex.size_vec2()));
+	let mut size = egui::Vec2::new(image.size[0] as f32, image.size[1] as f32);
+
+	// Make the image sharper
+        let mut texture_options = TextureOptions::default();
+	texture_options.magnification = TextureFilter::Nearest;
+	texture_options.minification = TextureFilter::Nearest;
+
+        let tex =
+            egui::Context::load_texture(ctx, "main_image", image, texture_options);
+
+	size *= (ui.available_width() / size.x).max(0.4);
+	// ui.image(&tex, size);
+	ui.image(&tex, size);
     }
 }
 
@@ -148,7 +157,9 @@ impl eframe::App for GameBoyApp {
             }
         });
 
-        egui::Window::new("Game window").show(ctx, |ui| {
+        egui::Window::new("Game window")
+	    .resizable(true)
+	    .show(ctx, |ui| {
             if let Some(_) = self.cpu {
                 if !self.paused {
                     self.run_frame(ui);
