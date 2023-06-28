@@ -26,6 +26,8 @@ pub struct GameBoyApp {
     current_rom_path: Option<String>,
     game_framebuffer: [Color32; GAME_SCREEN_HEIGHT * GAME_SCREEN_WIDTH],
     current_frame: u8,
+    game_window_open: bool,
+    tile_viewer_open: bool,
 }
 
 impl GameBoyApp {
@@ -40,6 +42,8 @@ impl GameBoyApp {
             current_rom_path: None,
             game_framebuffer: [Color32::WHITE; GAME_SCREEN_HEIGHT * GAME_SCREEN_WIDTH],
             current_frame: 0,
+	    game_window_open: true,
+	    tile_viewer_open: false 
         }
     }
 
@@ -137,6 +141,8 @@ impl eframe::App for GameBoyApp {
                         frame.close();
                     }
                 });
+		ui.toggle_value(&mut self.game_window_open, "Game window");
+		ui.toggle_value(&mut self.tile_viewer_open, "Tile viewer");
             });
         });
 
@@ -157,19 +163,21 @@ impl eframe::App for GameBoyApp {
             }
         });
 
-        egui::Window::new("Game window")
-	    .resizable(true)
-	    .show(ctx, |ui| {
-            if let Some(_) = self.cpu {
-                if !self.paused {
-                    self.run_frame(ui);
-                }
+	if self.game_window_open {
+	    egui::Window::new("Game window")
+		.collapsible(false)
+		.resizable(true)
+		.show(ctx, |ui| {
+		    if let Some(_) = self.cpu {
+			if !self.paused {
+			    self.run_frame(ui);
+			}
 
-                self.render_game_window(ctx, ui);
-            };
-        });
-
-        // Update the context after 16.6 ms (forcing the fps to be 60)
+			self.render_game_window(ctx, ui);
+		    };
+		});
+	}
+	// Update the context after 16.6 ms (forcing the fps to be 60)
         // ctx.request_repaint_after(deadline.sub(Instant::now()));
         ctx.request_repaint();
     }
