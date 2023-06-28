@@ -10,7 +10,7 @@ pub enum CpuState {
     NonBoot,
     Stopped,
     DMA,
-    Halt
+    Halt,
 }
 
 // Emulates the core cpu, is responsible for decoding instructions and executing them
@@ -21,7 +21,7 @@ pub struct Cpu {
     pub mmu: Mmu,
     pc: u16,
     sp: u16,
-    elapsed_dma_cycles: u8,  // m-cycles that a dma transfer has been active
+    elapsed_dma_cycles: u8, // m-cycles that a dma transfer has been active
     pub interrupt_handler: InterruptHandler,
     registers: CpuRegisters,
     delta_t_cycles: i32, // t-cycles performed in the current instruction
@@ -57,45 +57,47 @@ impl Cpu {
         // Print state of emulator to logger
         self.log_to_file();
 
-	if self.state == CpuState::Halt {
-	    self.tick();
-	    // If there are interrupts pending, and it is possible to service them, disable halt mode
-	    if self.interrupt_handler.IF & self.interrupt_handler.IE > 0
-	    {
-		self.state = CpuState::NonBoot;
-	    }
+        if self.state == CpuState::Halt {
+            self.tick();
+            // If there are interrupts pending, and it is possible to service them, disable halt mode
+            if self.interrupt_handler.IF & self.interrupt_handler.IE > 0 {
+                self.state = CpuState::NonBoot;
+            }
 
-	    if self.interrupt_handler.enabled && self.interrupt_handler.IE > 0 {
-		self.handle_interrupts();
-	    }
+            if self.interrupt_handler.enabled && self.interrupt_handler.IE > 0 {
+                self.handle_interrupts();
+            }
 
-	    let instruction_delta_t_cycles = self.delta_t_cycles;
-	    self.delta_t_cycles = 0;
-	    return instruction_delta_t_cycles;
-	}
+            let instruction_delta_t_cycles = self.delta_t_cycles;
+            self.delta_t_cycles = 0;
+            return instruction_delta_t_cycles;
+        }
 
-	if self.state == CpuState::DMA {
+        if self.state == CpuState::DMA {
+            let dma_byte = self.mmu.fetch_byte(
+                self.mmu.dma_register,
+                &self.state,
+                &mut self.interrupt_handler,
+            );
+            self.mmu.dma_register = self.mmu.dma_register.wrapping_add(1);
 
-	    let dma_byte = self.mmu.fetch_byte(self.mmu.dma_register, &self.state, &mut self.interrupt_handler);
-	    self.mmu.dma_register = self.mmu.dma_register.wrapping_add(1);
+            let destination = 0xFE00u16 | (self.mmu.dma_register & 0xF) as u16;
 
-	    let destination = 0xFE00u16 | (self.mmu.dma_register & 0xF) as u16;
+            // Write the dma transfer byte
+            self.mmu.ppu.oam_ram[destination as usize] = dma_byte;
 
-	    // Write the dma transfer byte
-	    self.mmu.ppu.oam_ram[destination as usize] = dma_byte;
+            self.elapsed_dma_cycles += 1;
 
-	    self.elapsed_dma_cycles += 1;
-	    
-	    // A dma transfer lasts 160 m-cycles
-	    if self.elapsed_dma_cycles >= 160 {
-		self.state = CpuState::NonBoot;
-		self.elapsed_dma_cycles = 0;
-	    }
-	}
+            // A dma transfer lasts 160 m-cycles
+            if self.elapsed_dma_cycles >= 160 {
+                self.state = CpuState::NonBoot;
+                self.elapsed_dma_cycles = 0;
+            }
+        }
 
         let first_byte = self.fetch_byte_pc();
 
-	// Service interrupts
+        // Service interrupts
         if self.interrupt_handler.enabled && self.interrupt_handler.IE > 0 {
             self.handle_interrupts();
         }
@@ -118,17 +120,19 @@ impl Cpu {
             .timer
             .step(&self.state, &mut self.interrupt_handler);
 
-	// Advance the ppu 4 dots
-	self.mmu.ppu.tick(&mut self.interrupt_handler);
-	self.mmu.ppu.tick(&mut self.interrupt_handler);
-	self.mmu.ppu.tick(&mut self.interrupt_handler);
-	self.mmu.ppu.tick(&mut self.interrupt_handler);
+        // Advance the ppu 4 dots
+        self.mmu.ppu.tick(&mut self.interrupt_handler);
+        self.mmu.ppu.tick(&mut self.interrupt_handler);
+        self.mmu.ppu.tick(&mut self.interrupt_handler);
+        self.mmu.ppu.tick(&mut self.interrupt_handler);
     }
 
     fn fetch_byte_pc(&mut self) -> u8 {
-        let byte = self.mmu.fetch_byte(self.pc, &self.state, &mut self.interrupt_handler);
+        let byte = self
+            .mmu
+            .fetch_byte(self.pc, &self.state, &mut self.interrupt_handler);
         self.tick();
-	self.pc = self.pc.wrapping_add(1);
+        self.pc = self.pc.wrapping_add(1);
 
         byte
     }
@@ -151,8 +155,7 @@ impl Cpu {
                 && self.interrupt_handler.enabled
             {
                 // Service interrupt, set ime to false and reset the respective IF bit on the handler
-                self.interrupt_handler
-                    .consume_interrupt(&interrupt_type);
+                self.interrupt_handler.consume_interrupt(&interrupt_type);
 
                 // CALL interrupt_vector
                 self.push_u16_to_stack(self.pc);
@@ -180,21 +183,33 @@ impl Cpu {
 
     fn push_u16_to_stack(&mut self, value_to_push: u16) {
         self.sp = self.sp.wrapping_sub(1);
-        self.mmu
-            .write_byte(self.sp, (value_to_push >> 8) as u8, &mut self.state, &mut self.interrupt_handler);
+        self.mmu.write_byte(
+            self.sp,
+            (value_to_push >> 8) as u8,
+            &mut self.state,
+            &mut self.interrupt_handler,
+        );
         self.tick();
         self.sp = self.sp.wrapping_sub(1);
-        self.mmu
-            .write_byte(self.sp, value_to_push as u8, &mut self.state, &mut self.interrupt_handler);
+        self.mmu.write_byte(
+            self.sp,
+            value_to_push as u8,
+            &mut self.state,
+            &mut self.interrupt_handler,
+        );
         self.tick();
     }
 
     fn pop_u16_from_stack(&mut self) -> u16 {
         self.tick();
-        let lower_byte = self.mmu.fetch_byte(self.sp, &self.state, &mut self.interrupt_handler);
+        let lower_byte = self
+            .mmu
+            .fetch_byte(self.sp, &self.state, &mut self.interrupt_handler);
         self.sp = self.sp.wrapping_add(1);
         self.tick();
-        let high_byte = self.mmu.fetch_byte(self.sp, &self.state, &mut self.interrupt_handler);
+        let high_byte = self
+            .mmu
+            .fetch_byte(self.sp, &self.state, &mut self.interrupt_handler);
         self.sp = self.sp.wrapping_add(1);
         (high_byte as u16) << 8 | lower_byte as u16
     }
@@ -245,26 +260,26 @@ impl Cpu {
     }
 
     fn log_to_file(&mut self) {
-    //     if self.pc < 0x100 {
-    //         return;
-    //     }
-    //     // log::info!(
-    //     //     "A:{} F:{} B:{} C:{} D:{} E:{} H:{} L:{} SP:{} PC:{} PCMEM:{},{},{},{}",
-    //     //     format!("{:0>2X}", self.registers.a),
-    //     //     format!("{:0>2X}", self.registers.f),
-    //     //     format!("{:0>2X}", self.registers.b),
-    //     //     format!("{:0>2X}", self.registers.c),
-    //     //     format!("{:0>2X}", self.registers.d),
-    //     //     format!("{:0>2X}", self.registers.e),
-    //     //     format!("{:0>2X}", self.registers.h),
-    //     //     format!("{:0>2X}", self.registers.l),
-    //     //     format!("{:0>4X}", self.sp),
-    //     //     format!("{:0>4X}", self.pc - 1),
-    //     //     format!("{:02X}", instruction),
-    //     //     format!("{:02X}", self.mmu.fetch_byte(self.pc, &self.state)),
-    //     //     format!("{:02X}", self.mmu.fetch_byte(self.pc + 1, &self.state)),
-    //     //     format!("{:02X}", self.mmu.fetch_byte(self.pc + 2, &self.state))
-    //     // );
+        //     if self.pc < 0x100 {
+        //         return;
+        //     }
+        //     // log::info!(
+        //     //     "A:{} F:{} B:{} C:{} D:{} E:{} H:{} L:{} SP:{} PC:{} PCMEM:{},{},{},{}",
+        //     //     format!("{:0>2X}", self.registers.a),
+        //     //     format!("{:0>2X}", self.registers.f),
+        //     //     format!("{:0>2X}", self.registers.b),
+        //     //     format!("{:0>2X}", self.registers.c),
+        //     //     format!("{:0>2X}", self.registers.d),
+        //     //     format!("{:0>2X}", self.registers.e),
+        //     //     format!("{:0>2X}", self.registers.h),
+        //     //     format!("{:0>2X}", self.registers.l),
+        //     //     format!("{:0>4X}", self.sp),
+        //     //     format!("{:0>4X}", self.pc - 1),
+        //     //     format!("{:02X}", instruction),
+        //     //     format!("{:02X}", self.mmu.fetch_byte(self.pc, &self.state)),
+        //     //     format!("{:02X}", self.mmu.fetch_byte(self.pc + 1, &self.state)),
+        //     //     format!("{:02X}", self.mmu.fetch_byte(self.pc + 2, &self.state))
+        //     // );
         log::info!(
             "A: {} F: {} B: {} C: {} D: {} E: {} H: {} L: {} SP: {} PC: 00:{} ({} {} {} {})",
             format!("{:0>2X}", self.registers.a),
@@ -277,10 +292,26 @@ impl Cpu {
             format!("{:0>2X}", self.registers.l),
             format!("{:0>4X}", self.sp),
             format!("{:0>4X}", self.pc),
-            format!("{:02X}", self.mmu.fetch_byte(self.pc, &self.state, &mut self.interrupt_handler)),
-            format!("{:02X}", self.mmu.fetch_byte(self.pc + 1, &self.state, &mut self.interrupt_handler)),
-            format!("{:02X}", self.mmu.fetch_byte(self.pc + 2, &self.state, &mut self.interrupt_handler)),
-            format!("{:02X}", self.mmu.fetch_byte(self.pc + 3, &self.state, &mut self.interrupt_handler)),
+            format!(
+                "{:02X}",
+                self.mmu
+                    .fetch_byte(self.pc, &self.state, &mut self.interrupt_handler)
+            ),
+            format!(
+                "{:02X}",
+                self.mmu
+                    .fetch_byte(self.pc + 1, &self.state, &mut self.interrupt_handler)
+            ),
+            format!(
+                "{:02X}",
+                self.mmu
+                    .fetch_byte(self.pc + 2, &self.state, &mut self.interrupt_handler)
+            ),
+            format!(
+                "{:02X}",
+                self.mmu
+                    .fetch_byte(self.pc + 3, &self.state, &mut self.interrupt_handler)
+            ),
         );
     }
 }
@@ -295,5 +326,5 @@ fn initialize_cpu_state_defaults(cpu: &mut Cpu) {
     cpu.pc = 0x100;
     cpu.sp = 0xfffe;
     cpu.state = CpuState::NonBoot;
-    // TODO: Enable ppu
+    cpu.mmu.ppu.lcdc = 0b1000_0000;
 }

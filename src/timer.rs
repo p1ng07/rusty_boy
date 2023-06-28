@@ -24,12 +24,7 @@ pub struct Timer {
 }
 
 impl Timer {
-    pub fn step(
-        &mut self,
-        cpu_state: &CpuState,
-        interrupt_handler: &mut InterruptHandler,
-    ) {
-
+    pub fn step(&mut self, cpu_state: &CpuState, interrupt_handler: &mut InterruptHandler) {
         let elapsed_cycles: i32 = 4;
         // Div registers gets incremented every 256 t-cycles
         self.delta_cycles_div += elapsed_cycles;

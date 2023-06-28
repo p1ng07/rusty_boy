@@ -21,12 +21,16 @@ pub struct Mmu {
     dma_source: u8,
 }
 
-// TODO: Add fetching and writing of ppu registers
 impl<'a> Mmu {
-    pub fn fetch_byte(&self, address: u16, cpu_state: &CpuState, interrupt_handler: &mut InterruptHandler) -> u8 {
-	match address {
-	    0..=0x7FFF => match cpu_state {
-		CpuState::Boot => match address {
+    pub fn fetch_byte(
+        &self,
+        address: u16,
+        cpu_state: &CpuState,
+        interrupt_handler: &mut InterruptHandler,
+    ) -> u8 {
+        match address {
+            0..=0x7FFF => match cpu_state {
+                CpuState::Boot => match address {
                     0..=255 => *self.boot_rom.get(address as usize).unwrap(),
                     _ => panic!("Tried to call boot rom after it was already ended"),
                 },
@@ -58,25 +62,37 @@ impl<'a> Mmu {
             0xFF43 => self.ppu.scx,
             0xFF44 => self.ppu.ly,
             0xFF45 => self.ppu.lyc,
-	    0xFF47 => self.ppu.bgp,
-	    0xFF48 => self.ppu.obp0,
-	    0xFF49 => self.ppu.obp1,
-	    0xFF4A => self.ppu.wy,
-	    0xFF4B => self.ppu.wx,
+            0xFF47 => self.ppu.bgp,
+            0xFF48 => self.ppu.obp0,
+            0xFF49 => self.ppu.obp1,
+            0xFF4A => self.ppu.wy,
+            0xFF4B => self.ppu.wx,
             0xFF80..=0xFFFE => self.hram[(address - 0xFF80) as usize],
             0xFFFF => interrupt_handler.IE,
             _ => 0xFF,
         }
     }
 
-    pub fn write_word(&mut self, address: u16, word: u16, cpu_state: &mut CpuState, interrupt_handler: &mut InterruptHandler) {
+    pub fn write_word(
+        &mut self,
+        address: u16,
+        word: u16,
+        cpu_state: &mut CpuState,
+        interrupt_handler: &mut InterruptHandler,
+    ) {
         let lower = word as u8;
         self.write_byte(address, lower, cpu_state, interrupt_handler);
         let high = (word >> 8) as u8;
         self.write_byte(address + 1, high, cpu_state, interrupt_handler);
     }
 
-    pub fn write_byte(&mut self, address: u16, received_byte: u8, cpu_state: &mut CpuState, interrupt_handler: &mut InterruptHandler) {
+    pub fn write_byte(
+        &mut self,
+        address: u16,
+        received_byte: u8,
+        cpu_state: &mut CpuState,
+        interrupt_handler: &mut InterruptHandler,
+    ) {
         match address {
             0..=0x7FFF => self.mbc.write_byte(address, received_byte), // Writing to ROM
             0x8000..=0x9FFF => self.ppu.write_vram(address - 0x8000, received_byte),
@@ -104,12 +120,12 @@ impl<'a> Mmu {
             0xFF42 => self.ppu.scy = received_byte,
             0xFF43 => self.ppu.scx = received_byte,
             0xFF45 => self.ppu.lyc = received_byte,
-	    0xFF46 => self.request_dma(received_byte, cpu_state),
-	    0xFF47 => self.ppu.bgp = received_byte,
-	    0xFF48 => self.ppu.obp0 = received_byte,
-	    0xFF49 => self.ppu.obp1 = received_byte,
-	    0xFF4A => self.ppu.wy = received_byte,
-	    0xFF4B => self.ppu.wx = received_byte,
+            0xFF46 => self.request_dma(received_byte, cpu_state),
+            0xFF47 => self.ppu.bgp = received_byte,
+            0xFF48 => self.ppu.obp0 = received_byte,
+            0xFF49 => self.ppu.obp1 = received_byte,
+            0xFF4A => self.ppu.wy = received_byte,
+            0xFF4B => self.ppu.wx = received_byte,
             0xFF50 => {
                 if received_byte > 0 {
                     *cpu_state = CpuState::NonBoot
@@ -124,17 +140,17 @@ impl<'a> Mmu {
     }
 
     pub fn new(mbc: Box<dyn Mbc>) -> Self {
-	Self {
+        Self {
             mbc,
             hram: [0x00; 0x7F],
             wram_0: [0x00; 0x2000],
             wram_n: [0x00; 0x2000],
-	    ppu: Ppu::new(),
+            ppu: Ppu::new(),
             joypad: Joypad::default(),
             serial: Serial::default(),
             timer: Timer::default(),
-	    dma_register: 0,
-	    dma_source: 0,
+            dma_register: 0,
+            dma_source: 0,
             boot_rom: [
                 0x31, 0xFE, 0xFF, 0xAF, 0x21, 0xFF, 0x9F, 0x32, 0xCB, 0x7C, 0x20, 0xFB, 0x21, 0x26,
                 0xFF, 0x0E, 0x11, 0x3E, 0x80, 0x32, 0xE2, 0x0C, 0x3E, 0xF3, 0xE2, 0x32, 0x3E, 0x77,
@@ -160,8 +176,8 @@ impl<'a> Mmu {
     }
 
     fn request_dma(&mut self, byte: u8, cpu_state: &mut CpuState) {
-	self.dma_register = ((byte as u16) << 8) | 0x00;
-	self.dma_source = byte;
-	*cpu_state = CpuState::DMA; // This requests the dma
+        self.dma_register = ((byte as u16) << 8) | 0x00;
+        self.dma_source = byte;
+        *cpu_state = CpuState::DMA; // This requests the dma
     }
 }
