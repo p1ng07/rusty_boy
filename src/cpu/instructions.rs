@@ -719,7 +719,7 @@ impl Cpu {
                 let add_on = self.fetch_byte_pc() as u16;
                 self.registers.a =
                     self.mmu
-                        .fetch_byte(0xFF00 | add_on, &self.state, &mut self.interrupt_handler);
+                        .fetch_byte(0xFF00 + add_on, &self.state, &mut self.interrupt_handler);
                 self.tick();
             }
             0xF1 => {

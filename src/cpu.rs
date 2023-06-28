@@ -55,7 +55,9 @@ impl Cpu {
     // Cycle the cpu once, fetch an instruction and run it, returns the number of t-cycles it took to run it
     pub fn cycle(&mut self) -> i32 {
         // Print state of emulator to logger
+	if self.pc > 0x100 {
         self.log_to_file();
+	}
 
         if self.state == CpuState::Halt {
             self.tick();
@@ -97,16 +99,16 @@ impl Cpu {
 
         let first_byte = self.fetch_byte_pc();
 
-        // Service interrupts
-        if self.interrupt_handler.enabled && self.interrupt_handler.IE > 0 {
-            self.handle_interrupts();
-        }
-
         // Cycle timing is done mid-instruction (i.e. inside the
         // instructions match statement using a self.tick() function
         // to tick the machine 1 m-cycle forward)
 
         self.execute(first_byte);
+
+        // Service interrupts
+        if self.interrupt_handler.enabled && self.interrupt_handler.IE > 0 {
+            self.handle_interrupts();
+        }
 
         let instruction_delta_t_cycles = self.delta_t_cycles;
         self.delta_t_cycles = 0;
