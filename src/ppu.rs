@@ -169,7 +169,9 @@ impl Ppu {
         if self.current_elapsed_dots > 172 {
             self.current_elapsed_dots = 1;
 
-            self.render_background_current_scanline();
+	    if self.is_lcdc_bit_high(LCDCBit::BgWinEnablePriority){
+		self.render_background_current_scanline();
+	    }
 
             // Check if a hblank stat interrupt should fire
             if self.lcd_status & 0b0000_1000 > 0 {
@@ -261,11 +263,11 @@ impl Ppu {
             let tilemap_pixel_y = pixel_y.wrapping_add(self.scy);
 
             // Get the tile indexes inside of the tilemap
-            let tilemap_x = tilemap_pixel_x % 32;
-            let tilemap_y = tilemap_pixel_y % 32;
+            let tilemap_tile_x = tilemap_pixel_x % 32;
+            let tilemap_tile_y = tilemap_pixel_y % 32;
 
-            let tile_x = tilemap_x / 8;
-            let tile_y = tilemap_y / 8;
+            let tile_x = tilemap_pixel_x / 8;
+            let tile_y = tilemap_pixel_y / 8;
 
             let tile_index = tile_x + tile_y * 32;
             let tile_id_address = bg_tilemap as usize + tile_index as usize;
@@ -273,32 +275,26 @@ impl Ppu {
             // Actual tile id to be used in tilemap addressing
             let tile_id = self.vram[tile_id_address];
 
-            let tile_start_address: usize = if self.is_lcdc_bit_high(LCDCBit::BgWinTileDataArea) {
+            let row_start_address: usize = if self.is_lcdc_bit_high(LCDCBit::BgWinTileDataArea) {
                 // unsigned addressing
-                tile_id as usize
+                tile_id as usize * 16 + (tilemap_tile_y & 7) as usize * 2
             } else {
                 // signed addressing
-                let mut address = 0x9000u16 + (tile_id as u16 * 16);
-                if address > 0x97FF {
-                    address = address - 0x1000;
-                }
-                address as usize - 0x8000
+		let mut address = 0x1000i32 + (tile_id as i8 as i32 * 16) + (tilemap_tile_y as i32 & 7) * 2;
+                address as usize 
             };
 
             // Get the tiledata with the offset to get the data of the line that is being rendered
             // This data represents the whole line that is to be drawn
             let tiledata_least_significant_bits =
-                self.vram[tile_start_address + (tilemap_pixel_y as usize % 8) * 2];
+                self.vram[row_start_address];
             let tiledata_most_significant_bits =
-                self.vram[tile_start_address + (tilemap_pixel_y as usize % 8) * 2 + 1];
+                self.vram[row_start_address + 1];
 
             // Compute the color id of the given pixel
 	    let x_offset_to_pixel: u8 = tilemap_pixel_x % 8;
-	    let color_index = (tiledata_most_significant_bits
-			       .rotate_right(6 - x_offset_to_pixel as u32)
-			       & 2)
-		| (tiledata_least_significant_bits.rotate_right(7 - x_offset_to_pixel as u32) & 1);
-	    // let color_index = pixel_x % 4;
+	    let color_index = (tiledata_most_significant_bits >> (6 - x_offset_to_pixel) & 2)
+		| (tiledata_least_significant_bits >> (7 - x_offset_to_pixel as u32) & 1);
 
             // Paint the current pixel onto the current framebuffer
             let buffer_index = pixel_x as usize + self.ly as usize * GAME_SCREEN_WIDTH;
