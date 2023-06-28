@@ -58,7 +58,6 @@ impl<'a> Mmu {
             0xFF43 => self.ppu.scx,
             0xFF44 => self.ppu.ly,
             0xFF45 => self.ppu.lyc,
-	    0xFF46 => self.dma_source,
 	    0xFF47 => self.ppu.bgp,
 	    0xFF48 => self.ppu.obp0,
 	    0xFF49 => self.ppu.obp1,

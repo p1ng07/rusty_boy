@@ -1,11 +1,10 @@
 use std::{
-    ops::{Sub, Mul},
+    ops::Sub,
     time::{Duration, Instant},
 };
 
-use egui::{Ui, Image};
-use eframe::Frame;
-use epaint::{ColorImage, Color32, ImageDelta, Vec2};
+use egui::Ui;
+use epaint::{ColorImage, Color32, Vec2};
 use log::LevelFilter;
 use log4rs::{
     append::file::FileAppender,
@@ -18,14 +17,15 @@ use crate::cpu;
 use crate::mbc::{mbc1::Mbc1, no_mbc::NoMbc, Mbc};
 use crate::mmu::Mmu;
 
-const IMAGE_WIDTH: usize = 160;
-const IMAGE_HEIGHT: usize = 144;
+pub const GAME_SCREEN_WIDTH: usize = 160;
+pub const GAME_SCREEN_HEIGHT: usize = 144;
 
 pub struct GameBoyApp {
     cpu: Option<cpu::Cpu>,
-    game_image: ColorImage,
     paused: bool,
     current_rom_path: Option<String>,
+    game_framebuffer: [Color32; GAME_SCREEN_HEIGHT * GAME_SCREEN_WIDTH],
+    current_frame: u8
 }
 
 impl GameBoyApp {
@@ -38,7 +38,8 @@ impl GameBoyApp {
             paused: false,
             cpu: None,
             current_rom_path: None,
-	    game_image:ColorImage::new([IMAGE_WIDTH,IMAGE_HEIGHT], Color32::BLACK)
+	    game_framebuffer: [Color32::WHITE; GAME_SCREEN_HEIGHT*GAME_SCREEN_WIDTH],
+	    current_frame: 0,
         }
     }
 
@@ -66,8 +67,6 @@ impl GameBoyApp {
         let mmu = Mmu::new(mbc);
         let cpu = cpu::Cpu::new(false, mmu);
 
-	println!("loading rom");
-
         Some(cpu)
     }
 
@@ -83,107 +82,96 @@ impl GameBoyApp {
 
 	// run 69905 t-cycles of cpu work per frame, equating to 4MHz of t-cycles per second
 	let mut ran_cycles = 0;
-	while ran_cycles <= 70224 {
+	while ran_cycles < 70225 {
 	    ran_cycles += cpu.cycle();
 	}
 
-	// TODO Update current game image with the newly rendered ppu image inside self.cpu.mmu.ppu
+	self.game_framebuffer = cpu.mmu.ppu.current_framebuffer;
+    }
+
+    fn render_game_window(&self, ctx: &egui::Context, ui: &mut Ui) {
+	// Create the main black image
+	let mut image = ColorImage::new([GAME_SCREEN_WIDTH,GAME_SCREEN_HEIGHT], Color32::BLUE);
+
+	// Print the current framebuffer
+	image.pixels = self.game_framebuffer.to_vec();
+
+	let tex = egui::Context::load_texture(ctx, "main_image", image, egui::TextureOptions::default());
+
+	// Change the texture using the created imageDelta
+	// ctx.tex_manager().write().set(tex.id(), delta);
+	ui.add(egui::Image::new(&tex, tex.size_vec2()));
     }
 }
 
 impl eframe::App for GameBoyApp {
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
-        // Get the time at which a game update should happen
-        let deadline = std::time::Instant::now()
-            .checked_add(Duration::from_micros(16600u64))
-            .unwrap();
+	// Get the time at which a game update should happen
+	let deadline = std::time::Instant::now()
+	    .checked_add(Duration::from_micros(16600u64))
+	    .unwrap();
 
-        #[cfg(not(target_arch = "wasm32"))]
-        egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
-            egui::menu::bar(ui, |ui| {
-                ui.menu_button("File", |ui| {
-                    // Open rom button
-                    if ui.button("Open Rom").clicked() {
-                        let picked_path = rfd::FileDialog::new()
-                            .add_filter("*.gb, *.gbc", &["gb", "gbc"])
-                            .pick_file();
-                        if let Some(path) = picked_path {
-                            self.current_rom_path = Some(path.display().to_string());
-                            self.cpu = self.load_rom();
-                        }
-                    }
-                    if ui.button("Quit").clicked() {
-                        frame.close();
-                    }
-                });
-            });
-        });
+	#[cfg(not(target_arch = "wasm32"))]
+	egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
+	    egui::menu::bar(ui, |ui| {
+		ui.menu_button("File", |ui| {
+		    // Open rom button
+		    if ui.button("Open Rom").clicked() {
+			let picked_path = rfd::FileDialog::new()
+			    .add_filter("*.gb, *.gbc", &["gb", "gbc"])
+			    .pick_file();
+			if let Some(path) = picked_path {
+			    self.current_rom_path = Some(path.display().to_string());
+			    self.cpu = self.load_rom();
+			}
+		    }
+		    if ui.button("Quit").clicked() {
+			frame.close();
+		    }
+		});
+	    });
+	});
 
-        egui::SidePanel::left("side_panel").show(ctx, |ui| {
-            ui.toggle_value(&mut self.paused, "Pause");
+	egui::SidePanel::left("side_panel").show(ctx, |ui| {
+	    ui.toggle_value(&mut self.paused, "Pause");
 
-            if self.paused {
-                if ui.button("Step Frame").clicked() {
-                    match self.cpu.as_mut() {
-                        Some(cpu) => {
-                            self.run_frame(ui);
-                        }
-                        None => (),
-                    }
-                }
-                if ui.button("Step PC").clicked() {
-                    if let Some(cpu) = self.cpu.as_mut() {
-                        cpu.cycle();
-                    }
-                }
-            }
-        });
+	    if self.paused {
+		if ui.button("Step Frame").clicked() {
+		    if let Some(_) = self.cpu {
+			self.run_frame(ui);
+	    }
+		}
+		if ui.button("Step PC").clicked() {
+		    if let Some(cpu) = self.cpu.as_mut() {
+			cpu.cycle();
+		    }
+		}
+	    }
+	});
 
 	egui::Window::new("Game window")
-	    .default_size(Vec2::new(300f32, 100f32))
 	    .show(ctx, |ui| {
 
+		if let Some(_) = self.cpu {
+		    if !self.paused{
+			self.run_frame(ui);
 
-            if self.paused || self.cpu.is_none() {
-		render_game_window(ctx, ui);
-                return;
-            };
+		    }
 
-            if let Some(cpu) = self.cpu.as_mut() {
-                self.run_frame(ui);
-            };
+		    self.render_game_window(ctx, ui);
+		};
 
-	    render_game_window(ctx, ui);
-            // TODO: render game window here
-        });
+	    });
 
-        // Update the context after 16.6 ms (forcing the fps to be 60)
-        ctx.request_repaint_after(deadline.sub(Instant::now()));
+	// Update the context after 16.6 ms (forcing the fps to be 60)
+	// ctx.request_repaint_after(deadline.sub(Instant::now()));
+	ctx.request_repaint();
     }
 
     /// Called by the frame work to save state before shutdown.
     fn save(&mut self, _storage: &mut dyn eframe::Storage) {}
+
 }
-
-fn render_game_window(ctx: &egui::Context, ui: &mut Ui) {
-    // Create the main black image
-    let mut image = ColorImage::new([IMAGE_WIDTH,IMAGE_HEIGHT], Color32::BLACK);
-
-    // // Change single pixel of image
-    image.pixels.fill(Color32::BLUE);
-
-    for i in 0..IMAGE_WIDTH.mul(40) {
-	if let Some(pixel) = image.pixels.get_mut(i) {
-	    *pixel = Color32::DEBUG_COLOR;
-	}
-    }
-    let tex = egui::Context::load_texture(ctx, "main_image", image, egui::TextureOptions::default());
-    
-    // Change the texture using the created imageDelta
-    // ctx.tex_manager().write().set(tex.id(), delta);
-    ui.add(egui::Image::new(&tex, tex.size_vec2()));
-}
-
 
 fn init_file_logger() {
     let logfile = FileAppender::builder()

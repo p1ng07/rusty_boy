@@ -1,9 +1,7 @@
-use std::ops::BitAnd;
-
 use strum::IntoEnumIterator;
 
 use crate::cpu_registers::CpuRegisters;
-use crate::{interrupt_handler::*, ppu};
+use crate::interrupt_handler::*;
 use crate::mmu::Mmu;
 
 #[derive(PartialEq)]
@@ -60,7 +58,6 @@ impl Cpu {
         self.log_to_file();
 
 	if self.state == CpuState::Halt {
-	    println!("halted");
 	    self.tick();
 	    // If there are interrupts pending, and it is possible to service them, disable halt mode
 	    if self.interrupt_handler.IF & self.interrupt_handler.IE > 0
