@@ -10,7 +10,7 @@ use crate::constants::{GAMEBOY_HEIGHT, GAMEBOY_WIDTH};
 // Scanline based rendering of the ppu
 pub struct Ppu {
     pub vram: [u8; 8196], // 8 kibibytes of vram
-    pub oam_ram: [u8; 0xA0],
+    pub oam_ram: [u8; 160],
     mode: PpuModes,
     current_elapsed_dots: u16,
     pub bgp: u8,  // Bg palette data
@@ -252,8 +252,9 @@ impl Ppu {
             let tilemap_pixel_y = pixel_y.wrapping_add(self.scy);
 
             // Get the tile indexes inside of the tilemap
-            let tilemap_tile_x = tilemap_pixel_x % 32;
-            let tilemap_tile_y = tilemap_pixel_y % 32;
+	    // This is in case the background is to be drawn
+            let mut tilemap_tile_x: u8 = tilemap_pixel_x % 32;
+            let mut tilemap_tile_y: u8 = tilemap_pixel_y % 32;
 
             let tile_x = tilemap_pixel_x / 8;
             let tile_y = tilemap_pixel_y / 8;

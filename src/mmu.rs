@@ -17,8 +17,8 @@ pub struct Mmu {
     serial: Serial,
     wram_0: [u8; 0x2000],
     wram_n: [u8; 0x2000],
-    pub dma_register: u16,
-    dma_source: u8,
+    pub dma_iterator: u8,
+    pub dma_source: u8,
 }
 
 impl<'a> Mmu {
@@ -62,6 +62,7 @@ impl<'a> Mmu {
             0xFF43 => self.ppu.scx,
             0xFF44 => self.ppu.ly,
             0xFF45 => self.ppu.lyc,
+	    0xFF46 => self.ppu.oam_ram[159],
             0xFF47 => self.ppu.bgp,
             0xFF48 => self.ppu.obp0,
             0xFF49 => self.ppu.obp1,
@@ -149,7 +150,7 @@ impl<'a> Mmu {
             joypad: Joypad::default(),
             serial: Serial::default(),
             timer: Timer::default(),
-            dma_register: 0,
+            dma_iterator: 0,
             dma_source: 0,
             boot_rom: [
                 0x31, 0xFE, 0xFF, 0xAF, 0x21, 0xFF, 0x9F, 0x32, 0xCB, 0x7C, 0x20, 0xFB, 0x21, 0x26,
@@ -176,7 +177,7 @@ impl<'a> Mmu {
     }
 
     fn request_dma(&mut self, byte: u8, cpu_state: &mut CpuState) {
-        self.dma_register = ((byte as u16) << 8) | 0x00;
+        self.dma_iterator = 0;
         self.dma_source = byte;
         *cpu_state = CpuState::DMA; // This requests the dma
     }

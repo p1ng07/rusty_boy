@@ -1,3 +1,4 @@
+use eframe::glow::CompressedPixelUnpackData;
 use strum::IntoEnumIterator;
 
 use crate::cpu_registers::CpuRegisters;
@@ -21,7 +22,6 @@ pub struct Cpu {
     pub mmu: Mmu,
     pc: u16,
     sp: u16,
-    elapsed_dma_cycles: u8, // m-cycles that a dma transfer has been active
     pub interrupt_handler: InterruptHandler,
     registers: CpuRegisters,
     delta_t_cycles: i32, // t-cycles performed in the current instruction
@@ -42,7 +42,6 @@ impl Cpu {
             delta_t_cycles: 0,
             registers: CpuRegisters::default(),
             interrupt_handler: InterruptHandler::default(),
-            elapsed_dma_cycles: 0,
         };
 
         // Skip the bootrom, and go straight to running the program
@@ -73,29 +72,6 @@ impl Cpu {
             return instruction_delta_t_cycles;
         }
 
-	// TODO DMA is fucked
-        if self.state == CpuState::DMA {
-            let dma_byte = self.mmu.fetch_byte(
-                self.mmu.dma_register,
-                &self.state,
-                &mut self.interrupt_handler,
-            );
-            self.mmu.dma_register = self.mmu.dma_register.wrapping_add(1);
-
-            let destination = self.mmu.dma_register as usize & 0x1F;
-
-            // Write the dma transfer byte
-            self.mmu.ppu.oam_ram[destination] = dma_byte;
-
-            self.elapsed_dma_cycles += 1;
-
-            // A dma transfer lasts 160 m-cycles
-            if self.elapsed_dma_cycles >= 160 {
-                self.state = CpuState::NonBoot;
-                self.elapsed_dma_cycles = 0;
-            }
-        }
-
         let first_byte = self.fetch_byte_pc();
 
         // Cycle timing is done mid-instruction (i.e. inside the
@@ -103,6 +79,35 @@ impl Cpu {
         // to tick the machine 1 m-cycle forward)
 
         self.execute(first_byte);
+
+	// TODO DMA is fucked
+        if self.state == CpuState::DMA {
+	    let cycles = self.delta_t_cycles / 4;
+	    for _ in 0..cycles {
+		// Stop dma when all values have been written to OAM 
+		if self.mmu.dma_iterator > 159 {
+		    self.state = CpuState::NonBoot;
+		    self.mmu.dma_iterator = 0;
+		    break;
+		}
+
+		let address: u16 = ((self.mmu.dma_source as u16) << 8) | self.mmu.dma_iterator as u16;
+
+		let dma_byte = self.mmu.fetch_byte(
+		    address,
+		    &self.state,
+		    &mut self.interrupt_handler,
+		);
+
+		let destination = self.mmu.dma_iterator as usize;
+
+		// Write the dma transfer byte
+		self.mmu.ppu.oam_ram[destination] = dma_byte;
+
+		self.mmu.dma_iterator += 1;
+
+	    }
+        }
 
         // Service interrupts
         if self.interrupt_handler.enabled && self.interrupt_handler.IE > 0 {

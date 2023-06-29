@@ -675,7 +675,7 @@ impl Cpu {
 
     fn rr(&mut self, mut reg: u8) -> u8 {
         let old_carry = self.registers.is_carry_flag_high();
-        let new_carry = is_bit_set(reg, 1);;
+        let new_carry = is_bit_set(reg, 1);
         self.registers.set_carry_flag(new_carry);
         reg >>= 1;
         reg |= (old_carry as u8) << 7;
