@@ -269,7 +269,7 @@ impl Ppu {
             let tile_x = tilemap_pixel_x / 8;
             let tile_y = tilemap_pixel_y / 8;
 
-            let tile_index = tile_x + tile_y * 32;
+            let tile_index: u16 = tile_x as u16 + tile_y as u16 * 32;
             let tile_id_address = bg_tilemap as usize + tile_index as usize;
 
             // Actual tile id to be used in tilemap addressing
@@ -292,7 +292,7 @@ impl Ppu {
                 self.vram[row_start_address + 1];
 
             // Compute the color id of the given pixel
-	    let x_offset_to_pixel: u8 = tilemap_pixel_x % 8;
+	    let x_offset_to_pixel: u8 = tilemap_tile_x % 8;
 	    let color_index = (tiledata_most_significant_bits >> (6 - x_offset_to_pixel) & 2)
 		| (tiledata_least_significant_bits >> (7 - x_offset_to_pixel as u32) & 1);
 
