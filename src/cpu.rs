@@ -55,9 +55,7 @@ impl Cpu {
     // Cycle the cpu once, fetch an instruction and run it, returns the number of t-cycles it took to run it
     pub fn cycle(&mut self) -> i32 {
         // Print state of emulator to logger
-	if self.pc > 0x100 {
         self.log_to_file();
-	}
 
         if self.state == CpuState::Halt {
             self.tick();
@@ -75,6 +73,7 @@ impl Cpu {
             return instruction_delta_t_cycles;
         }
 
+	// TODO DMA is fucked
         if self.state == CpuState::DMA {
             let dma_byte = self.mmu.fetch_byte(
                 self.mmu.dma_register,
@@ -83,10 +82,10 @@ impl Cpu {
             );
             self.mmu.dma_register = self.mmu.dma_register.wrapping_add(1);
 
-            let destination = 0xFE00u16 | (self.mmu.dma_register & 0xF) as u16;
+            let destination = self.mmu.dma_register as usize & 0x1F;
 
             // Write the dma transfer byte
-            self.mmu.ppu.oam_ram[destination as usize] = dma_byte;
+            self.mmu.ppu.oam_ram[destination] = dma_byte;
 
             self.elapsed_dma_cycles += 1;
 
@@ -262,9 +261,6 @@ impl Cpu {
     }
 
     fn log_to_file(&mut self) {
-        //     if self.pc < 0x100 {
-        //         return;
-        //     }
         //     // log::info!(
         //     //     "A:{} F:{} B:{} C:{} D:{} E:{} H:{} L:{} SP:{} PC:{} PCMEM:{},{},{},{}",
         //     //     format!("{:0>2X}", self.registers.a),

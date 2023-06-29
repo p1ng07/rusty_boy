@@ -1,10 +1,5 @@
-use std::{
-    ops::Sub,
-    time::{Duration, Instant},
-};
-
 use egui::{Ui, TextureFilter, TextureOptions};
-use epaint::{Color32, ColorImage, Vec2};
+use epaint::{Color32, ColorImage};
 use log::LevelFilter;
 use log4rs::{
     append::file::FileAppender,
@@ -25,7 +20,6 @@ pub struct GameBoyApp {
     paused: bool,
     current_rom_path: Option<String>,
     game_framebuffer: [Color32; GAME_SCREEN_HEIGHT * GAME_SCREEN_WIDTH],
-    current_frame: u8,
     game_window_open: bool,
     tile_viewer_open: bool,
 }
@@ -41,7 +35,6 @@ impl GameBoyApp {
             cpu: None,
             current_rom_path: None,
             game_framebuffer: [Color32::WHITE; GAME_SCREEN_HEIGHT * GAME_SCREEN_WIDTH],
-            current_frame: 0,
 	    game_window_open: true,
 	    tile_viewer_open: false 
         }
@@ -119,9 +112,9 @@ impl GameBoyApp {
 impl eframe::App for GameBoyApp {
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
         // Get the time at which a game update should happen
-        let deadline = std::time::Instant::now()
-            .checked_add(Duration::from_micros(16600u64))
-            .unwrap();
+	// let _deadline = std::time::Instant::now()
+	//     .checked_add(Duration::from_micros(16600u64))
+	//     .unwrap();
 
         #[cfg(not(target_arch = "wasm32"))]
         egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {

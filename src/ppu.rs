@@ -280,7 +280,7 @@ impl Ppu {
                 tile_id as usize * 16 + (tilemap_tile_y & 7) as usize * 2
             } else {
                 // signed addressing
-		let mut address = 0x1000i32 + (tile_id as i8 as i32 * 16) + (tilemap_tile_y as i32 & 7) * 2;
+		let address = 0x1000i32 + (tile_id as i8 as i32 * 16) + (tilemap_tile_y as i32 & 7) * 2;
                 address as usize 
             };
 
