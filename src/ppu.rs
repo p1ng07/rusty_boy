@@ -1,9 +1,11 @@
 use epaint::Color32;
+use crate::constants::*;
+use crate::cpu::is_bit_set;
 
 use crate::{
-    game_app::{GAME_SCREEN_HEIGHT, GAME_SCREEN_WIDTH},
-    interrupt_handler::{Interrupt, InterruptHandler},
+    interrupt_handler::{Interrupt, InterruptHandler}, constants::{self, BG_WIN_ENABLED_BIT},
 };
+use crate::constants::{GAMEBOY_HEIGHT, GAMEBOY_WIDTH};
 
 // Scanline based rendering of the ppu
 pub struct Ppu {
@@ -19,7 +21,7 @@ pub struct Ppu {
     pub ly: u8,
     pub lyc: u8,
     pub lcdc: u8,
-    pub current_framebuffer: [Color32; GAME_SCREEN_WIDTH * GAME_SCREEN_HEIGHT],
+    pub current_framebuffer: [Color32; GAMEBOY_WIDTH * GAMEBOY_HEIGHT],
     pub lcd_status: u8,
     pub wy: u8, // Window y position
     pub wx: u8, // Window x position + 7
@@ -63,7 +65,7 @@ impl Ppu {
             bgp: 0,
             obp0: 0,
             obp1: 0,
-            current_framebuffer: [Color32::BLUE; GAME_SCREEN_WIDTH * GAME_SCREEN_HEIGHT],
+            current_framebuffer: [Color32::BLACK; GAMEBOY_WIDTH * GAMEBOY_HEIGHT],
         }
     }
 
@@ -72,7 +74,7 @@ impl Ppu {
             self.lcd_status |= 0b0000_0100;
 
             // If the 'ly==lyc' interrupt is enabled, fire it
-            if self.lcd_status & 0b0100_0000 > 0 {
+            if is_bit_set(self.lcd_status, 6){
                 interrupt_handler.request_interrupt(Interrupt::Stat);
             }
         }
@@ -114,22 +116,9 @@ impl Ppu {
         self.vram[address as usize]
     }
 
-    fn is_lcdc_bit_high(&self, lcdc_bit: LCDCBit) -> bool {
-        return match lcdc_bit {
-            LCDCBit::LcdEnabled => self.lcdc & 0x80 > 0,
-            LCDCBit::WindowTileMapArea => self.lcdc & 0x40 > 0,
-            LCDCBit::WindowEnabled => self.lcdc & 0x20 > 0,
-            LCDCBit::BgWinTileDataArea => self.lcdc & 0x10 > 0,
-            LCDCBit::BgTileMapArea => self.lcdc & 0x08 > 0,
-            LCDCBit::ObjSize => self.lcdc & 0x04 > 0,
-            LCDCBit::ObjEnable => self.lcdc & 0x02 > 0,
-            LCDCBit::BgWinEnablePriority => self.lcdc & 0x01 > 0,
-        };
-    }
-
     // Advances the ppu state machine 1 dot forward
     pub fn tick(&mut self, interrupt_handler: &mut InterruptHandler) {
-        if !self.is_lcdc_bit_high(LCDCBit::LcdEnabled) {
+        if !is_bit_set(self.lcdc, constants::LCD_ENABLED_BIT) {
             return;
         }
 
@@ -169,12 +158,12 @@ impl Ppu {
         if self.current_elapsed_dots > 172 {
             self.current_elapsed_dots = 1;
 
-	    if self.is_lcdc_bit_high(LCDCBit::BgWinEnablePriority){
+	    if is_bit_set(self.lcdc, BG_WIN_ENABLED_BIT){
 		self.render_background_current_scanline();
 	    }
 
             // Check if a hblank stat interrupt should fire
-            if self.lcd_status & 0b0000_1000 > 0 {
+            if is_bit_set(self.lcd_status,3){
                 interrupt_handler.request_interrupt(Interrupt::Stat);
             }
 
@@ -195,14 +184,14 @@ impl Ppu {
                 interrupt_handler.request_interrupt(Interrupt::Vblank);
 
                 // Check if a stat interrupt should fire
-                if self.lcd_status & 0b0001_0000 > 0 {
+                if is_bit_set(self.lcd_status, 4){
                     interrupt_handler.request_interrupt(Interrupt::Stat);
                 }
 
                 self.mode = PpuModes::Mode1;
             } else {
                 // Check if a oam scan interrupt should fire
-                if self.lcd_status & 0b0010_0000 > 0 {
+                if is_bit_set(self.lcd_status, 5){
                     interrupt_handler.request_interrupt(Interrupt::Stat);
                 }
 
@@ -212,7 +201,7 @@ impl Ppu {
     }
 
     fn reset_current_framebuffer(&mut self) {
-        self.current_framebuffer = [Color32::DEBUG_COLOR; GAME_SCREEN_WIDTH * GAME_SCREEN_HEIGHT];
+        self.current_framebuffer = [Color32::DEBUG_COLOR; GAMEBOY_WIDTH * GAMEBOY_HEIGHT];
     }
 
     fn vertical_blank(&mut self, interrupt_handler: &mut InterruptHandler) {
@@ -224,7 +213,7 @@ impl Ppu {
             if self.ly > 153 {
                 self.ly = 0;
                 // check if a oam scan interrupt should occur
-                if self.lcd_status & 0b0010_0000 > 0 {
+                if is_bit_set(self.lcd_status, 5){
                     interrupt_handler.request_interrupt(Interrupt::Stat);
                 }
 
@@ -249,15 +238,15 @@ impl Ppu {
 
     // Renders the background of the current scanline
     fn render_background_current_scanline(&mut self) {
-        let bg_tilemap: u16 = if self.is_lcdc_bit_high(LCDCBit::BgTileMapArea) {
+        let bg_tilemap: u16 = if is_bit_set(self.lcdc,BG_TILEMAP_AREA_BIT) {
             0x1C00
         } else {
             0x1800
         };
 
-        let pixel_y = self.ly;
+        let mut pixel_y = self.ly;
 
-        for pixel_x in 0..GAME_SCREEN_WIDTH as u8 {
+        for pixel_x in 0..GAMEBOY_WIDTH as u8 {
             // Get the pixel indexes inside of the tilemap
             let tilemap_pixel_x = pixel_x.wrapping_add(self.scx);
             let tilemap_pixel_y = pixel_y.wrapping_add(self.scy);
@@ -275,7 +264,7 @@ impl Ppu {
             // Actual tile id to be used in tilemap addressing
             let tile_id = self.vram[tile_id_address];
 
-            let row_start_address: usize = if self.is_lcdc_bit_high(LCDCBit::BgWinTileDataArea) {
+            let row_start_address: usize = if is_bit_set(self.lcdc,BG_WIN_TILEDATA_AREA_BIT) {
                 // unsigned addressing
                 tile_id as usize * 16 + (tilemap_tile_y & 7) as usize * 2
             } else {
@@ -297,7 +286,7 @@ impl Ppu {
 		| (tiledata_least_significant_bits >> (7 - x_offset_to_pixel as u32) & 1);
 
             // Paint the current pixel onto the current framebuffer
-            let buffer_index = pixel_x as usize + self.ly as usize * GAME_SCREEN_WIDTH;
+            let buffer_index = pixel_x as usize + self.ly as usize * GAMEBOY_WIDTH;
             self.current_framebuffer[buffer_index] =
                 get_background_color_by_index(color_index, self.bgp);
         }
@@ -336,4 +325,6 @@ fn get_background_color_by_index(color_index: u8, bgp: u8) -> Color32 {
         },
         _ => panic!("Cannot resolve color for index {}", color_index),
     }
+
 }
+

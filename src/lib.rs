@@ -8,3 +8,4 @@ pub mod mmu;
 mod ppu;
 mod serial;
 mod timer;
+pub mod constants;

@@ -11,15 +11,13 @@ use log4rs::{
 use crate::cpu;
 use crate::mbc::{mbc1::Mbc1, no_mbc::NoMbc, Mbc};
 use crate::mmu::Mmu;
-
-pub const GAME_SCREEN_WIDTH: usize = 160;
-pub const GAME_SCREEN_HEIGHT: usize = 144;
+use crate::constants::{GAMEBOY_HEIGHT, GAMEBOY_WIDTH};
 
 pub struct GameBoyApp {
     cpu: Option<cpu::Cpu>,
     paused: bool,
     current_rom_path: Option<String>,
-    game_framebuffer: [Color32; GAME_SCREEN_HEIGHT * GAME_SCREEN_WIDTH],
+    game_framebuffer: [Color32; GAMEBOY_HEIGHT * GAMEBOY_WIDTH],
     game_window_open: bool,
     tile_viewer_open: bool,
 }
@@ -34,7 +32,7 @@ impl GameBoyApp {
             paused: false,
             cpu: None,
             current_rom_path: None,
-            game_framebuffer: [Color32::WHITE; GAME_SCREEN_HEIGHT * GAME_SCREEN_WIDTH],
+            game_framebuffer: [Color32::WHITE; GAMEBOY_HEIGHT * GAMEBOY_WIDTH],
 	    game_window_open: true,
 	    tile_viewer_open: false 
         }
@@ -86,7 +84,7 @@ impl GameBoyApp {
 
     fn render_game_window(&self, ctx: &egui::Context, ui: &mut Ui) {
         // Create the main black image
-        let mut image = ColorImage::new([GAME_SCREEN_WIDTH, GAME_SCREEN_HEIGHT], Color32::BLUE);
+        let mut image = ColorImage::new([GAMEBOY_WIDTH, GAMEBOY_HEIGHT], Color32::BLUE);
 
         // Print the current framebuffer
         image.pixels = self.game_framebuffer.to_vec();

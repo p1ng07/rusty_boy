@@ -326,3 +326,7 @@ fn initialize_cpu_state_defaults(cpu: &mut Cpu) {
     cpu.state = CpuState::NonBoot;
     cpu.mmu.ppu.lcdc = 0b1000_0000;
 }
+
+pub fn is_bit_set(num: u8, bit_index: u8) -> bool{
+    (num >> bit_index) & 1 > 0
+}

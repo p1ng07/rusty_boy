@@ -53,7 +53,7 @@ impl<'a> Mmu {
             0xFE00..=0xFE9F => self.ppu.fetch_oam(address - 0xFE00),
             0xFF00 => self.joypad.byte,
             0xFF01 => self.serial.serial_data_transfer,
-            0xFF02 => self.serial.serial_data_control,
+            0xFF02 => 0,
             0xFF04..=0xFF07 => self.timer.read_byte(address),
             0xFF0F => interrupt_handler.IF,
             0xFF40 => self.ppu.lcdc,

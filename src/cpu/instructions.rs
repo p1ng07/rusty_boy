@@ -1,4 +1,5 @@
 use super::{Cpu, CpuState};
+use crate::cpu::is_bit_set;
 
 #[allow(clippy::self_assignment)]
 impl Cpu {
@@ -86,7 +87,7 @@ impl Cpu {
                 // RLA
                 let old_carry = self.registers.is_carry_flag_high() as u8;
                 self.registers
-                    .set_carry_flag(self.registers.a & 0b1000_0000 > 0);
+                    .set_carry_flag(is_bit_set(self.registers.a, 7));
 
                 self.registers.a = self.registers.a.rotate_left(1);
 
