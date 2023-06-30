@@ -142,9 +142,8 @@ impl Ppu {
     // As this is a scanline-based renderer, it just advances the ppu 1 dot and fires interrupts,
     // no actual drawing is done until the end of mode 3
     fn oam_scan(&mut self) {
-        // OAM scans takes only 79 dots
-        if self.current_elapsed_dots > 80 {
-            self.current_elapsed_dots = 1;
+        // OAM scans takes only 80 dots
+        if self.current_elapsed_dots > 76 {
             self.mode = PpuModes::Mode3;
         }
     }
@@ -155,8 +154,7 @@ impl Ppu {
     fn draw_pixels(&mut self, interrupt_handler: &mut InterruptHandler) {
         // drawing pixels takes 172 dots
         // Change into hblank when that ellapses and render the current line
-        if self.current_elapsed_dots > 172 {
-            self.current_elapsed_dots = 1;
+        if self.current_elapsed_dots > 247 {
 
 	    if is_bit_set(self.lcdc, BG_WIN_ENABLED_BIT){
 		self.render_background_current_scanline();
@@ -175,10 +173,11 @@ impl Ppu {
     // This takes a fixed 204 dots
     // At the end of this mode, we can either go into vblank (if the new scanline is 144) and render the screen, or into another oam scan
     fn horizontal_blank(&mut self, interrupt_handler: &mut InterruptHandler) {
-        if self.current_elapsed_dots > 204 {
-            self.current_elapsed_dots = 1;
-
+        if self.current_elapsed_dots > 451 {
+	    self.current_elapsed_dots = 1;
             self.ly += 1;
+
+	    self.compare_ly_lyc(interrupt_handler);
 
             if self.ly == 144 {
                 interrupt_handler.request_interrupt(Interrupt::Vblank);
@@ -200,13 +199,9 @@ impl Ppu {
         }
     }
 
-    fn reset_current_framebuffer(&mut self) {
-        self.current_framebuffer = [Color32::DEBUG_COLOR; GAMEBOY_WIDTH * GAMEBOY_HEIGHT];
-    }
-
     fn vertical_blank(&mut self, interrupt_handler: &mut InterruptHandler) {
         // vertical blank takes 10 scanlines, 456 dots each
-        if self.current_elapsed_dots > 456 {
+        if self.current_elapsed_dots > 451 {
             self.current_elapsed_dots = 1;
             self.ly += 1;
 

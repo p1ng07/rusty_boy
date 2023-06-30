@@ -1,5 +1,4 @@
 use super::Cpu;
-use crate::cpu::is_bit_set;
 
 impl Cpu {
     pub(crate) fn execute_cb(&mut self) {
@@ -675,7 +674,7 @@ impl Cpu {
 
     fn rr(&mut self, mut reg: u8) -> u8 {
         let old_carry = self.registers.is_carry_flag_high();
-        let new_carry = is_bit_set(reg, 1);
+        let new_carry = reg & 0x1 > 0;
         self.registers.set_carry_flag(new_carry);
         reg >>= 1;
         reg |= (old_carry as u8) << 7;
@@ -686,7 +685,7 @@ impl Cpu {
     }
 
     fn rlc(&mut self, mut reg: u8) -> u8 {
-        let carry = is_bit_set(reg, 7);
+        let carry = reg & 0x80 > 0;
         self.registers.set_carry_flag(carry);
         reg = (reg << 1) | if carry { 1 } else { 0 };
         self.registers.set_zero_flag(reg == 0);
@@ -696,7 +695,7 @@ impl Cpu {
     }
 
     fn rrc(&mut self, mut reg: u8) -> u8 {
-        let carry = is_bit_set(reg, 1);
+        let carry = reg & 0x1 > 0;
         self.registers.set_carry_flag(carry);
         reg = (reg >> 1) | (carry as u8) << 7;
         self.registers.set_zero_flag(reg == 0);
@@ -707,7 +706,7 @@ impl Cpu {
 
     fn rl(&mut self, mut reg: u8) -> u8 {
         let carry = self.registers.is_carry_flag_high() as u8;
-        self.registers.set_carry_flag(is_bit_set(reg, 7));
+        self.registers.set_carry_flag(reg & 0x80 > 0);
 
         reg <<= 1;
         reg &= 0xFE;
@@ -719,7 +718,7 @@ impl Cpu {
     }
 
     fn sla(&mut self, mut reg: u8) -> u8 {
-        let carry = is_bit_set(reg, 7);
+        let carry = reg & 0x80 > 0;
         self.registers.set_carry_flag(carry);
         reg <<= 1;
         self.registers.set_zero_flag(reg == 0);
@@ -730,7 +729,7 @@ impl Cpu {
 
     fn sra(&mut self, mut reg: u8) -> u8 {
         let signal = reg & 0x80;
-        self.registers.set_carry_flag(is_bit_set(reg, 1));
+        self.registers.set_carry_flag(reg & 0x1 > 0);
         reg >>= 1;
         reg &= 0b01111111;
         reg |= signal;
@@ -741,7 +740,7 @@ impl Cpu {
     }
 
     fn srl(&mut self, mut reg: u8) -> u8 {
-        self.registers.set_carry_flag(is_bit_set(reg, 1));
+        self.registers.set_carry_flag(reg & 0x1 > 0);
         reg >>= 1;
         self.registers.set_zero_flag(reg == 0);
         self.registers.set_half_carry_flag(false);

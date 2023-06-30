@@ -56,7 +56,7 @@ impl Mbc for Mbc1 {
             }
             0x2000..=0x3FFF => {
 		self.rom_bank_index = byte as usize & 0x1F;
-		if self.rom_bank_index == 0 {
+		if byte == 0 {
                     self.rom_bank_index = 1;
                 }
             }
@@ -67,6 +67,7 @@ impl Mbc for Mbc1 {
             }
 	    0xA000..=0xBFFF => {
 		if self.ram_enabled{
+		    println!("Writing to ram banks");
 		    if let Some(ref mut ram_bank) = self.ram_banks {
 			if let Some(ref mut bank) = ram_bank.get_mut(self.ram_bank_index & self.ram_bank_index_mask) {
 			    bank[address as usize - 0xA000] = byte;

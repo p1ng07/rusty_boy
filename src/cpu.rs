@@ -1,4 +1,3 @@
-use eframe::glow::CompressedPixelUnpackData;
 use strum::IntoEnumIterator;
 
 use crate::cpu_registers::CpuRegisters;
@@ -122,22 +121,24 @@ impl Cpu {
     // Ticks every component by 4 t-cycles
     fn tick(&mut self) {
         self.delta_t_cycles += 4;
-        self.mmu
-            .timer
-            .step(&self.state, &mut self.interrupt_handler);
 
         // Advance the ppu 4 dots
         self.mmu.ppu.tick(&mut self.interrupt_handler);
         self.mmu.ppu.tick(&mut self.interrupt_handler);
         self.mmu.ppu.tick(&mut self.interrupt_handler);
         self.mmu.ppu.tick(&mut self.interrupt_handler);
+
+        self.mmu
+            .timer
+            .step(&self.state, &mut self.interrupt_handler);
+
     }
 
     fn fetch_byte_pc(&mut self) -> u8 {
+        self.tick();
         let byte = self
             .mmu
             .fetch_byte(self.pc, &self.state, &mut self.interrupt_handler);
-        self.tick();
         self.pc = self.pc.wrapping_add(1);
 
         byte

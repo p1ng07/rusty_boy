@@ -73,7 +73,7 @@ impl GameBoyApp {
 
         cpu.mmu.joypad.update_input(ui, &mut cpu.interrupt_handler);
 
-        // run 69905 t-cycles of cpu work per frame, equating to 4MHz of t-cycles per second
+        // run 70225 t-cycles of cpu work per frame, equating to 4MHz of t-cycles per second
         let mut ran_cycles = 0;
         while ran_cycles < 70225 {
             ran_cycles += cpu.cycle();
