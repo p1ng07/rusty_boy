@@ -290,8 +290,9 @@ impl Ppu {
             let mut tilemap_pixel_y: u8 = pixel_y.wrapping_add(self.scy);
 
 	    let mut tilemap: u16;
+	    // TODO render window
 	    // Render window if all conditions are met, otherwise render background
-	    // if wx_condition && self.wy_condition && is_bit_set(self.lcdc, WINDOW_ENABLED_BIT) && self.wx < 167 {
+	    // if wx_condition && self.wy_condition && self.lcdc & WINDOW_ENABLED_BIT > 0  && pixel_x < 167 {
 	    // 	tilemap_pixel_x = self.wx - 7;
 	    // 	tilemap_pixel_y = self.win_ly;
 	    // 	tilemap = win_tilemap;
@@ -307,7 +308,7 @@ impl Ppu {
             let mut tilemap_tile_y: u8 = tilemap_pixel_y % 32;
 
             let tile_index: u16 = (tilemap_pixel_x / 8) as u16 + (tilemap_pixel_y / 8) as u16 * 32;
-            let tile_id_address = bg_tilemap as usize + tile_index as usize;
+            let tile_id_address = tilemap as usize + tile_index as usize;
 
             // Actual tile id to be used in tilemap addressing
             let tile_id = self.vram[tile_id_address];
@@ -323,17 +324,18 @@ impl Ppu {
 
             // Get the tiledata with the offset to get the data of the line that is being rendered
             // This data represents the whole line that is to be drawn
-            let tiledata_least_significant_bits =
+            let tiledata_lsb =
                 self.vram[row_start_address];
-            let tiledata_most_significant_bits =
+            let tiledata_msb =
                 self.vram[row_start_address + 1];
 
             // Compute the color id of the given pixel
-	    let x_offset_to_pixel: u8 = tilemap_tile_x % 8;
+	    let x_offset: u8 = tilemap_tile_x % 8;
 
 	    // TODO Find a better way to compute the color_index
-	    let color_index = ((tiledata_most_significant_bits >> (6 - x_offset_to_pixel + if (x_offset_to_pixel == 7) {1}else {0})) & 2)
-		| ((tiledata_least_significant_bits >> (7 - x_offset_to_pixel as u32)) & 1);
+	    let lsb = (tiledata_lsb >> (7 - x_offset)) & 1;
+	    let msb = (tiledata_msb >> (7 - x_offset)) & 1;
+	    let color_index = (msb << 1) | lsb;
 
             // Paint the current pixel onto the current framebuffer
             let buffer_index = pixel_x as usize + self.ly as usize * GAMEBOY_WIDTH;
