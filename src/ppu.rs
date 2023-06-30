@@ -25,6 +25,10 @@ pub struct Ppu {
     pub lcd_status: u8,
     pub wy: u8, // Window y position
     pub wx: u8, // Window x position + 7
+    win_ly: u8,
+    wy_condition: bool,
+    stat_requested_on_current_line: bool
+
 }
 
 #[allow(dead_code)]
@@ -54,30 +58,35 @@ impl Ppu {
             oam_ram: [0; 0xA0],
             mode: PpuModes::Mode2,
             current_elapsed_dots: 1,
+            current_framebuffer: [Color32::BLACK; GAMEBOY_WIDTH * GAMEBOY_HEIGHT],
+            lcd_status: 2, // the lcd status will start with in mode 2
             ly: 0,
             lyc: 0,
             lcdc: 0,
-            lcd_status: 2, // the lcd status will start with in mode 2
             scy: 0,
             scx: 0,
             wy: 0,
             wx: 0,
+	    wy_condition: false,
+	    win_ly: 0,
             bgp: 0,
             obp0: 0,
             obp1: 0,
-            current_framebuffer: [Color32::BLACK; GAMEBOY_WIDTH * GAMEBOY_HEIGHT],
-        }
+	    stat_requested_on_current_line: false
+	}
     }
 
+    // TODO dont let stat interrupt be requested more than onec per line
     fn compare_ly_lyc(&mut self, interrupt_handler: &mut InterruptHandler) {
-        if self.ly == self.lyc {
-            self.lcd_status |= 0b0000_0100;
+	if self.ly == self.lyc && !self.stat_requested_on_current_line {
+	    self.lcd_status |= 0b0000_0100;
 
-            // If the 'ly==lyc' interrupt is enabled, fire it
-            if is_bit_set(self.lcd_status, 6){
-                interrupt_handler.request_interrupt(Interrupt::Stat);
-            }
-        }
+	    // If the 'ly==lyc' interrupt is enabled, fire it
+	    if is_bit_set(self.lcd_status, 6){
+		interrupt_handler.request_interrupt(Interrupt::Stat);
+		self.stat_requested_on_current_line = true;
+	    }
+	} 
     }
 
     pub fn fetch_oam(&self, address: u16) -> u8 {
@@ -122,7 +131,6 @@ impl Ppu {
             return;
         }
 
-        self.compare_ly_lyc(interrupt_handler);
         self.current_elapsed_dots += 1;
 
         match self.mode {
@@ -156,9 +164,7 @@ impl Ppu {
         // Change into hblank when that ellapses and render the current line
         if self.current_elapsed_dots > 247 {
 
-	    if is_bit_set(self.lcdc, BG_WIN_ENABLED_BIT){
 		self.render_background_current_scanline();
-	    }
 
             // Check if a hblank stat interrupt should fire
             if is_bit_set(self.lcd_status,3){
@@ -176,8 +182,8 @@ impl Ppu {
         if self.current_elapsed_dots > 451 {
 	    self.current_elapsed_dots = 1;
             self.ly += 1;
-
 	    self.compare_ly_lyc(interrupt_handler);
+
 
             if self.ly == 144 {
                 interrupt_handler.request_interrupt(Interrupt::Vblank);
@@ -186,7 +192,7 @@ impl Ppu {
                 if is_bit_set(self.lcd_status, 4){
                     interrupt_handler.request_interrupt(Interrupt::Stat);
                 }
-
+		self.stat_requested_on_current_line = false;
                 self.mode = PpuModes::Mode1;
             } else {
                 // Check if a oam scan interrupt should fire
@@ -194,7 +200,15 @@ impl Ppu {
                     interrupt_handler.request_interrupt(Interrupt::Stat);
                 }
 
+		self.stat_requested_on_current_line = false;
                 self.mode = PpuModes::Mode2;
+
+		// Check for wy == ly at the start of every mode 2
+		if self.wy_condition == false {
+		    if self.wy == self.ly {
+			self.wy_condition = true;
+		    }
+		}
             }
         }
     }
@@ -207,12 +221,24 @@ impl Ppu {
 
             if self.ly > 153 {
                 self.ly = 0;
+		self.win_ly = 0;
+		
                 // check if a oam scan interrupt should occur
                 if is_bit_set(self.lcd_status, 5){
                     interrupt_handler.request_interrupt(Interrupt::Stat);
                 }
 
+		self.stat_requested_on_current_line = false;
+
                 self.mode = PpuModes::Mode2;
+
+		self.wy_condition = false;
+		// Check for wy == ly at the start of every mode 2
+		if self.wy_condition == false {
+		    if self.wy == self.ly {
+			self.wy_condition = true;
+		    }
+		}
             }
         }
     }
@@ -238,23 +264,43 @@ impl Ppu {
         } else {
             0x1800
         };
+        let win_tilemap: u16 = if is_bit_set(self.lcdc,WINDOW_TILEMAP_AREA_BIT) {
+            0x1C00
+        } else {
+            0x1800
+        };
 
-        let mut pixel_y = self.ly;
+        let pixel_y = self.ly;
+
+	let mut wx_condition = false;
 
         for pixel_x in 0..GAMEBOY_WIDTH as u8 {
+	    if wx_condition == false {
+		wx_condition = self.wx == pixel_x + 7; 
+	    }
+
             // Get the pixel indexes inside of the tilemap
-            let tilemap_pixel_x = pixel_x.wrapping_add(self.scx);
-            let tilemap_pixel_y = pixel_y.wrapping_add(self.scy);
+            let mut tilemap_pixel_x: u8 = pixel_x.wrapping_add(self.scx);
+            let mut tilemap_pixel_y: u8 = pixel_y.wrapping_add(self.scy);
+
+	    let mut tilemap: u16;
+	    // Render window if all conditions are met, otherwise render background
+	    if wx_condition && self.wy_condition && is_bit_set(self.lcdc, WINDOW_ENABLED_BIT) && self.wx < 167 {
+		tilemap_pixel_x = self.wx - 7;
+		tilemap_pixel_y = self.win_ly;
+		tilemap = win_tilemap;
+	    } else {
+		tilemap_pixel_x = pixel_x.wrapping_add(self.scx);
+		tilemap_pixel_y = pixel_y.wrapping_add(self.scy);
+		tilemap = bg_tilemap;
+	    }
 
             // Get the tile indexes inside of the tilemap
 	    // This is in case the background is to be drawn
             let mut tilemap_tile_x: u8 = tilemap_pixel_x % 32;
             let mut tilemap_tile_y: u8 = tilemap_pixel_y % 32;
 
-            let tile_x = tilemap_pixel_x / 8;
-            let tile_y = tilemap_pixel_y / 8;
-
-            let tile_index: u16 = tile_x as u16 + tile_y as u16 * 32;
+            let tile_index: u16 = (tilemap_pixel_x / 8) as u16 + (tilemap_pixel_y / 8) as u16 * 32;
             let tile_id_address = bg_tilemap as usize + tile_index as usize;
 
             // Actual tile id to be used in tilemap addressing
@@ -286,6 +332,10 @@ impl Ppu {
             self.current_framebuffer[buffer_index] =
                 get_background_color_by_index(color_index, self.bgp);
         }
+
+	if wx_condition && self.wy_condition && is_bit_set(self.lcdc, WINDOW_ENABLED_BIT) {
+	    self.win_ly += 1;
+	}
     }
 }
 

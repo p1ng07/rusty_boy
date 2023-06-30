@@ -334,5 +334,5 @@ fn initialize_cpu_state_defaults(cpu: &mut Cpu) {
 }
 
 pub fn is_bit_set(num: u8, bit_index: u8) -> bool{
-    (num >> bit_index) & 1 > 0
+    ((num >> bit_index) & 1) > 0
 }
