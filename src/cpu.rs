@@ -6,7 +6,6 @@ use crate::mmu::Mmu;
 
 #[derive(PartialEq)]
 pub enum CpuState {
-    Boot,
     NonBoot,
     Stopped,
     DMA,
@@ -37,7 +36,7 @@ impl Cpu {
             pc: 0,
             sp: 0,
             mmu,
-            state: CpuState::Boot,
+            state: CpuState::NonBoot,
             delta_t_cycles: 0,
             registers: CpuRegisters::default(),
             interrupt_handler: InterruptHandler::default(),

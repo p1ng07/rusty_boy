@@ -58,7 +58,7 @@ impl Ppu {
             oam_ram: [0; 0xA0],
             mode: PpuModes::Mode2,
             current_elapsed_dots: 1,
-            current_framebuffer: [Color32::BLACK; GAMEBOY_WIDTH * GAMEBOY_HEIGHT],
+            current_framebuffer: [Color32::WHITE; GAMEBOY_WIDTH * GAMEBOY_HEIGHT],
             lcd_status: 2, // the lcd status will start with in mode 2
             ly: 0,
             lyc: 0,
@@ -164,7 +164,9 @@ impl Ppu {
         // Change into hblank when that ellapses and render the current line
         if self.current_elapsed_dots > 247 {
 
+	    if self.lcdc & 1 > 0{
 		self.render_background_current_scanline();
+	    }
 
             // Check if a hblank stat interrupt should fire
             if is_bit_set(self.lcd_status,3){
@@ -181,6 +183,8 @@ impl Ppu {
     fn horizontal_blank(&mut self, interrupt_handler: &mut InterruptHandler) {
         if self.current_elapsed_dots > 451 {
 	    self.current_elapsed_dots = 1;
+
+	    self.compare_ly_lyc(interrupt_handler);
             self.ly += 1;
 	    self.compare_ly_lyc(interrupt_handler);
 
@@ -218,9 +222,11 @@ impl Ppu {
         if self.current_elapsed_dots > 451 {
             self.current_elapsed_dots = 1;
             self.ly += 1;
+	    self.compare_ly_lyc(interrupt_handler);
 
             if self.ly > 153 {
                 self.ly = 0;
+		self.compare_ly_lyc(interrupt_handler);
 		self.win_ly = 0;
 		
                 // check if a oam scan interrupt should occur
@@ -285,15 +291,15 @@ impl Ppu {
 
 	    let mut tilemap: u16;
 	    // Render window if all conditions are met, otherwise render background
-	    if wx_condition && self.wy_condition && is_bit_set(self.lcdc, WINDOW_ENABLED_BIT) && self.wx < 167 {
-		tilemap_pixel_x = self.wx - 7;
-		tilemap_pixel_y = self.win_ly;
-		tilemap = win_tilemap;
-	    } else {
+	    // if wx_condition && self.wy_condition && is_bit_set(self.lcdc, WINDOW_ENABLED_BIT) && self.wx < 167 {
+	    // 	tilemap_pixel_x = self.wx - 7;
+	    // 	tilemap_pixel_y = self.win_ly;
+	    // 	tilemap = win_tilemap;
+	    // } else {
 		tilemap_pixel_x = pixel_x.wrapping_add(self.scx);
 		tilemap_pixel_y = pixel_y.wrapping_add(self.scy);
 		tilemap = bg_tilemap;
-	    }
+	    // }
 
             // Get the tile indexes inside of the tilemap
 	    // This is in case the background is to be drawn
@@ -324,8 +330,10 @@ impl Ppu {
 
             // Compute the color id of the given pixel
 	    let x_offset_to_pixel: u8 = tilemap_tile_x % 8;
-	    let color_index = (tiledata_most_significant_bits >> (6 - x_offset_to_pixel) & 2)
-		| (tiledata_least_significant_bits >> (7 - x_offset_to_pixel as u32) & 1);
+
+	    // TODO Find a better way to compute the color_index
+	    let color_index = ((tiledata_most_significant_bits >> (6 - x_offset_to_pixel + if (x_offset_to_pixel == 7) {1}else {0})) & 2)
+		| ((tiledata_least_significant_bits >> (7 - x_offset_to_pixel as u32)) & 1);
 
             // Paint the current pixel onto the current framebuffer
             let buffer_index = pixel_x as usize + self.ly as usize * GAMEBOY_WIDTH;
