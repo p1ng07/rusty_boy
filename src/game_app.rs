@@ -1,4 +1,4 @@
-use egui::{Ui, TextureFilter, TextureOptions};
+use egui::{TextureFilter, TextureOptions, Ui};
 use epaint::{Color32, ColorImage};
 use log::LevelFilter;
 use log4rs::{
@@ -8,10 +8,10 @@ use log4rs::{
     Config,
 };
 
+use crate::constants::{GAMEBOY_HEIGHT, GAMEBOY_WIDTH};
 use crate::cpu;
 use crate::mbc::{mbc1::Mbc1, no_mbc::NoMbc, Mbc};
 use crate::mmu::Mmu;
-use crate::constants::{GAMEBOY_HEIGHT, GAMEBOY_WIDTH};
 
 pub struct GameBoyApp {
     cpu: Option<cpu::Cpu>,
@@ -33,8 +33,8 @@ impl GameBoyApp {
             cpu: None,
             current_rom_path: None,
             game_framebuffer: [Color32::WHITE; GAMEBOY_HEIGHT * GAMEBOY_WIDTH],
-	    game_window_open: true,
-	    tile_viewer_open: false 
+            game_window_open: true,
+            tile_viewer_open: false,
         }
     }
 
@@ -91,28 +91,27 @@ impl GameBoyApp {
 
         // Change the texture using the created imageDelta
         // ctx.tex_manager().write().set(tex.id(), delta);
-	let mut size = egui::Vec2::new(image.size[0] as f32, image.size[1] as f32);
+        let mut size = egui::Vec2::new(image.size[0] as f32, image.size[1] as f32);
 
-	// Make the image sharper
+        // Make the image sharper
         let mut texture_options = TextureOptions::default();
-	texture_options.magnification = TextureFilter::Nearest;
-	texture_options.minification = TextureFilter::Nearest;
+        texture_options.magnification = TextureFilter::Nearest;
+        texture_options.minification = TextureFilter::Nearest;
 
-        let tex =
-            egui::Context::load_texture(ctx, "main_image", image, texture_options);
+        let tex = egui::Context::load_texture(ctx, "main_image", image, texture_options);
 
-	size *= (ui.available_width() / size.x).max(0.4);
-	// ui.image(&tex, size);
-	ui.image(&tex, size);
+        size *= (ui.available_width() / size.x).max(0.4);
+        // ui.image(&tex, size);
+        ui.image(&tex, size);
     }
 }
 
 impl eframe::App for GameBoyApp {
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
         // Get the time at which a game update should happen
-	// let _deadline = std::time::Instant::now()
-	//     .checked_add(Duration::from_micros(16600u64))
-	//     .unwrap();
+        // let _deadline = std::time::Instant::now()
+        //     .checked_add(Duration::from_micros(16600u64))
+        //     .unwrap();
 
         #[cfg(not(target_arch = "wasm32"))]
         egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
@@ -132,8 +131,8 @@ impl eframe::App for GameBoyApp {
                         frame.close();
                     }
                 });
-		ui.toggle_value(&mut self.game_window_open, "Game window");
-		ui.toggle_value(&mut self.tile_viewer_open, "Tile viewer");
+                ui.toggle_value(&mut self.game_window_open, "Game window");
+                ui.toggle_value(&mut self.tile_viewer_open, "Tile viewer");
             });
         });
 
@@ -154,21 +153,21 @@ impl eframe::App for GameBoyApp {
             }
         });
 
-	if self.game_window_open {
-	    egui::Window::new("Game window")
-		.collapsible(false)
-		.resizable(true)
-		.show(ctx, |ui| {
-		    if let Some(_) = self.cpu {
-			if !self.paused {
-			    self.run_frame(ui);
-			}
+        if self.game_window_open {
+            egui::Window::new("Game window")
+                .collapsible(false)
+                .resizable(true)
+                .show(ctx, |ui| {
+                    if let Some(_) = self.cpu {
+                        if !self.paused {
+                            self.run_frame(ui);
+                        }
 
-			self.render_game_window(ctx, ui);
-		    };
-		});
-	}
-	// Update the context after 16.6 ms (forcing the fps to be 60)
+                        self.render_game_window(ctx, ui);
+                    };
+                });
+        }
+        // Update the context after 16.6 ms (forcing the fps to be 60)
         // ctx.request_repaint_after(deadline.sub(Instant::now()));
         ctx.request_repaint();
     }

@@ -1,3 +1,4 @@
+pub mod constants;
 mod cpu;
 mod cpu_registers;
 pub mod game_app;
@@ -8,4 +9,3 @@ pub mod mmu;
 mod ppu;
 mod serial;
 mod timer;
-pub mod constants;

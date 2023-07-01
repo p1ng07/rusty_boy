@@ -1,6 +1,5 @@
 use super::{no_mbc::KIBI_BYTE, Mbc};
 
-// TODO MBC1 is not behaving correctly
 pub struct Mbc1 {
     ram_enabled: bool,
     ram_bank_index: usize,
@@ -31,15 +30,16 @@ impl Mbc for Mbc1 {
                     return 0xFF;
                 }
 
-		if let Some(ref ram_bank) = self.ram_banks {
-		    if let Some(bank) = ram_bank.get(self.ram_bank_index & self.ram_bank_index_mask) {
-			bank[address as usize - 0xA000]
-		    }else {
-			0xFF
-		    }
-		} else {
-		    0xFF
-		}
+                if let Some(ref ram_bank) = self.ram_banks {
+                    if let Some(bank) = ram_bank.get(self.ram_bank_index & self.ram_bank_index_mask)
+                    {
+                        bank[address as usize - 0xA000]
+                    } else {
+                        0xFF
+                    }
+                } else {
+                    0xFF
+                }
             }
             _ => 0xFF,
         }
@@ -55,25 +55,27 @@ impl Mbc for Mbc1 {
                 }
             }
             0x2000..=0x3FFF => {
-		self.rom_bank_index = byte as usize & 0x1F;
-		if self.rom_bank_index == 0 {
+                self.rom_bank_index = byte as usize & 0x1F;
+                if self.rom_bank_index == 0 {
                     self.rom_bank_index = 1;
                 }
             }
             0x4000..=0x5FFF => {
-		if self.ram_enabled{
-		    self.ram_bank_index = (byte & 0b11) as usize;
-		}
+                if self.ram_enabled {
+                    self.ram_bank_index = (byte & 0b11) as usize;
+                }
             }
-	    0xA000..=0xBFFF => {
-		if self.ram_enabled{
-		    if let Some(ref mut ram_bank) = self.ram_banks {
-			if let Some(ref mut bank) = ram_bank.get_mut(self.ram_bank_index & self.ram_bank_index_mask) {
-			    bank[address as usize - 0xA000] = byte;
-			}
-		    }
-		}
-	    }
+            0xA000..=0xBFFF => {
+                if self.ram_enabled {
+                    if let Some(ref mut ram_bank) = self.ram_banks {
+                        if let Some(ref mut bank) =
+                            ram_bank.get_mut(self.ram_bank_index & self.ram_bank_index_mask)
+                        {
+                            bank[address as usize - 0xA000] = byte;
+                        }
+                    }
+                }
+            }
             _ => (),
         }
     }
@@ -122,39 +124,39 @@ impl Mbc1 {
         }
 
         // Initialize ram based on the size given in the rom
-	let num_ram_banks = match total_rom[0x149]{
+        let num_ram_banks = match total_rom[0x149] {
             2 => 1, // 1 bank of 8 KiB
             3 => 4, // 4 banks of 8 KiB
-	    _ => 0,
-	};
+            _ => 0,
+        };
 
-	let ram_bank_index_mask: usize = match num_ram_banks {
-	    4 => 0b11,
-	    _ => 0,
-	};
+        let ram_bank_index_mask: usize = match num_ram_banks {
+            4 => 0b11,
+            _ => 0,
+        };
 
-	let mut raw_ram_banks: Vec<[u8; 8 * KIBI_BYTE]> = Vec::new();
+        let mut raw_ram_banks: Vec<[u8; 8 * KIBI_BYTE]> = Vec::new();
 
-	// Populate ram banks
-	for _ in 0..num_ram_banks {
-	    let mut ram_bank = [0u8; 8*KIBI_BYTE];
-	    for i in 0..ram_bank.len() {
-		ram_bank[i] = if let Some(x) = total_rom.get(cartridge_total_iterator) {
-		    cartridge_total_iterator += 1;
-		    x.clone()
-		} else {
-		    0
-		};
-	    }
+        // Populate ram banks
+        for _ in 0..num_ram_banks {
+            let mut ram_bank = [0u8; 8 * KIBI_BYTE];
+            for i in 0..ram_bank.len() {
+                ram_bank[i] = if let Some(x) = total_rom.get(cartridge_total_iterator) {
+                    cartridge_total_iterator += 1;
+                    x.clone()
+                } else {
+                    0
+                };
+            }
 
-	    raw_ram_banks.push(ram_bank);
-	}
+            raw_ram_banks.push(ram_bank);
+        }
 
-	let ram_banks = if raw_ram_banks.is_empty() {
-	    None
-	}else{
-	    Some(raw_ram_banks)
-	};
+        let ram_banks = if raw_ram_banks.is_empty() {
+            None
+        } else {
+            Some(raw_ram_banks)
+        };
 
         Self {
             ram_enabled: false,
@@ -163,7 +165,7 @@ impl Mbc1 {
             rom_bank_mask,
             rom_banks,
             ram_banks,
-	    ram_bank_index_mask
+            ram_bank_index_mask,
         }
     }
 }

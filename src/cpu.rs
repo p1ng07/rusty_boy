@@ -30,7 +30,7 @@ mod cb_instructions;
 mod instructions;
 
 impl Cpu {
-    // TODO find a better way to run or not to run bootrom when the cpu starts
+    // TODO Bootrom just isn't being ran, maybe change that
     pub fn new(run_boot: bool, mmu: Mmu) -> Cpu {
         let mut cpu = Cpu {
             pc: 0,
@@ -78,33 +78,30 @@ impl Cpu {
 
         self.execute(first_byte);
 
-	// TODO DMA is fucked
         if self.state == CpuState::DMA {
-	    let cycles = self.delta_t_cycles / 4;
-	    for _ in 0..cycles {
-		// Stop dma when all values have been written to OAM 
-		if self.mmu.dma_iterator > 159 {
-		    self.state = CpuState::NonBoot;
-		    self.mmu.dma_iterator = 0;
-		    break;
-		}
+            let cycles = self.delta_t_cycles / 4;
+            for _ in 0..cycles {
+                // Stop dma when all values have been written to OAM
+                if self.mmu.dma_iterator > 159 {
+                    self.state = CpuState::NonBoot;
+                    self.mmu.dma_iterator = 0;
+                    break;
+                }
 
-		let address: u16 = ((self.mmu.dma_source as u16) << 8) | self.mmu.dma_iterator as u16;
+                let address: u16 =
+                    ((self.mmu.dma_source as u16) << 8) | self.mmu.dma_iterator as u16;
 
-		let dma_byte = self.mmu.fetch_byte(
-		    address,
-		    &self.state,
-		    &mut self.interrupt_handler,
-		);
+                let dma_byte =
+                    self.mmu
+                        .fetch_byte(address, &self.state, &mut self.interrupt_handler);
 
-		let destination = self.mmu.dma_iterator as usize;
+                let destination = self.mmu.dma_iterator as usize;
 
-		// Write the dma transfer byte
-		self.mmu.ppu.oam_ram[destination] = dma_byte;
+                // Write the dma transfer byte
+                self.mmu.ppu.oam_ram[destination] = dma_byte;
 
-		self.mmu.dma_iterator += 1;
-
-	    }
+                self.mmu.dma_iterator += 1;
+            }
         }
 
         // Service interrupts
@@ -130,7 +127,6 @@ impl Cpu {
         self.mmu
             .timer
             .step(&self.state, &mut self.interrupt_handler);
-
     }
 
     fn fetch_byte_pc(&mut self) -> u8 {
@@ -332,6 +328,6 @@ fn initialize_cpu_state_defaults(cpu: &mut Cpu) {
     cpu.mmu.ppu.lcdc = 0b1000_0000;
 }
 
-pub fn is_bit_set(num: u8, bit_index: u8) -> bool{
+pub fn is_bit_set(num: u8, bit_index: u8) -> bool {
     ((num >> bit_index) & 1) > 0
 }
