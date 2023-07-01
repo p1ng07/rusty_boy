@@ -45,10 +45,10 @@ pub enum LCDCBit {
 
 #[allow(dead_code)]
 enum PpuModes {
-    Mode0, // Horizontal blank
-    Mode1, // Vertical Blank
-    Mode2, // OAM Scan
-    Mode3, // Drawing pixels
+    HBlank, // Horizontal blank
+    Vblank, // Vertical Blank
+    OamScan, // OAM Scan
+    DrawPixels, // Drawing pixels
 }
 
 impl Ppu {
@@ -56,7 +56,7 @@ impl Ppu {
         Self {
             vram: [0; 8196],
             oam_ram: [0; 0xA0],
-            mode: PpuModes::Mode2,
+            mode: PpuModes::OamScan,
             current_elapsed_dots: 1,
             current_framebuffer: [Color32::WHITE; GAMEBOY_WIDTH * GAMEBOY_HEIGHT],
             lcd_status: 2, // the lcd status will start with in mode 2
@@ -134,12 +134,12 @@ impl Ppu {
         self.current_elapsed_dots += 1;
 
         match self.mode {
-            PpuModes::Mode2 => self.oam_scan(),
-            PpuModes::Mode3 => self.draw_pixels(interrupt_handler),
-            PpuModes::Mode0 => {
+            PpuModes::OamScan => self.oam_scan(),
+            PpuModes::DrawPixels => self.draw_pixels(interrupt_handler),
+            PpuModes::HBlank => {
                 self.horizontal_blank(interrupt_handler);
             }
-            PpuModes::Mode1 => self.vertical_blank(interrupt_handler),
+            PpuModes::Vblank => self.vertical_blank(interrupt_handler),
         }
 
         self.compare_ly_lyc(interrupt_handler);
@@ -152,7 +152,7 @@ impl Ppu {
     fn oam_scan(&mut self) {
         // OAM scans takes only 80 dots
         if self.current_elapsed_dots > 76 {
-            self.mode = PpuModes::Mode3;
+            self.mode = PpuModes::DrawPixels;
         }
     }
 
@@ -173,7 +173,7 @@ impl Ppu {
                 interrupt_handler.request_interrupt(Interrupt::Stat);
             }
 
-            self.mode = PpuModes::Mode0;
+            self.mode = PpuModes::HBlank;
         }
     }
 
@@ -197,7 +197,8 @@ impl Ppu {
                     interrupt_handler.request_interrupt(Interrupt::Stat);
                 }
 		self.stat_requested_on_current_line = false;
-                self.mode = PpuModes::Mode1;
+
+                self.mode = PpuModes::Vblank;
             } else {
                 // Check if a oam scan interrupt should fire
                 if is_bit_set(self.lcd_status, 5){
@@ -205,11 +206,11 @@ impl Ppu {
                 }
 
 		self.stat_requested_on_current_line = false;
-                self.mode = PpuModes::Mode2;
+                self.mode = PpuModes::OamScan;
 
 		// Check for wy == ly at the start of every mode 2
-		if self.wy_condition == false {
-		    if self.wy == self.ly {
+		if !self.wy_condition {
+		    if self.wy == self.ly && is_bit_set(self.lcdc , WINDOW_ENABLED_BIT){
 			self.wy_condition = true;
 		    }
 		}
@@ -227,7 +228,6 @@ impl Ppu {
             if self.ly > 153 {
                 self.ly = 0;
 		self.compare_ly_lyc(interrupt_handler);
-		self.win_ly = 0;
 		
                 // check if a oam scan interrupt should occur
                 if is_bit_set(self.lcd_status, 5){
@@ -236,15 +236,15 @@ impl Ppu {
 
 		self.stat_requested_on_current_line = false;
 
-                self.mode = PpuModes::Mode2;
+                self.mode = PpuModes::OamScan;
 
 		self.wy_condition = false;
-		// Check for wy == ly at the start of every mode 2
-		if self.wy_condition == false {
-		    if self.wy == self.ly {
-			self.wy_condition = true;
-		    }
-		}
+		self.win_ly = 0;
+		// if self.wy_condition == false {
+		//     if self.wy == self.ly && is_bit_set(self.lcdc, WINDOW_ENABLED_BIT){
+		// 	self.wy_condition = true;
+		//     }
+		// }
             }
         }
     }
@@ -256,10 +256,10 @@ impl Ppu {
     fn update_current_mode_in_lcd_status(&mut self) {
         self.lcd_status &= 0b1111_1100;
         match self.mode {
-            PpuModes::Mode0 => (),
-            PpuModes::Mode1 => self.lcd_status |= 0x1,
-            PpuModes::Mode2 => self.lcd_status |= 0x2,
-            PpuModes::Mode3 => self.lcd_status |= 0x3,
+            PpuModes::HBlank => (),
+            PpuModes::Vblank => self.lcd_status |= 0x1,
+            PpuModes::OamScan => self.lcd_status |= 0x2,
+            PpuModes::DrawPixels => self.lcd_status |= 0x3,
         }
     }
 
@@ -277,36 +277,37 @@ impl Ppu {
         };
 
         let pixel_y = self.ly;
-
-	let mut wx_condition = false;
+	let mut window_was_drawn = false;
 
         for pixel_x in 0..GAMEBOY_WIDTH as u8 {
-	    if wx_condition == false {
-		wx_condition = self.wx == pixel_x + 7; 
-	    }
 
             // Get the pixel indexes inside of the tilemap
-            let mut tilemap_pixel_x: u8 = pixel_x.wrapping_add(self.scx);
-            let mut tilemap_pixel_y: u8 = pixel_y.wrapping_add(self.scy);
+            let mut tilemap_pixel_x: u8;
+            let mut tilemap_pixel_y: u8;
 
 	    let mut tilemap: u16;
-	    // TODO render window
+
+	    // TODO render window, without window the background renders fine
 	    // Render window if all conditions are met, otherwise render background
-	    // if wx_condition && self.wy_condition && self.lcdc & WINDOW_ENABLED_BIT > 0  && pixel_x < 167 {
-	    // 	tilemap_pixel_x = self.wx - 7;
-	    // 	tilemap_pixel_y = self.win_ly;
-	    // 	tilemap = win_tilemap;
-	    // } else {
+	    if is_bit_set(self.lcdc , WINDOW_ENABLED_BIT) && pixel_x + 7 >= self.wx && self.wy_condition {
+		tilemap_pixel_x = pixel_x + 7 - self.wx;
+		tilemap_pixel_y = self.win_ly;
+
+
+		tilemap = win_tilemap;
+		window_was_drawn = true;
+	    } else {
 		tilemap_pixel_x = pixel_x.wrapping_add(self.scx);
 		tilemap_pixel_y = pixel_y.wrapping_add(self.scy);
+
 		tilemap = bg_tilemap;
-	    // }
+	    }
 
             // Get the tile indexes inside of the tilemap
 	    // This is in case the background is to be drawn
-            let mut tilemap_tile_x: u8 = tilemap_pixel_x % 32;
-            let mut tilemap_tile_y: u8 = tilemap_pixel_y % 32;
 
+	    let tilemap_tile_x = tilemap_pixel_x % 32;
+	    let tilemap_tile_y = tilemap_pixel_y % 32;
             let tile_index: u16 = (tilemap_pixel_x / 8) as u16 + (tilemap_pixel_y / 8) as u16 * 32;
             let tile_id_address = tilemap as usize + tile_index as usize;
 
@@ -332,9 +333,9 @@ impl Ppu {
             // Compute the color id of the given pixel
 	    let x_offset: u8 = tilemap_tile_x % 8;
 
-	    // TODO Find a better way to compute the color_index
 	    let lsb = (tiledata_lsb >> (7 - x_offset)) & 1;
 	    let msb = (tiledata_msb >> (7 - x_offset)) & 1;
+	    // TODO use a lookup table for colors instead of this stupid function
 	    let color_index = (msb << 1) | lsb;
 
             // Paint the current pixel onto the current framebuffer
@@ -343,7 +344,7 @@ impl Ppu {
                 get_background_color_by_index(color_index, self.bgp);
         }
 
-	if wx_condition && self.wy_condition && is_bit_set(self.lcdc, WINDOW_ENABLED_BIT) {
+	if window_was_drawn && self.win_ly < 144{
 	    self.win_ly += 1;
 	}
     }
