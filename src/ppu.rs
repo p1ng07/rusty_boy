@@ -363,7 +363,7 @@ impl Ppu {
 
         // Get the indices of up to 10 sprites to be rendered on this line
         for i in (0..self.oam_ram.len()).step_by(4) {
-            let ly = self.oam_ram[i].saturating_sub(16);
+            let (ly, _) = self.oam_ram[i].overflowing_sub(16);
             let obj_size = if is_bit_set(self.lcdc, 2) { 16 } else { 8 };
             if (ly..ly + obj_size).contains(&self.ly) && sprites.len() < 10 {
                 sprites.push((i, &self.oam_ram[i..(i + 4)]));
