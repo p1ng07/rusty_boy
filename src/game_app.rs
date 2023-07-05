@@ -25,8 +25,8 @@ pub struct GameBoyApp {
 impl GameBoyApp {
     /// Called once before the first frame.
     pub fn new(_cc: &eframe::CreationContext<'_>) -> Self {
-        #[cfg(not(target_arch = "wasm32"))]
-        init_file_logger();
+        // #[cfg(not(target_arch = "wasm32"))]
+        // init_file_logger();
 
         Self {
             paused: false,
@@ -73,6 +73,7 @@ impl GameBoyApp {
 
         cpu.mmu.joypad.update_input(ui, &mut cpu.interrupt_handler);
 
+        // TODO Fix this timing, games run too fast
         // run 70225 t-cycles of cpu work per frame, equating to 4MHz of t-cycles per second
         let mut ran_cycles = 0;
         while ran_cycles < 70225 {
@@ -104,6 +105,32 @@ impl GameBoyApp {
         // ui.image(&tex, size);
         ui.image(&tex, size);
     }
+
+    fn dump_vram(&self, vram: [u8; 0xA0]) {
+        for index in (0..vram.len()).step_by(16) {
+            let number = 0x8000u16 + index.to_owned() as u16;
+            log::info!(
+		"{:X} {:02X} {:02X} {:02X} {:02X} {:02X} {:02X} {:02X} {:02X} {:02X} {:02X} {:02X} {:02X} {:02X} {:02X} {:02X} {:02X}",
+		number,
+		vram[index.to_owned() as usize],
+		vram[1 + index.to_owned() as usize],
+		vram[2+ index.to_owned()  as usize],
+		vram[3+ index.to_owned()  as usize],
+		vram[4+ index.to_owned()  as usize],
+		vram[5+ index.to_owned()  as usize],
+		vram[6+ index.to_owned()  as usize],
+		vram[7+ index.to_owned()  as usize],
+		vram[8+ index.to_owned()  as usize],
+		vram[9+ index.to_owned()  as usize],
+		vram[10+ index.to_owned()  as usize],
+		vram[11+ index.to_owned()  as usize],
+		vram[12+ index.to_owned()  as usize],
+		vram[13+ index.to_owned()  as usize],
+		vram[14+ index.to_owned()  as usize],
+		vram[15+ index.to_owned()  as usize],
+	    );
+        }
+    }
 }
 
 impl eframe::App for GameBoyApp {
@@ -128,6 +155,13 @@ impl eframe::App for GameBoyApp {
                         }
                     }
                     if ui.button("Quit").clicked() {
+                        // Dump vram
+
+                        init_file_logger();
+                        match self.cpu.as_ref() {
+                            Some(cpu) => self.dump_vram((*cpu).mmu.ppu.oam_ram),
+                            None => (),
+                        }
                         frame.close();
                     }
                 });

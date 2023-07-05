@@ -10,7 +10,7 @@ use crate::{
 
 // Scanline based rendering of the ppu
 pub struct Ppu {
-    pub vram: [u8; 8196], // 8 kibibytes of vram
+    pub vram: [u8; 0x2000], // 8 kibibytes of vram
     pub oam_ram: [u8; 160],
     mode: PpuModes,
     current_elapsed_dots: u16,
@@ -23,12 +23,13 @@ pub struct Ppu {
     pub lyc: u8,
     pub lcdc: u8,
     pub current_framebuffer: [Color32; GAMEBOY_WIDTH * GAMEBOY_HEIGHT],
+    pub current_framebuffer_bg_indices: [u8; GAMEBOY_WIDTH * GAMEBOY_HEIGHT],
     pub lcd_status: u8,
     pub wy: u8, // Window y position
     pub wx: u8, // Window x position + 7
     win_ly: u8,
     wy_condition: bool,
-    bg_color_lookup_table: [Color32; 4],
+    color_lookup_table: [Color32; 4],
     stat_requested_on_current_line: bool,
 }
 
@@ -55,11 +56,12 @@ enum PpuModes {
 impl Ppu {
     pub fn new() -> Ppu {
         Self {
-            vram: [0; 8196],
+            vram: [0; 0x2000],
             oam_ram: [0; 0xA0],
             mode: PpuModes::OamScan,
             current_elapsed_dots: 1,
-            current_framebuffer: [Color32::WHITE; GAMEBOY_WIDTH * GAMEBOY_HEIGHT],
+            current_framebuffer: [Color32::from_rgb(155, 188, 15); GAMEBOY_WIDTH * GAMEBOY_HEIGHT],
+            current_framebuffer_bg_indices: [5; GAMEBOY_WIDTH * GAMEBOY_HEIGHT],
             lcd_status: 2, // the lcd status will start with in mode 2
             ly: 0,
             lyc: 0,
@@ -74,11 +76,11 @@ impl Ppu {
             obp0: 0,
             obp1: 0,
             stat_requested_on_current_line: false,
-            bg_color_lookup_table: [
-                Color32::WHITE,
-                Color32::LIGHT_GRAY,
-                Color32::DARK_GRAY,
-                Color32::BLACK,
+            color_lookup_table: [
+                Color32::from_rgb(155, 188, 15),
+                Color32::from_rgb(139, 172, 15),
+                Color32::from_rgb(48, 98, 48),
+                Color32::from_rgb(15, 56, 15),
             ],
         }
     }
@@ -173,7 +175,9 @@ impl Ppu {
                 self.render_background();
             }
 
-            self.render_sprites();
+            if is_bit_set(self.lcdc, 1) {
+                self.render_sprites();
+            }
 
             // Check if a hblank stat interrupt should fire
             if is_bit_set(self.lcd_status, 3) {
@@ -338,11 +342,14 @@ impl Ppu {
 
             let buffer_index = pixel_x as usize + self.ly as usize * GAMEBOY_WIDTH;
 
-            let color_lookup = self.bg_color_lookup_table
-                [(self.bgp as usize >> (color_index * 2)) & 0b11 as usize];
+            let color_lookup =
+                self.color_lookup_table[(self.bgp as usize >> (color_index * 2)) & 0b11 as usize];
 
             // Paint the current pixel onto the current framebuffer
             self.current_framebuffer[buffer_index] = color_lookup;
+
+            // Save the used bg/win color index
+            self.current_framebuffer_bg_indices[buffer_index] = color_index;
         }
 
         if window_was_drawn && self.win_ly < 144 {
@@ -350,5 +357,105 @@ impl Ppu {
         }
     }
 
-    fn render_sprites(&mut self) {}
+    fn render_sprites(&mut self) {
+        // Vector of tuples (index, sprite) that saves the sprites on the current scanline
+        let mut sprites: Vec<(usize, &[u8])> = Vec::new();
+
+        // Get the indices of up to 10 sprites to be rendered on this line
+        for i in (0..self.oam_ram.len()).step_by(4) {
+            let ly = self.oam_ram[i].saturating_sub(16);
+            let obj_size = if is_bit_set(self.lcdc, 2) { 16 } else { 8 };
+            if (ly..ly + obj_size).contains(&self.ly) && sprites.len() < 10 {
+                sprites.push((i, &self.oam_ram[i..(i + 4)]));
+            }
+        }
+
+        /* Sprites are going to be drawn back to front
+        Sprites with lower x coord have higher priority
+        If two sprites have the same x coord, then the sprite
+        with the lower oam index is draw over the sprite with high oam index*/
+
+        /* Sort the array and put the higher indices first (lower priority objects) */
+        sprites.sort_by(|a, b| b.0.cmp(&a.0));
+
+        /* Sort the array again but this time by the x coord, and put the lower priority objects first */
+        sprites.sort_by(|a, b| b.1[1].cmp(&a.1[1]));
+
+        for sprite in sprites.iter() {
+            let obj_size: usize = if is_bit_set(self.lcdc, 2) { 16 } else { 8 };
+            let obj_y = sprite.1[0];
+            let obj_x = sprite.1[1];
+
+            // For 8x16 sprites, the bit 0 of tile_index should be ignored
+            let tile_index = if obj_size == 8 {
+                sprite.1[2] as usize
+            } else {
+                sprite.1[2] as usize & 0xFE
+            };
+            let attributes = sprite.1[3];
+
+            let horizontal_flip = is_bit_set(attributes, 5);
+            let vertical_flip = is_bit_set(attributes, 6);
+
+            // If the object pixel is off screen, don't draw it
+            if obj_x == 0 || obj_x >= 168 {
+                continue;
+            }
+            for pixel_x in obj_x - 8..obj_x {
+                let mut tilemap_tile_y = self.ly as usize + 16 - obj_y as usize;
+
+                if vertical_flip {
+                    tilemap_tile_y =
+                        obj_size as usize - 1 - (self.ly as usize + 16 - obj_y as usize) % obj_size;
+                }
+
+                let row_start_address = tilemap_tile_y * 2 + tile_index * 16;
+
+                let mut lsb = self.vram[row_start_address];
+                let mut msb = self.vram[row_start_address + 1];
+                let mut x_offset: u8 = (pixel_x - obj_x) % 8;
+
+                if horizontal_flip {
+                    x_offset = 7 - (pixel_x - obj_x) % 8;
+                }
+
+                lsb = (lsb >> (7 - x_offset)) & 1;
+                msb = (msb >> (7 - x_offset)) & 1;
+
+                let color_index = (msb << 1) | lsb;
+
+                let mut buffer_index = pixel_x as usize + self.ly as usize * GAMEBOY_WIDTH;
+
+                let palette = if is_bit_set(attributes, 4) {
+                    self.obp1
+                } else {
+                    self.obp0
+                } as usize;
+                let color_lookup =
+                    self.color_lookup_table[(palette >> (color_index * 2)) & 0b11 as usize];
+
+                // Don't paint the current pixel if it's transparent
+                if color_index != 0 {
+                    if !is_bit_set(attributes, 7) {
+                        // If there isn't any kind of bg/win priority, just draw it
+                        self.current_framebuffer[buffer_index] = color_lookup;
+                    } else {
+                        // If bg/win colors 1-3 has priority over the current sprite, we need to check if the used color_index was 0
+                        if self.current_framebuffer_bg_indices[buffer_index] == 0 {
+                            self.current_framebuffer[buffer_index] = color_lookup;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    pub(crate) fn write_lcdc(&mut self, byte: u8) {
+        // If the ppu has been turned off, reset it
+        self.lcdc = byte;
+
+        if !is_bit_set(self.lcdc, 7) {
+            self.lcd_status &= 0b1111_1100;
+        }
+    }
 }

@@ -8,6 +8,7 @@ pub struct Joypad {
     pub byte: u8,
 }
 
+// TODO joypad is broken, probably because this code sucks
 impl Joypad {
     // Updates the interal byte represetation of the input, returns true if a key has been pressed
     pub fn update_input(&mut self, ui: &Ui, interrupt_handler: &mut InterruptHandler) {

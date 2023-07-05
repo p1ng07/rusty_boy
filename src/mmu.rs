@@ -111,7 +111,7 @@ impl<'a> Mmu {
             0xFF02 => self.serial.serial_data_control = received_byte,
             0xFF04..=0xFF07 => self.timer.write_byte(address, received_byte),
             0xFF0F => interrupt_handler.IF = received_byte,
-            0xFF40 => self.ppu.lcdc = received_byte,
+            0xFF40 => self.ppu.write_lcdc(received_byte),
             0xFF41 => self.ppu.write_to_lcd_status(received_byte),
             0xFF42 => self.ppu.scy = received_byte,
             0xFF43 => self.ppu.scx = received_byte,
