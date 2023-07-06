@@ -107,8 +107,8 @@ impl<'a> Mmu {
             }
             0xFE00..=0xFE9F => self.ppu.write_oam(address - 0xFE00, received_byte),
             0xFF00 => self.joypad.write_to_byte(received_byte, interrupt_handler),
-            0xFF01 => self.serial.write_to_transfer(received_byte),
-            0xFF02 => self.serial.serial_data_control = received_byte,
+            0xFF01 => self.serial.write_to_transfer(interrupt_handler, received_byte),
+            0xFF02 => self.serial.write_to_control(received_byte, interrupt_handler),
             0xFF04..=0xFF07 => self.timer.write_byte(address, received_byte),
             0xFF0F => interrupt_handler.IF = received_byte,
             0xFF40 => self.ppu.write_lcdc(received_byte),
