@@ -155,13 +155,6 @@ impl eframe::App for GameBoyApp {
                         }
                     }
                     if ui.button("Quit").clicked() {
-                        // Dump vram
-
-                        init_file_logger();
-                        match self.cpu.as_ref() {
-                            Some(cpu) => self.dump_vram((*cpu).mmu.ppu.oam_ram),
-                            None => (),
-                        }
                         frame.close();
                     }
                 });
@@ -172,6 +165,11 @@ impl eframe::App for GameBoyApp {
 
         egui::SidePanel::left("side_panel").show(ctx, |ui| {
             ui.toggle_value(&mut self.paused, "Pause");
+	    let text = match self.cpu.as_ref() {
+		Some(x) => format!("Joypad {:X}", x.mmu.joypad.byte),
+		None => "".to_owned(),
+	    };
+	    ui.label(text);
 
             if self.paused {
                 if ui.button("Step Frame").clicked() {

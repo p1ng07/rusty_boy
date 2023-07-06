@@ -50,10 +50,10 @@ impl Timer {
         self.delta_cycles_tima += elapsed_cycles;
         if self.delta_cycles_tima >= threshold {
             self.delta_cycles_tima -= threshold;
-            let added_timer_counter = self.timer_counter.wrapping_add(1);
+            let (added_timer_counter, overflow) = self.timer_counter.overflowing_add(1);
 
             // Check for overflow
-            if added_timer_counter < self.timer_counter {
+            if overflow {
                 // There was an overflow, fire interrupt and reset to timer_modulo
                 interrupt_handler.request_interrupt(Interrupt::Timer);
                 self.timer_counter = self.timer_modulo;

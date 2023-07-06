@@ -22,7 +22,7 @@ pub struct Mmu {
 
 impl<'a> Mmu {
     pub fn fetch_byte(
-        &self,
+        &mut self,
         address: u16,
         cpu_state: &CpuState,
         interrupt_handler: &mut InterruptHandler,
@@ -106,7 +106,7 @@ impl<'a> Mmu {
                 self.wram_0[local_address] = received_byte;
             }
             0xFE00..=0xFE9F => self.ppu.write_oam(address - 0xFE00, received_byte),
-            0xFF00 => self.joypad.write_to_byte(received_byte),
+            0xFF00 => self.joypad.write_to_byte(received_byte, interrupt_handler),
             0xFF01 => self.serial.write_to_transfer(received_byte),
             0xFF02 => self.serial.serial_data_control = received_byte,
             0xFF04..=0xFF07 => self.timer.write_byte(address, received_byte),
@@ -142,7 +142,7 @@ impl<'a> Mmu {
             wram_0: [0x00; 0x2000],
             wram_n: [0x00; 0x2000],
             ppu: Ppu::new(),
-            joypad: Joypad::default(),
+            joypad: Joypad::new(),
             serial: Serial::default(),
             timer: Timer::default(),
             dma_iterator: 0,
