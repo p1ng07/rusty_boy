@@ -398,7 +398,7 @@ impl Ppu {
             let vertical_flip = is_bit_set(attributes, 6);
 
             // If the object pixel is off screen, don't draw it
-            if obj_x == 0 || obj_x >= 168 {
+            if obj_x < 8 || obj_x >= 168 {
                 continue;
             }
             for pixel_x in obj_x - 8..obj_x {
