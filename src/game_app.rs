@@ -165,10 +165,6 @@ impl eframe::App for GameBoyApp {
 
         egui::SidePanel::left("side_panel").show(ctx, |ui| {
             ui.toggle_value(&mut self.paused, "Pause");
-	    let text = match self.cpu.as_ref() {
-		Some(x) => format!("Joypad {:X}", x.mmu.joypad.byte),
-		None => "".to_owned(),
-	    };
 	    ui.label(text);
 
             if self.paused {

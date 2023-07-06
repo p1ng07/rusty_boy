@@ -18,9 +18,9 @@ pub struct Timer {
     delta_cycles_div: i32,
     delta_cycles_tima: i32,
     pub divider: u8,
-    timer_counter: u8,
+    pub timer_counter: u8,
     timer_modulo: u8,
-    timer_control: u8,
+    pub timer_control: u8,
 }
 
 impl Timer {

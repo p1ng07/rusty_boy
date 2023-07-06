@@ -250,11 +250,11 @@ impl Ppu {
 
                 self.wy_condition = false;
                 self.win_ly = 0;
-                // if self.wy_condition == false {
-                //     if self.wy == self.ly && is_bit_set(self.lcdc, WINDOW_ENABLED_BIT){
-                // 	self.wy_condition = true;
-                //     }
-                // }
+                if !self.wy_condition{
+                    if self.wy == self.ly && is_bit_set(self.lcdc, WINDOW_ENABLED_BIT){
+                	self.wy_condition = true;
+                    }
+                }
             }
         }
     }
