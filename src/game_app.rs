@@ -8,7 +8,7 @@ use log4rs::{
     Config,
 };
 
-use crate::constants::{GAMEBOY_HEIGHT, GAMEBOY_WIDTH};
+use crate::{constants::{GAMEBOY_HEIGHT, GAMEBOY_WIDTH}, mbc::{mbc3::Mbc3, mbc5::Mbc5}};
 use crate::cpu;
 use crate::mbc::{mbc1::Mbc1, no_mbc::NoMbc, Mbc};
 use crate::mmu::Mmu;
@@ -53,6 +53,8 @@ impl GameBoyApp {
         let mbc = match mbc_type_code {
             0 => Box::new(NoMbc::new(total_rom)) as Box<dyn Mbc>,
             1 | 2 | 3 => Box::new(Mbc1::new(total_rom)) as Box<dyn Mbc>,
+	    15..=19 => Box::new(Mbc3::new(total_rom)) as Box<dyn Mbc>,
+	    0x19..=0x1E => Box::new(Mbc5::new(total_rom)) as Box<dyn Mbc>,
             _ => {
                 println!("Mbc with code {:X} is not yet implemented", mbc_type_code);
                 return None;

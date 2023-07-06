@@ -32,12 +32,15 @@ impl Joypad {
 	if !is_bit_set(self.byte, 4) && !is_bit_set(self.byte, 5) {
 	    self.byte = 0b1100_0000;
 	    self.byte |= !(self.group_action & self.group_direction);
+	    if self.byte == 0b1100_1111 {self.byte = 0xFF;}
 	} else if !is_bit_set(self.byte, 4) {
 	    self.byte = 0b1110_0000;
 	    self.byte |= !self.group_direction;
+	    if self.byte == 0b1110_1111 {self.byte = 0xFF;}
 	} else if !is_bit_set(self.byte, 5) {
 	    self.byte = 0b1101_0000;
 	    self.byte |= !self.group_action;
+	    if self.byte == 0b1101_1111 {self.byte = 0xFF;}
 	}
 	self.byte = 0xFF;
 	self.group_action = 0;
@@ -47,47 +50,38 @@ impl Joypad {
 	// All of the next operations are done in reverse, at the end of the function the byte is flipped
 	// PS: This is some non ugly code but the raylib_handle.get_key_pressed() was not returning the key if it was held down
 	// interrupt_handler.request_interrupt(Interrupt::Joypad);
-	if ui.input(|i| i.key_pressed(egui::Key::D)) {
+	if ui.input(|i| i.key_down(egui::Key::D)) {
 	    // Right button
 	    self.group_direction |= p10_mask;
 	}
-	if ui.input(|i| i.key_pressed(egui::Key::A)) {
+	if ui.input(|i| i.key_down(egui::Key::A)) {
 	    // Left button
 	    self.group_direction |= p11_mask;
 	}
-	if ui.input(|i| i.key_pressed(egui::Key::W)) {
+	if ui.input(|i| i.key_down(egui::Key::W)) {
 	    // High button
 	    self.group_direction |= p12_mask;
 	}
-	if ui.input(|i| i.key_pressed(egui::Key::S)) {
+	if ui.input(|i| i.key_down(egui::Key::S)) {
 	    // Down button
 	    self.group_direction |= p13_mask;
 	}
 
-	if ui.input(|i| i.key_pressed(egui::Key::K)) {
+	if ui.input(|i| i.key_down(egui::Key::K)) {
 	    // A button
 	    self.group_action |= p10_mask;
 	}
-	else if ui.input(|i| i.key_pressed(egui::Key::J)) {
+	if ui.input(|i| i.key_down(egui::Key::J)) {
 	    // B button
 	    self.group_action |= p11_mask;
 	}
-	else if ui.input(|i| i.key_pressed(egui::Key::U)) {
+	if ui.input(|i| i.key_down(egui::Key::U)) {
 	    //Select button
 	    self.group_action |= p12_mask;
 	}
-	else if ui.input(|i| i.key_pressed(egui::Key::I)) {
+	if ui.input(|i| i.key_down(egui::Key::I)) {
 	    //Start button
 	    self.group_action |= p13_mask;
-	}
-
-	if !is_bit_set(self.byte, 4) {
-	    self.byte = 0b1110_1111;
-	    self.byte ^= self.group_direction;
-	} else if !is_bit_set(self.byte, 5) {
-	    // Poll action buttons
-	    self.byte = 0b1101_1111;
-	    self.byte ^= self.group_action;
 	}
     }
 
