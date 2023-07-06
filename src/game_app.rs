@@ -165,7 +165,6 @@ impl eframe::App for GameBoyApp {
 
         egui::SidePanel::left("side_panel").show(ctx, |ui| {
             ui.toggle_value(&mut self.paused, "Pause");
-	    ui.label(text);
 
             if self.paused {
                 if ui.button("Step Frame").clicked() {
