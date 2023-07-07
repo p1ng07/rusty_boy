@@ -80,6 +80,14 @@ impl Mbc for Mbc3 {
             _ => (),
         }
     }
+    
+    fn get_rom_banks(&self) -> Vec<[u8; 16 * KIBI_BYTE]> {
+        self.rom_banks.clone()
+    }
+
+    fn get_ram_banks(&self) -> Option<Vec<[u8; 8 * KIBI_BYTE]>> {
+	self.ram_banks.clone()
+    }
 }
 
 impl Mbc3 {

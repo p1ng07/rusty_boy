@@ -53,7 +53,7 @@ impl GameBoyApp {
         let mbc = match mbc_type_code {
             0 => Box::new(NoMbc::new(total_rom)) as Box<dyn Mbc>,
             1 | 2 | 3 => Box::new(Mbc1::new(total_rom)) as Box<dyn Mbc>,
-	    15..=19 => Box::new(Mbc3::new(total_rom)) as Box<dyn Mbc>,
+	    0xF..=0x13 => Box::new(Mbc3::new(total_rom)) as Box<dyn Mbc>,
 	    0x19..=0x1E => Box::new(Mbc5::new(total_rom)) as Box<dyn Mbc>,
             _ => {
                 println!("Mbc with code {:X} is not yet implemented", mbc_type_code);
@@ -156,6 +156,9 @@ impl eframe::App for GameBoyApp {
                             self.cpu = self.load_rom();
                         }
                     }
+		    if ui.button("Save state").clicked() {
+			save_state(&self.cpu);
+		    }
                     if ui.button("Quit").clicked() {
                         frame.close();
                     }
@@ -202,8 +205,25 @@ impl eframe::App for GameBoyApp {
     }
 
     /// Called by the frame work to save state before shutdown.
-    fn save(&mut self, _storage: &mut dyn eframe::Storage) {}
+    fn save(&mut self, _storage: &mut dyn eframe::Storage) {
+	save_state(&self.cpu);
+    }
 }
+
+fn save_state(cpu: &Option<cpu::Cpu>) {
+    let mmu = match cpu.as_ref() {
+	Some(x) => &x.mmu,
+	None => return
+    };
+
+    let rom_banks = mmu.mbc.get_rom_banks();
+    let ram_banks = mmu.mbc.get_ram_banks();
+    // let rfd = rfd::FileDialog::new()
+    // 	.set_file_name("Yes.sav").add_filter("Save state", &["sav"]).save_file();
+
+    // TODO add saving the rom + ram into a .sav file
+}
+
 
 fn init_file_logger() {
     let logfile = FileAppender::builder()

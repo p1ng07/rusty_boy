@@ -1,3 +1,5 @@
+use std::ops::Shl;
+
 use super::{no_mbc::KIBI_BYTE, Mbc};
 
 pub struct Mbc5 {
@@ -5,7 +7,7 @@ pub struct Mbc5 {
     ram_bank_index: usize,
     rom_bank_index: usize,
     rom_bank_extra_bit: usize,
-    rom_bank_mask: u16, // Used to mask the value written to the rom bank register
+    rom_bank_mask: usize, // Used to mask the value written to the rom bank register
     ram_bank_index_mask: usize,
     rom_banks: Vec<[u8; 16 * KIBI_BYTE]>,
     ram_banks: Option<Vec<[u8; 8 * KIBI_BYTE]>>,
@@ -16,11 +18,10 @@ impl Mbc for Mbc5 {
         match address {
             ..=0x3FFF => self.rom_banks[0][address as usize], // Reading rom bank 0
             0x4000..=0x7FFF => {
-		let index = ((self.rom_bank_extra_bit & 1) << 8) | (self.rom_bank_index & self.rom_bank_mask as usize);
-                if let Some(ref rom_bank) = self
-                    .rom_banks
-                    .get(index)
+		let index = self.rom_bank_extra_bit.shl(8) | self.rom_bank_index;
+                if let Some(rom_bank) = self.rom_banks.get(index & self.rom_bank_mask)
                 {
+		    let rom_bank: [u8; 16 * KIBI_BYTE] = *rom_bank;
                     rom_bank[address as usize - 0x4000]
                 } else {
                     panic!("{} rom bank", self.rom_bank_index);
@@ -60,7 +61,7 @@ impl Mbc for Mbc5 {
                 self.rom_bank_index = byte as usize;
             }
 	    0x3000..=0x3FFF => {
-		self.rom_bank_extra_bit = byte as usize;
+		self.rom_bank_extra_bit = byte as usize & 1;
 	    },
             0x4000..=0x5FFF => {
                 if self.ram_enabled {
@@ -81,11 +82,18 @@ impl Mbc for Mbc5 {
             _ => (),
         }
     }
+    fn get_rom_banks(&self) -> Vec<[u8; 16 * KIBI_BYTE]> {
+        self.rom_banks.clone()
+    }
+
+    fn get_ram_banks(&self) -> Option<Vec<[u8; 8 * KIBI_BYTE]>> {
+	self.ram_banks.clone()
+    }
 }
 
 impl Mbc5 {
     pub fn new(total_rom: Vec<u8>) -> Self {
-        let num_of_banks = match total_rom[0x148] {
+        let num_of_banks: usize = match total_rom[0x148] {
             0 => 2,
             1 => 4,
             2 => 8,
@@ -102,16 +110,16 @@ impl Mbc5 {
 
         let mut rom_banks: Vec<[u8; 16 * KIBI_BYTE]> = Vec::with_capacity(num_of_banks);
 
-        let rom_bank_mask = match num_of_banks {
-            2 => 1u16,
-            4 => 0b11u16,
-            8 => 0b111u16,
-            16 => 0b1111u16,
-            32 => 0b1_1111u16,
-            64 => 0b11_1111u16,
-            128 => 0b111_1111u16,
-            256 => 0b1111_1111u16,
-            512 => 0b1111_1111u16,
+        let rom_bank_mask:usize = match num_of_banks {
+            2 => 1,
+            4 => 0b11,
+            8 => 0b111,
+            16 => 0b1111,
+            32 => 0b1_1111,
+            64 => 0b11_1111,
+            128 => 0b111_1111,
+            256 => 0b1111_1111,
+            512 => 0b1_1111_1111,
             _ => panic!("{} is not a valid rom bank number.", num_of_banks),
         };
 
@@ -173,7 +181,7 @@ impl Mbc5 {
         Self {
             ram_enabled: false,
             ram_bank_index: 0,
-            rom_bank_index: 0,
+            rom_bank_index: 1,
 	    rom_bank_extra_bit: 0,
             rom_bank_mask,
             rom_banks,

@@ -10,7 +10,7 @@ use crate::timer::Timer;
 pub struct Mmu {
     hram: [u8; 0x7F],
     pub joypad: Joypad,
-    mbc: Box<dyn Mbc>,
+    pub mbc: Box<dyn Mbc>,
     pub timer: Timer,
     pub ppu: Ppu,
     serial: Serial,

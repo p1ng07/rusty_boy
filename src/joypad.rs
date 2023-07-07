@@ -32,15 +32,15 @@ impl Joypad {
 	if !is_bit_set(self.byte, 4) && !is_bit_set(self.byte, 5) {
 	    self.byte = 0b1100_0000;
 	    self.byte |= !(self.group_action & self.group_direction);
-	    if self.byte == 0b1100_1111 {self.byte = 0xFF;}
+	    // if self.byte == 0b1100_1111 {self.byte = 0xFF;}
 	} else if !is_bit_set(self.byte, 4) {
 	    self.byte = 0b1110_0000;
 	    self.byte |= !self.group_direction;
-	    if self.byte == 0b1110_1111 {self.byte = 0xFF;}
+	    // if self.byte == 0b1110_1111 {self.byte = 0xFF;}
 	} else if !is_bit_set(self.byte, 5) {
 	    self.byte = 0b1101_0000;
 	    self.byte |= !self.group_action;
-	    if self.byte == 0b1101_1111 {self.byte = 0xFF;}
+	    // if self.byte == 0b1101_1111 {self.byte = 0xFF;}
 	}
 	self.byte = 0xFF;
 	self.group_action = 0;
