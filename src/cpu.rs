@@ -23,6 +23,8 @@ pub struct Cpu {
     pub interrupt_handler: InterruptHandler,
     registers: CpuRegisters,
     delta_t_cycles: i32, // t-cycles performed in the current instruction
+    halt_bug: bool,
+    enable_interrupts_next_tick: bool
 }
 
 // Instructions and cb-prefixed instructions are on separate files
@@ -39,7 +41,9 @@ impl Cpu {
             state: CpuState::NonBoot,
             delta_t_cycles: 0,
             registers: CpuRegisters::default(),
-            interrupt_handler: InterruptHandler::default(),
+            interrupt_handler: InterruptHandler::new(),
+	    halt_bug: false,
+	    enable_interrupts_next_tick: false
         };
 
         // Skip the bootrom, and go straight to running the program
@@ -54,8 +58,10 @@ impl Cpu {
         // Print state of emulator to logger
         self.log_to_file();
 
+	
         if self.state == CpuState::Halt {
             self.tick();
+
             // If there are interrupts pending, and it is possible to service them, disable halt mode
             if self.interrupt_handler.IF & self.interrupt_handler.IE > 0 {
                 self.state = CpuState::NonBoot;
@@ -77,6 +83,14 @@ impl Cpu {
         // to tick the machine 1 m-cycle forward)
 
         self.execute(first_byte);
+
+	// Check for halt bug
+	if self.state == CpuState::Halt {
+	    if !self.interrupt_handler.enabled && (self.interrupt_handler.IE & self.interrupt_handler.IF) & 0x1F > 0 {
+		self.state = CpuState::NonBoot;
+		self.halt_bug = true;
+	    }
+	}
 
         if self.state == CpuState::DMA {
             let cycles = self.delta_t_cycles / 4;
@@ -127,6 +141,11 @@ impl Cpu {
         self.mmu
             .timer
             .step(&self.state, &mut self.interrupt_handler);
+
+	if self.enable_interrupts_next_tick {
+	    self.interrupt_handler.enabled = true;
+	    self.enable_interrupts_next_tick = false;
+	}
     }
 
     fn fetch_byte_pc(&mut self) -> u8 {
@@ -134,7 +153,12 @@ impl Cpu {
         let byte = self
             .mmu
             .fetch_byte(self.pc, &self.state, &mut self.interrupt_handler);
-        self.pc = self.pc.wrapping_add(1);
+
+	self.pc = self.pc.wrapping_add(1);
+	if self.halt_bug {
+	    self.pc -= 1;
+	    self.halt_bug = false;
+	}
 
         byte
     }

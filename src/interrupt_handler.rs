@@ -33,7 +33,6 @@ impl Interrupt {
 }
 
 #[allow(non_snake_case)]
-#[derive(Default)]
 pub struct InterruptHandler {
     pub enabled: bool,
     pub IF: u8, // Interrupts flags
@@ -42,6 +41,15 @@ pub struct InterruptHandler {
 
 #[allow(dead_code)]
 impl InterruptHandler {
+
+    pub fn new () -> Self {
+	Self {
+	enabled: false,
+	    IF: 0b1110_0000,
+	    IE: 0b1110_0000
+	}
+	
+    }
     // Changes the IF register depending on which interrupt was requested
     pub fn request_interrupt(&mut self, interrupt: Interrupt) {
         self.IF |= interrupt.mask();

@@ -768,7 +768,7 @@ impl Cpu {
                         .fetch_byte(word, &self.state, &mut self.interrupt_handler);
                 self.tick();
             }
-            0xFB => self.interrupt_handler.enabled = true,
+            0xFB => self.enable_interrupts_next_tick = true,
             0xFE => {
                 let number = self.fetch_byte_pc();
                 self.registers.cp_u8(number);

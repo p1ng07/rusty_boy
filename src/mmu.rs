@@ -110,7 +110,10 @@ impl<'a> Mmu {
             0xFF01 => self.serial.write_to_transfer(interrupt_handler, received_byte),
             0xFF02 => self.serial.write_to_control(received_byte, interrupt_handler),
             0xFF04..=0xFF07 => self.timer.write_byte(address, received_byte),
-            0xFF0F => interrupt_handler.IF = received_byte,
+            0xFF0F => {
+		interrupt_handler.IF = received_byte & 0x1F;
+		interrupt_handler.IF |= 0b1110_0000;
+	    }
             0xFF40 => self.ppu.write_lcdc(received_byte),
             0xFF41 => self.ppu.write_to_lcd_status(received_byte),
             0xFF42 => self.ppu.scy = received_byte,
@@ -130,7 +133,10 @@ impl<'a> Mmu {
             0xFF80..=0xFFFE => {
                 self.hram[(address - 0xFF80) as usize] = received_byte;
             }
-            0xFFFF => interrupt_handler.IE = received_byte,
+            0xFFFF => {
+		interrupt_handler.IE = received_byte & 0x1F;
+		interrupt_handler.IE |= 0b1110_0000;
+	    },
             _ => (),
         };
     }
