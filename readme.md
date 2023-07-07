@@ -8,8 +8,11 @@ A: k
 
 # TODO
 
-1. MBC3 and MBC5
-2. Fix timer
-3. Cpu information window
-4. Memory viewer
-5. Halt bug
+1. Better timer
+2. Halt bug
+3. Turn into a gameboy color
+4. 2x and 4x speed
+5. Cpu information window
+6. Memory viewer
+7. Save states
+8. Quick reloading of save states
