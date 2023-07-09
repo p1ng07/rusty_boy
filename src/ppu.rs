@@ -1,3 +1,5 @@
+use std::ops::Rem;
+
 use crate::constants::*;
 use crate::cpu::is_bit_set;
 use epaint::Color32;
@@ -398,7 +400,7 @@ impl Ppu {
             let vertical_flip = is_bit_set(attributes, 6);
 
             // If the object pixel is off screen, don't draw it
-            if obj_x < 8 || obj_x >= 168 {
+            if obj_x == 0 || obj_x >= 168 {
                 continue;
             }
             for pixel_x in obj_x - 8..obj_x {
@@ -413,10 +415,10 @@ impl Ppu {
 
                 let mut lsb = self.vram[row_start_address];
                 let mut msb = self.vram[row_start_address + 1];
-                let mut x_offset: u8 = (pixel_x - obj_x) % 8;
+                let mut x_offset: u8 = pixel_x.wrapping_sub(obj_x) % 8;
 
                 if horizontal_flip {
-                    x_offset = 7 - (pixel_x - obj_x) % 8;
+                    x_offset = 7u8.saturating_sub(pixel_x.wrapping_sub(obj_x).rem(8));
                 }
 
                 lsb = (lsb >> (7 - x_offset)) & 1;
