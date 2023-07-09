@@ -60,6 +60,12 @@ impl Cpu {
 
 	
         if self.state == CpuState::Halt {
+	    // Check for halt bug right after halt is executed and before the cpu ticks
+	    if !self.interrupt_handler.enabled && (self.interrupt_handler.IE & self.interrupt_handler.IF) & 0x1F > 0 {
+		self.state = CpuState::NonBoot;
+		self.halt_bug = true;
+	    }
+	    
             self.tick();
 
             // If there are interrupts pending, and it is possible to service them, disable halt mode
@@ -86,10 +92,6 @@ impl Cpu {
 
 	// Check for halt bug
 	if self.state == CpuState::Halt {
-	    if !self.interrupt_handler.enabled && (self.interrupt_handler.IE & self.interrupt_handler.IF) & 0x1F > 0 {
-		self.state = CpuState::NonBoot;
-		self.halt_bug = true;
-	    }
 	}
 
         if self.state == CpuState::DMA {

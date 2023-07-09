@@ -48,6 +48,7 @@ impl GameBoyApp {
             Err(_) => return None,
         };
 
+	// TODO make these code checks length safe
         let mbc_type_code = total_rom[0x147];
 
         let mbc = match mbc_type_code {

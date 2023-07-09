@@ -149,7 +149,7 @@ impl<'a> Mmu {
             wram_n: [0x00; 0x2000],
             ppu: Ppu::new(),
             joypad: Joypad::new(),
-            serial: Serial::default(),
+            serial: Serial::new(),
             timer: Timer::default(),
             dma_iterator: 0,
             dma_source: 0,

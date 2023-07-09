@@ -2,7 +2,6 @@ use std::io::Write;
 
 use crate::{interrupt_handler::{self, InterruptHandler, Interrupt}, cpu::is_bit_set};
 
-#[derive(Default)]
 pub struct Serial {
     pub serial_data_transfer: u8,
     pub serial_data_control: u8,
