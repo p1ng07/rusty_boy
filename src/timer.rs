@@ -15,7 +15,7 @@ use crate::interrupt_handler::{Interrupt, InterruptHandler};
 //            11: CPU Clock / 256  (DMG, SGB2, CGB Single Speed Mode:  16384 Hz, SGB1:
 #[derive(Default)]
 pub struct Timer {
-    delta_cycles_div: i32,
+    pub delta_cycles_div: i32,
     delta_cycles_tima: i32,
     pub divider: u8,
     pub timer_counter: u8,

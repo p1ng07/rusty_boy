@@ -51,7 +51,8 @@ impl Cpu {
             registers: CpuRegisters::default(),
             interrupt_handler: InterruptHandler::new(),
 	    halt_bug: false,
-	    enable_interrupts_next_tick: false
+	    enable_interrupts_next_tick: false,
+            double_speed_delta_counter: 0,
         };
 
         // Skip the bootrom, and go straight to running the program
@@ -145,7 +146,7 @@ impl Cpu {
 	// While in double speed, the ppu operates at it's normal frequency
 	// If the cpu is in double speed mode, every 8 'fast' t-cycles, we cycle the ppu by 4 t-cycles
 	// If the cpu is in normal speed mode, just tick 4 t-cycles for every 4 t-cycles
-	if  !is_bit_set(self.mmu.key1, 7) || (is_bit_set(self.mmu.key1, 7) && self.double_speed_delta_counter.rem(2) == 0) {
+	if  !is_bit_set(self.mmu.key1, 7) || (is_bit_set(self.mmu.key1, 7) && self.double_speed_delta_counter % 2 == 0) {
 	    self.mmu.ppu.tick(&mut self.interrupt_handler);
 	    self.mmu.ppu.tick(&mut self.interrupt_handler);
 	    self.mmu.ppu.tick(&mut self.interrupt_handler);

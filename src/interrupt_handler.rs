@@ -50,6 +50,11 @@ impl InterruptHandler {
 	}
 	
     }
+
+    pub fn is_interrupt_pending(&self) -> bool {
+	self.IF & self.IE > 0
+    }
+
     // Changes the IF register depending on which interrupt was requested
     pub fn request_interrupt(&mut self, interrupt: Interrupt) {
         self.IF |= interrupt.mask();

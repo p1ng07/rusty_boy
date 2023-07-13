@@ -1,4 +1,4 @@
-use super::{Cpu, CpuState};
+use super::{Cpu, CpuState, is_bit_set};
 
 #[allow(clippy::self_assignment)]
 impl Cpu {
@@ -60,6 +60,61 @@ impl Cpu {
                 self.registers.set_carry_flag(least_bit > 0);
                 self.registers.a = (self.registers.a >> 1) | least_bit << 7;
             }
+	    0x10 => {
+		// STOP Instruction
+		// Weird stop flowchart
+		// Source: https://twitter.com/liji32/status/1412131307501625353
+		if self.mmu.joypad.byte & 0xF == 0xF {
+		    // Button is not held nor selected
+
+		    if !is_bit_set(self.mmu.key1, 0) {
+			// Speed switch wasn't requested
+
+			if self.interrupt_handler.is_interrupt_pending() {
+			    // STOP is 1 byte opcode
+			    // Stop mode is entered, div is reset
+
+			    // FIXME: The emulator has no concept of stop mode
+			    // Stop mode is a mode in which the gameboy goes black until a button was pressed
+
+			} else {
+			    // STOP is 2 byte opcode
+			    // Stop mode is entered, div is reset
+			    let _ = self.fetch_byte_pc();
+			}
+			self.mmu.timer.delta_cycles_div = 0;
+		    } else {
+			// Speed switch was requested
+			if self.interrupt_handler.is_interrupt_pending() {
+			    // Interrupt is pending with speed switch requested
+
+			    if self.interrupt_handler.enabled {
+				// CPU glitches like a mad man
+				self.pc = 0x235;
+			    } else {
+				// CPU speed changes 
+				self.mmu.key1 ^= 0x80;
+				self.double_speed_delta_counter = 0;
+			    }
+			} else {
+			    // Interrupt is not pending with speed switch requested
+			    // STOP is a 2 byte opcode, halt is entered and div is reset
+			    let _ = self.fetch_byte_pc();
+			    self.state = CpuState::Halt;
+			    self.mmu.timer.delta_cycles_div = 0;
+			    
+			}
+		    }
+		} else {
+		    // Button is held and selected
+
+		    if !self.interrupt_handler.is_interrupt_pending() {
+			// STOP is 2-byte opcode, HALT is entered
+			let _ = self.fetch_byte_pc();
+			self.state = CpuState::Halt;
+		    }
+		}
+	    }
             0x11 => {
                 let word = self.fetch_word();
                 self.registers.set_de(word);
