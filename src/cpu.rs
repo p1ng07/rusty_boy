@@ -24,7 +24,15 @@ pub struct Cpu {
     registers: CpuRegisters,
     delta_t_cycles: i32, // t-cycles performed in the current instruction
     halt_bug: bool,
-    enable_interrupts_next_tick: bool
+    enable_interrupts_next_tick: bool,
+
+    /* Used to count 2 'fast' double speed cycles 
+    Every time we tick 1 'fast' m-cycle this gets incremented
+    And every 2 increments of this we tick the ppu by 1 'normal' m-cycle
+    Because the ppu does not run on double frequency like the cpu or timer
+     */
+    double_speed_delta_counter: u8, 
+    // 
 }
 
 // Instructions and cb-prefixed instructions are on separate files
@@ -134,16 +142,24 @@ impl Cpu {
     fn tick(&mut self) {
         self.delta_t_cycles += 4;
 
-        // Advance the ppu 4 dots
-        self.mmu.ppu.tick(&mut self.interrupt_handler);
-        self.mmu.ppu.tick(&mut self.interrupt_handler);
-        self.mmu.ppu.tick(&mut self.interrupt_handler);
-        self.mmu.ppu.tick(&mut self.interrupt_handler);
+	// While in double speed, the ppu operates at it's normal frequency
+	// If the cpu is in double speed mode, every 8 'fast' t-cycles, we cycle the ppu by 4 t-cycles
+	// If the cpu is in normal speed mode, just tick 4 t-cycles for every 4 t-cycles
+	if  !is_bit_set(self.mmu.key1, 7) || (is_bit_set(self.mmu.key1, 7) && self.double_speed_delta_counter.rem(2) == 0) {
+	    self.mmu.ppu.tick(&mut self.interrupt_handler);
+	    self.mmu.ppu.tick(&mut self.interrupt_handler);
+	    self.mmu.ppu.tick(&mut self.interrupt_handler);
+	    self.mmu.ppu.tick(&mut self.interrupt_handler);
+	}
+
+	// Advance the double speed delta counter by 1 m-cycle
+	self.double_speed_delta_counter = self.double_speed_delta_counter.wrapping_add(1);
 
         self.mmu
             .timer
             .step(&self.state, &mut self.interrupt_handler);
 
+	// Delayed EI instruction
 	if self.enable_interrupts_next_tick {
 	    self.interrupt_handler.enabled = true;
 	    self.enable_interrupts_next_tick = false;

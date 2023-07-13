@@ -18,9 +18,10 @@ pub struct Mmu {
     wram_n: [u8; 0x2000],
     pub dma_iterator: u8,
     pub dma_source: u8,
+    pub key1: u8           // Prepare speed switch control register
 }
 
-impl<'a> Mmu {
+impl Mmu {
     pub fn fetch_byte(
         &mut self,
         address: u16,
@@ -153,6 +154,7 @@ impl<'a> Mmu {
             timer: Timer::default(),
             dma_iterator: 0,
             dma_source: 0,
+            key1: 0,
         }
     }
 

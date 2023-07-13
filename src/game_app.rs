@@ -8,7 +8,7 @@ use log4rs::{
     Config,
 };
 
-use crate::{constants::{GAMEBOY_HEIGHT, GAMEBOY_WIDTH}, mbc::{mbc3::Mbc3, mbc5::Mbc5}};
+use crate::{constants::{GAMEBOY_HEIGHT, GAMEBOY_WIDTH}, mbc::{mbc3::Mbc3, mbc5::Mbc5}, cpu::is_bit_set};
 use crate::cpu;
 use crate::mbc::{mbc1::Mbc1, no_mbc::NoMbc, Mbc};
 use crate::mmu::Mmu;
@@ -48,6 +48,11 @@ impl GameBoyApp {
             Err(_) => return None,
         };
 
+	// IF true, the game supports gbc enhancements
+	// IF false, the game is DMG only and needs
+	// a default palette
+	println!("Color bit: {}", total_rom[0x143] & 0x80 > 0);
+
 	// TODO make these code checks length safe
         let mbc_type_code = total_rom[0x147];
 
@@ -79,7 +84,10 @@ impl GameBoyApp {
         // TODO Fix this timing, games run too fast
         // run 70225 t-cycles of cpu work per frame, equating to 4MHz of t-cycles per second
         let mut ran_cycles = 0;
-        while ran_cycles < 70225 {
+
+	let cycle_limit = 70225 * if is_bit_set(cpu.mmu.key1, 7) {2} else {1};
+	// Run a frame of cpu clocks, if the cpu is in double speed mode, run double those cycles
+        while ran_cycles < cycle_limit {
             ran_cycles += cpu.cycle();
         }
 
