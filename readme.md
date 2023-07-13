@@ -23,11 +23,9 @@ A: k
 
 # Gameboy color
 
-1. Add switch speed
-2. HDMA
-3. WRAM Banking
-4. VRAM Banking
-5. Background Map attributes
-6. BG-OBJ priority fix (don't forget bit 0 of LCDC)
-7. Palette arrays and adding default bg and obj's palettes to these arrays
-8. Pass cgb-acid2
+1. HDMA
+2. VRAM Banking
+3. Background Map attributes
+4. BG-OBJ priority fix (don't forget bit 0 of LCDC)
+5. Palette arrays and adding default bg and obj's palettes to these arrays
+6. Pass cgb-acid2
