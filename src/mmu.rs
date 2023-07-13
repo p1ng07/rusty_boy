@@ -127,6 +127,7 @@ impl Mmu {
             0xFF49 => self.ppu.obp1 = received_byte,
             0xFF4A => self.ppu.wy = received_byte,
             0xFF4B => self.ppu.wx = received_byte,
+            0xFF4F => self.ppu.vram_bank_index = received_byte & 0x1,
             0xFF50 => {
                 if received_byte > 0 {
                     *cpu_state = CpuState::NonBoot

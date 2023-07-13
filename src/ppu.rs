@@ -12,7 +12,9 @@ use crate::{
 
 // Scanline based rendering of the ppu
 pub struct Ppu {
-    pub vram: [u8; 0x2000], // 8 kibibytes of vram
+    pub vram_0: [u8; 0x2000], // 8 kibibytes of vram
+    pub vram_1: [u8; 0x2000], // 8 kibibytes of vram
+    pub vram_bank_index: usize,
     pub oam_ram: [u8; 160],
     mode: PpuModes,
     current_elapsed_dots: u16,
@@ -58,7 +60,6 @@ enum PpuModes {
 impl Ppu {
     pub fn new() -> Ppu {
         Self {
-            vram: [0; 0x2000],
             oam_ram: [0; 0xA0],
             mode: PpuModes::OamScan,
             current_elapsed_dots: 1,
@@ -84,6 +85,9 @@ impl Ppu {
                 Color32::from_rgb(48, 98, 48),
                 Color32::from_rgb(15, 56, 15),
             ],
+            vram_0: [0; 0x2000],
+            vram_1: [0; 0x2000],
+            vram_bank_index: 0,
         }
     }
 
@@ -123,7 +127,11 @@ impl Ppu {
         //     PpuModes::Mode3 => (),
         //     _ => self.vram[address as usize] = byte
         // }
-        self.vram[address as usize] = byte;
+	if self.vram_bank_index == 0 {
+	    self.vram_0[address as usize] = byte;
+	}else {
+	    self.vram_1[address as usize] = byte;
+	}
     }
 
     pub fn fetch_vram(&self, address: u16) -> u8 {
@@ -132,7 +140,11 @@ impl Ppu {
         //     PpuModes::Mode3 => 0xFF,
         //     _ =>
         // }
-        self.vram[address as usize]
+	if self.vram_bank_index == 0 {
+	    self.vram_0[address as usize]
+	}else {
+	    self.vram_1[address as usize]
+	}
     }
 
     // Advances the ppu state machine 1 dot forward
