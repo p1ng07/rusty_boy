@@ -374,13 +374,23 @@ impl Ppu {
 
             let buffer_index = pixel_x as usize + self.ly as usize * GAMEBOY_WIDTH;
 
-            let color_lookup =
-                self.color_lookup_table[(self.bgp as usize >> (color_index * 2)) & 0b11 as usize];
+	    // Start of the ram location of the color to be used
+	    let color_lsb_index = (tile_attributes & 0b111) as usize * 8 + color_index as usize * 2;
+
+	    // Get the xbbbbbgg gggrrrrr color format in a unique number;
+	    let color_rgb555 = self.bg_color_ram[color_lsb_index] as u16 | ((self.bg_color_ram[color_lsb_index + 1] as u16) << 8);
+
+	    let red = (color_rgb555 & 0b1_1111) as u8;
+	    let green = ((color_rgb555 >> 5) & 0b1_1111) as u8;
+	    let blue = ((color_rgb555 >> 10) & 0b1_1111) as u8;
+
+	    let color = Color32::from_rgb((red << 3) | (red >> 2), (green << 3) | (green >> 2), (blue << 3) | (blue >> 2));
 
             // Paint the current pixel onto the current framebuffer
-            self.current_framebuffer[buffer_index] = color_lookup;
+            self.current_framebuffer[buffer_index] = color;
 
             // Save the used bg/win color index
+	    // TODO: Fix background to OAM priority
             self.current_framebuffer_bg_indices[buffer_index] = color_index;
         }
 
@@ -500,12 +510,13 @@ impl Ppu {
     }
 
     pub(crate) fn write_sprite_palette_data(&mut self, received_byte: u8) {
-	self.sprite_color_ram[self.sprite_palette_index] = received_byte;
+	self.sprite_color_ram[self.sprite_palette_index & 0x3F] = received_byte;
 
+	let increment_bit = self.sprite_palette_index & 0x80;
 	if is_bit_set(self.sprite_palette_index as u8, 7) {
 	    self.sprite_palette_index += 1;
-	    if self.sprite_palette_index > 0x3F {
-		self.sprite_palette_index = 0;
+	    if self.sprite_palette_index & 0b0111_1111 > 0b11_1111 {
+		self.sprite_palette_index = increment_bit;
 	    }
 	}
     }
