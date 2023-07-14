@@ -6,7 +6,7 @@ use epaint::Color32;
 
 use crate::constants::{GAMEBOY_HEIGHT, GAMEBOY_WIDTH};
 use crate::{
-    constants::{self, BG_WIN_ENABLED_BIT},
+    constants,
     interrupt_handler::{Interrupt, InterruptHandler},
 };
 
@@ -195,11 +195,8 @@ impl Ppu {
         // drawing pixels takes 172 dots
         // Change into hblank when that ellapses and render the current line
         if self.current_elapsed_dots > 247 {
-            if is_bit_set(self.lcdc, 0) {
-                self.render_background();
-            }
-
-            if is_bit_set(self.lcdc, 1) {
+	    self.render_background();
+	    if is_bit_set(self.lcdc, 1) {
                 self.render_sprites();
             }
 
@@ -332,14 +329,20 @@ impl Ppu {
 
             // Get the tile indexes inside of the tilemap
             // This is in case the background is to be drawn
-
             let tilemap_tile_x = tilemap_pixel_x % 32;
-            let tilemap_tile_y = tilemap_pixel_y % 32;
+            let mut tilemap_tile_y = tilemap_pixel_y % 32;
             let tile_index: u16 = (tilemap_pixel_x / 8) as u16 + (tilemap_pixel_y / 8) as u16 * 32;
+
             let tile_id_address = tilemap as usize + tile_index as usize;
 
             // Actual tile id to be used in tilemap addressing
             let tile_id = self.vram_0[tile_id_address];
+            let tile_attributes = self.vram_1[tile_id_address];
+
+	    // Vertical flip background tile
+	    if is_bit_set(tile_attributes, 6) {
+		tilemap_tile_y = 7u8 - (pixel_y as u8 % 8);
+	    }
 
             let row_start_address: usize = if is_bit_set(self.lcdc, BG_WIN_TILEDATA_AREA_BIT) {
                 // unsigned addressing
@@ -353,11 +356,16 @@ impl Ppu {
 
             // Get the tiledata with the offset to get the data of the line that is being rendered
             // This data represents the whole line that is to be drawn
-            let tiledata_lsb = self.vram_0[row_start_address];
-            let tiledata_msb = self.vram_0[row_start_address + 1];
+	    let tiledata_lsb = if is_bit_set(tile_attributes, 3) {self.vram_1[row_start_address]} else {self.vram_0[row_start_address]};
+	    let tiledata_msb = if is_bit_set(tile_attributes, 3) {self.vram_1[row_start_address + 1]} else {self.vram_0[row_start_address + 1]};
 
             // Compute the color id of the given pixel
-            let x_offset: u8 = tilemap_tile_x % 8;
+            let mut x_offset: u8 = tilemap_tile_x % 8;
+
+	    // Horizontal flip background tile
+	    if is_bit_set(tile_attributes, 5) {
+		x_offset = 7u8.saturating_sub(tilemap_tile_x % 8);
+	    }
 
             let lsb = (tiledata_lsb >> (7 - x_offset)) & 1;
             let msb = (tiledata_msb >> (7 - x_offset)) & 1;
@@ -448,7 +456,7 @@ impl Ppu {
 
                 let color_index = (msb << 1) | lsb;
 
-                let mut buffer_index = pixel_x as usize + self.ly as usize * GAMEBOY_WIDTH;
+                let buffer_index = pixel_x as usize + self.ly as usize * GAMEBOY_WIDTH;
 
                 let palette = if is_bit_set(attributes, 4) {
                     self.obp1
@@ -502,8 +510,8 @@ impl Ppu {
 	}
     }
 
-    pub(crate) fn write_bg_palette_data(&self, received_byte: u8) {
-	self.bg_color_ram[self.bg_palette_index] = received_byte;
+    pub(crate) fn write_bg_palette_data(&mut self, received_byte: u8) {
+	self.bg_color_ram[self.bg_palette_index & 0x3F] = received_byte;
 
 	if is_bit_set(self.bg_palette_index as u8, 7) {
 	    self.bg_palette_index += 1;

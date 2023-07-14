@@ -117,31 +117,31 @@ impl GameBoyApp {
         ui.image(&tex, size);
     }
 
-    fn dump_vram(&self, vram: [u8; 0xA0]) {
-        for index in (0..vram.len()).step_by(16) {
-            let number = 0x8000u16 + index.to_owned() as u16;
-            log::info!(
-		"{:X} {:02X} {:02X} {:02X} {:02X} {:02X} {:02X} {:02X} {:02X} {:02X} {:02X} {:02X} {:02X} {:02X} {:02X} {:02X} {:02X}",
-		number,
-		vram[index.to_owned() as usize],
-		vram[1 + index.to_owned() as usize],
-		vram[2+ index.to_owned()  as usize],
-		vram[3+ index.to_owned()  as usize],
-		vram[4+ index.to_owned()  as usize],
-		vram[5+ index.to_owned()  as usize],
-		vram[6+ index.to_owned()  as usize],
-		vram[7+ index.to_owned()  as usize],
-		vram[8+ index.to_owned()  as usize],
-		vram[9+ index.to_owned()  as usize],
-		vram[10+ index.to_owned()  as usize],
-		vram[11+ index.to_owned()  as usize],
-		vram[12+ index.to_owned()  as usize],
-		vram[13+ index.to_owned()  as usize],
-		vram[14+ index.to_owned()  as usize],
-		vram[15+ index.to_owned()  as usize],
-	    );
-        }
-    }
+    // fn dump_vram(&self, vram: [u8; 0xA0]) {
+    //     for index in (0..vram.len()).step_by(16) {
+    //         let number = 0x8000u16 + index.to_owned() as u16;
+    //         log::info!(
+    // 		"{:X} {:02X} {:02X} {:02X} {:02X} {:02X} {:02X} {:02X} {:02X} {:02X} {:02X} {:02X} {:02X} {:02X} {:02X} {:02X} {:02X}",
+    // 		number,
+    // 		vram[index.to_owned() as usize],
+    // 		vram[1 + index.to_owned() as usize],
+    // 		vram[2+ index.to_owned()  as usize],
+    // 		vram[3+ index.to_owned()  as usize],
+    // 		vram[4+ index.to_owned()  as usize],
+    // 		vram[5+ index.to_owned()  as usize],
+    // 		vram[6+ index.to_owned()  as usize],
+    // 		vram[7+ index.to_owned()  as usize],
+    // 		vram[8+ index.to_owned()  as usize],
+    // 		vram[9+ index.to_owned()  as usize],
+    // 		vram[10+ index.to_owned()  as usize],
+    // 		vram[11+ index.to_owned()  as usize],
+    // 		vram[12+ index.to_owned()  as usize],
+    // 		vram[13+ index.to_owned()  as usize],
+    // 		vram[14+ index.to_owned()  as usize],
+    // 		vram[15+ index.to_owned()  as usize],
+    // 	    );
+    //     }
+    // }
 }
 
 impl eframe::App for GameBoyApp {
@@ -225,8 +225,8 @@ fn save_state(cpu: &Option<cpu::Cpu>) {
 	None => return
     };
 
-    let rom_banks = mmu.mbc.get_rom_banks();
-    let ram_banks = mmu.mbc.get_ram_banks();
+    let _rom_banks = mmu.mbc.get_rom_banks();
+    let _ram_banks = mmu.mbc.get_ram_banks();
     // let rfd = rfd::FileDialog::new()
     // 	.set_file_name("Yes.sav").add_filter("Save state", &["sav"]).save_file();
 

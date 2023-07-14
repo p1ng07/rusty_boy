@@ -20,7 +20,7 @@ impl Joypad {
 	}
     }
     // Updates the interal byte represetation of the input, returns true if a key has been pressed
-    pub fn update_input(&mut self, ui: &Ui, interrupt_handler: &mut InterruptHandler) {
+    pub fn update_input(&mut self, ui: &Ui, _interrupt_handler: &mut InterruptHandler) {
 	// let p15_mask = 0b0010_0000;
 	// let p14_mask = 0b0001_0000;
 	let p13_mask = 0b0000_1000;

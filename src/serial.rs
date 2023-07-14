@@ -1,6 +1,4 @@
-use std::io::Write;
-
-use crate::{interrupt_handler::{self, InterruptHandler, Interrupt}, cpu::is_bit_set};
+use crate::{interrupt_handler::{InterruptHandler, Interrupt}, cpu::is_bit_set};
 
 pub struct Serial {
     pub serial_data_transfer: u8,
@@ -18,7 +16,7 @@ impl Serial {
 	    current_word: String::new()
 	}
     }
-    pub fn write_to_transfer(&mut self, interrupt_handler: &mut InterruptHandler, data: u8) {
+    pub fn write_to_transfer(&mut self, _interrupt_handler: &mut InterruptHandler, _data: u8) {
     }
 
     pub(crate) fn write_to_control(&mut self, received_byte: u8, interrupt_handler: &mut InterruptHandler) {

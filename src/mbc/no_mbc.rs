@@ -2,8 +2,6 @@
 // Up to 32 KiB of rom (with no rom banks)
 // Optional up to 8KiB of RAM
 
-use std::array;
-
 use super::Mbc;
 
 pub const KIBI_BYTE: usize = 1024;
