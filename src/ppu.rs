@@ -35,6 +35,11 @@ pub struct Ppu {
     wy_condition: bool,
     color_lookup_table: [Color32; 4],
     stat_requested_on_current_line: bool,
+
+    pub bg_color_ram: [u8; 64],
+    pub sprite_color_ram: [u8; 64],
+    pub bg_palette_index: usize,
+    pub sprite_palette_index: usize,
 }
 
 #[allow(dead_code)]
@@ -59,6 +64,7 @@ enum PpuModes {
 
 impl Ppu {
     pub fn new() -> Ppu {
+	// TODO add default palettes for games that don't set palettes like DMG ones
         Self {
             oam_ram: [0; 0xA0],
             mode: PpuModes::OamScan,
@@ -88,6 +94,10 @@ impl Ppu {
             vram_0: [0; 0x2000],
             vram_1: [0; 0x2000],
             vram_bank_index: 0,
+            bg_color_ram: [0; 64],
+            sprite_color_ram: [0; 64],
+            bg_palette_index: 0,
+            sprite_palette_index: 0,
         }
     }
 
@@ -329,7 +339,7 @@ impl Ppu {
             let tile_id_address = tilemap as usize + tile_index as usize;
 
             // Actual tile id to be used in tilemap addressing
-            let tile_id = self.vram[tile_id_address];
+            let tile_id = self.vram_0[tile_id_address];
 
             let row_start_address: usize = if is_bit_set(self.lcdc, BG_WIN_TILEDATA_AREA_BIT) {
                 // unsigned addressing
@@ -343,8 +353,8 @@ impl Ppu {
 
             // Get the tiledata with the offset to get the data of the line that is being rendered
             // This data represents the whole line that is to be drawn
-            let tiledata_lsb = self.vram[row_start_address];
-            let tiledata_msb = self.vram[row_start_address + 1];
+            let tiledata_lsb = self.vram_0[row_start_address];
+            let tiledata_msb = self.vram_0[row_start_address + 1];
 
             // Compute the color id of the given pixel
             let x_offset: u8 = tilemap_tile_x % 8;
@@ -425,8 +435,8 @@ impl Ppu {
 
                 let row_start_address = tilemap_tile_y * 2 + tile_index * 16;
 
-                let mut lsb = self.vram[row_start_address];
-                let mut msb = self.vram[row_start_address + 1];
+                let mut lsb = self.vram_0[row_start_address];
+                let mut msb = self.vram_0[row_start_address + 1];
                 let mut x_offset: u8 = pixel_x.wrapping_sub(obj_x) % 8;
 
                 if horizontal_flip {
@@ -471,5 +481,35 @@ impl Ppu {
         if !is_bit_set(self.lcdc, 7) {
             self.lcd_status &= 0b1111_1100;
         }
+    }
+
+    pub(crate) fn fetch_bg_palette_data(&self) -> u8 {
+	self.bg_color_ram[self.bg_palette_index]
+    }
+
+    pub(crate) fn fetch_sprite_palette_data(&self) -> u8 {
+	self.sprite_color_ram[self.sprite_palette_index]
+    }
+
+    pub(crate) fn write_sprite_palette_data(&mut self, received_byte: u8) {
+	self.sprite_color_ram[self.sprite_palette_index] = received_byte;
+
+	if is_bit_set(self.sprite_palette_index as u8, 7) {
+	    self.sprite_palette_index += 1;
+	    if self.sprite_palette_index > 0x3F {
+		self.sprite_palette_index = 0;
+	    }
+	}
+    }
+
+    pub(crate) fn write_bg_palette_data(&self, received_byte: u8) {
+	self.bg_color_ram[self.bg_palette_index] = received_byte;
+
+	if is_bit_set(self.bg_palette_index as u8, 7) {
+	    self.bg_palette_index += 1;
+	    if self.bg_palette_index > 0x3F {
+		self.bg_palette_index = 0;
+	    }
+	}
     }
 }

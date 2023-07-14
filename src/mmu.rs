@@ -62,6 +62,10 @@ impl Mmu {
             0xFF47 => self.ppu.bgp,
             0xFF48 => self.ppu.obp0,
             0xFF49 => self.ppu.obp1,
+	    0xFF68 => self.ppu.bg_palette_index as u8,
+	    0xFF69 => self.ppu.fetch_bg_palette_data(),
+	    0xFF6A => self.ppu.sprite_palette_index as u8,
+	    0xFF6B => self.ppu.fetch_sprite_palette_data(),
             0xFF4A => self.ppu.wy,
             0xFF4B => self.ppu.wx,
 	    0xFF70 => self.wram_bank_index as u8,
@@ -127,12 +131,16 @@ impl Mmu {
             0xFF49 => self.ppu.obp1 = received_byte,
             0xFF4A => self.ppu.wy = received_byte,
             0xFF4B => self.ppu.wx = received_byte,
-            0xFF4F => self.ppu.vram_bank_index = received_byte & 0x1,
+            0xFF4F => self.ppu.vram_bank_index = received_byte as usize & 0x1,
             0xFF50 => {
                 if received_byte > 0 {
                     *cpu_state = CpuState::NonBoot
                 }
             }
+	    0xFF68 => self.ppu.bg_palette_index = received_byte as usize ,
+	    0xFF69 => self.ppu.write_bg_palette_data(received_byte),
+	    0xFF6A => self.ppu.sprite_palette_index = received_byte as usize ,
+	    0xFF69 => self.ppu.write_sprite_palette_data(received_byte),
 	    0xFF70 => {
 		self.wram_bank_index = received_byte as usize & 0x7;
 		if self.wram_bank_index == 0 {
