@@ -27,7 +27,8 @@ pub struct Ppu {
     pub lyc: u8,
     pub lcdc: u8,
     pub current_framebuffer: [Color32; GAMEBOY_WIDTH * GAMEBOY_HEIGHT],
-    pub current_framebuffer_bg_indices: [u8; GAMEBOY_WIDTH * GAMEBOY_HEIGHT],
+    // Saves the color index and bg tile attribute priority of the drawn bg pixels
+    current_framebuffer_bg_pixel_info: [u8; GAMEBOY_WIDTH * GAMEBOY_HEIGHT], 
     pub lcd_status: u8,
     pub wy: u8, // Window y position
     pub wx: u8, // Window x position + 7
@@ -70,8 +71,21 @@ impl Ppu {
             mode: PpuModes::OamScan,
             current_elapsed_dots: 1,
             current_framebuffer: [Color32::from_rgb(155, 188, 15); GAMEBOY_WIDTH * GAMEBOY_HEIGHT],
-            current_framebuffer_bg_indices: [5; GAMEBOY_WIDTH * GAMEBOY_HEIGHT],
+            current_framebuffer_bg_pixel_info: [0; GAMEBOY_WIDTH * GAMEBOY_HEIGHT],
             lcd_status: 2, // the lcd status will start with in mode 2
+            color_lookup_table: [
+                Color32::from_rgb(155, 188, 15),
+                Color32::from_rgb(139, 172, 15),
+                Color32::from_rgb(48, 98, 48),
+                Color32::from_rgb(15, 56, 15),
+            ],
+            vram_0: [0; 0x2000],
+            vram_1: [0; 0x2000],
+            bg_color_ram: [0; 64],
+            sprite_color_ram: [0; 64],
+            vram_bank_index: 0,
+            bg_palette_index: 0,
+            sprite_palette_index: 0,
             ly: 0,
             lyc: 0,
             lcdc: 0,
@@ -85,19 +99,6 @@ impl Ppu {
             obp0: 0,
             obp1: 0,
             stat_requested_on_current_line: false,
-            color_lookup_table: [
-                Color32::from_rgb(155, 188, 15),
-                Color32::from_rgb(139, 172, 15),
-                Color32::from_rgb(48, 98, 48),
-                Color32::from_rgb(15, 56, 15),
-            ],
-            vram_0: [0; 0x2000],
-            vram_1: [0; 0x2000],
-            vram_bank_index: 0,
-            bg_color_ram: [0; 64],
-            sprite_color_ram: [0; 64],
-            bg_palette_index: 0,
-            sprite_palette_index: 0,
         }
     }
 
@@ -390,8 +391,10 @@ impl Ppu {
             self.current_framebuffer[buffer_index] = color;
 
             // Save the used bg/win color index
-	    // TODO: Fix background to OAM priority
-            self.current_framebuffer_bg_indices[buffer_index] = color_index;
+            self.current_framebuffer_bg_pixel_info[buffer_index] = color_index | tile_attributes & 0x80;
+
+	    // // Save the bg pixel attribute priority
+            // self.current_framebuffer_bg_oam_priority[buffer_index] = if is_bit_set(tile_attributes, 7) {1} else {0};
         }
 
         if window_was_drawn && self.win_ly < 144 {
@@ -419,9 +422,6 @@ impl Ppu {
 
         /* Sort the array and put the higher indices first (lower priority objects) */
         sprites.sort_by(|a, b| b.0.cmp(&a.0));
-
-        /* Sort the array again but this time by the x coord, and put the lower priority objects first */
-        sprites.sort_by(|a, b| b.1[1].cmp(&a.1[1]));
 
         for sprite in sprites.iter() {
             let obj_size: usize = if is_bit_set(self.lcdc, 2) { 16 } else { 8 };
@@ -453,8 +453,8 @@ impl Ppu {
 
                 let row_start_address = tilemap_tile_y * 2 + tile_index * 16;
 
-                let mut lsb = self.vram_0[row_start_address];
-                let mut msb = self.vram_0[row_start_address + 1];
+		let mut lsb = if is_bit_set(attributes, 3) {self.vram_1[row_start_address]} else {self.vram_0[row_start_address]};
+		let mut msb = if is_bit_set(attributes, 3) {self.vram_1[row_start_address + 1]} else {self.vram_0[row_start_address + 1]};
                 let mut x_offset: u8 = pixel_x.wrapping_sub(obj_x) % 8;
 
                 if horizontal_flip {
@@ -468,23 +468,26 @@ impl Ppu {
 
                 let buffer_index = pixel_x as usize + self.ly as usize * GAMEBOY_WIDTH;
 
-                let palette = if is_bit_set(attributes, 4) {
-                    self.obp1
-                } else {
-                    self.obp0
-                } as usize;
-                let color_lookup =
-                    self.color_lookup_table[(palette >> (color_index * 2)) & 0b11 as usize];
+		let color_lsb_index = (attributes & 0b111) as usize * 8 + color_index as usize * 2;
+
+		// Get the xbbbbbgg gggrrrrr color format in a unique number;
+		let color_rgb555 = self.sprite_color_ram[color_lsb_index] as u16 | ((self.sprite_color_ram[color_lsb_index + 1] as u16) << 8);
+
+		let red = (color_rgb555 & 0b1_1111) as u8;
+		let green = ((color_rgb555 >> 5) & 0b1_1111) as u8;
+		let blue = ((color_rgb555 >> 10) & 0b1_1111) as u8;
+
+		let color = Color32::from_rgb((red << 3) | (red >> 2), (green << 3) | (green >> 2), (blue << 3) | (blue >> 2));
 
                 // Don't paint the current pixel if it's transparent
                 if color_index != 0 {
-                    if !is_bit_set(attributes, 7) {
+                    if self.current_framebuffer_bg_pixel_info[buffer_index] & 0x7 == 0 || !is_bit_set(self.lcdc, 0) {
                         // If there isn't any kind of bg/win priority, just draw it
-                        self.current_framebuffer[buffer_index] = color_lookup;
+                        self.current_framebuffer[buffer_index] = color;
                     } else {
                         // If bg/win colors 1-3 has priority over the current sprite, we need to check if the used color_index was 0
-                        if self.current_framebuffer_bg_indices[buffer_index] == 0 {
-                            self.current_framebuffer[buffer_index] = color_lookup;
+                        if !is_bit_set(attributes, 7) && !is_bit_set(self.current_framebuffer_bg_pixel_info[buffer_index], 7) {
+                            self.current_framebuffer[buffer_index] = color;
                         }
                     }
                 }
@@ -524,10 +527,11 @@ impl Ppu {
     pub(crate) fn write_bg_palette_data(&mut self, received_byte: u8) {
 	self.bg_color_ram[self.bg_palette_index & 0x3F] = received_byte;
 
+	let increment_bit = self.bg_palette_index & 0x80;
 	if is_bit_set(self.bg_palette_index as u8, 7) {
 	    self.bg_palette_index += 1;
-	    if self.bg_palette_index > 0x3F {
-		self.bg_palette_index = 0;
+	    if self.bg_palette_index & 0b0111_1111 > 0b11_1111 {
+		self.bg_palette_index = increment_bit;
 	    }
 	}
     }
