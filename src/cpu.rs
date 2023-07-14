@@ -359,7 +359,7 @@ impl Cpu {
 }
 
 fn initialize_cpu_state_defaults(cpu: &mut Cpu) {
-    cpu.registers.a = 1;
+    cpu.registers.a = 0x11;
     cpu.registers.f = 0xB0;
     cpu.registers.c = 0x13;
     cpu.registers.e = 0xD8;
