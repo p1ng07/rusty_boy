@@ -12,6 +12,7 @@ use crate::{
 
 // Scanline based rendering of the ppu
 pub struct Ppu {
+    is_dmg: bool,
     pub vram_0: [u8; 0x2000], // 8 kibibytes of vram
     pub vram_1: [u8; 0x2000], // 8 kibibytes of vram
     pub vram_bank_index: usize,
@@ -34,7 +35,6 @@ pub struct Ppu {
     pub wx: u8, // Window x position + 7
     win_ly: u8,
     wy_condition: bool,
-    color_lookup_table: [Color32; 4],
     stat_requested_on_current_line: bool,
 
     pub bg_color_ram: [u8; 64],
@@ -64,25 +64,37 @@ enum PpuModes {
 }
 
 impl Ppu {
-    pub fn new() -> Ppu {
-	// TODO add default palettes for games that don't set palettes like DMG ones
+    pub fn new(is_dmg: bool) -> Ppu {
+	// Add default palettes for games that don't set palettes like DMG ones
+	let mut bg_color_ram = [0u8; 64];
+	bg_color_ram[0] = 0b0001_1111;
+	bg_color_ram[1] = 0b0111_1111;
+
+	let mut sprite_color_ram = [0u8; 64];
+	sprite_color_ram[0] = 0b0001_1111;
+	sprite_color_ram[1] = 0b0111_1111;
+
+	sprite_color_ram[2] = 0b0001_1111;
+	sprite_color_ram[3] = 0b0111_1111;
+
+	sprite_color_ram[4] = 0b0001_1111;
+	sprite_color_ram[5] = 0b0111_1111;
+
+	sprite_color_ram[6] = 0b0001_1111;
+	sprite_color_ram[7] = 0b0111_1111;
+
         Self {
+	    is_dmg,
             oam_ram: [0; 0xA0],
             mode: PpuModes::OamScan,
             current_elapsed_dots: 1,
             current_framebuffer: [Color32::from_rgb(155, 188, 15); GAMEBOY_WIDTH * GAMEBOY_HEIGHT],
             current_framebuffer_bg_pixel_info: [0; GAMEBOY_WIDTH * GAMEBOY_HEIGHT],
             lcd_status: 2, // the lcd status will start with in mode 2
-            color_lookup_table: [
-                Color32::from_rgb(155, 188, 15),
-                Color32::from_rgb(139, 172, 15),
-                Color32::from_rgb(48, 98, 48),
-                Color32::from_rgb(15, 56, 15),
-            ],
             vram_0: [0; 0x2000],
             vram_1: [0; 0x2000],
-            bg_color_ram: [0; 64],
-            sprite_color_ram: [0; 64],
+            bg_color_ram,
+            sprite_color_ram,
             vram_bank_index: 0,
             bg_palette_index: 0,
             sprite_palette_index: 0,
@@ -196,10 +208,15 @@ impl Ppu {
         // drawing pixels takes 172 dots
         // Change into hblank when that ellapses and render the current line
         if self.current_elapsed_dots > 247 {
-	    self.render_background();
-	    if is_bit_set(self.lcdc, 1) {
-                self.render_sprites();
-            }
+
+	    if !self.is_dmg {
+		self.render_background();
+		if is_bit_set(self.lcdc, 1) {
+		    self.render_sprites();
+		}
+	    }else {
+		
+	    }
 
             // Check if a hblank stat interrupt should fire
             if is_bit_set(self.lcd_status, 3) {

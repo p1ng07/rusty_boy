@@ -51,7 +51,7 @@ impl GameBoyApp {
 	// IF true, the game supports gbc enhancements
 	// IF false, the game is DMG only and needs
 	// a default palette
-	println!("Color bit: {}", total_rom[0x143] & 0x80 > 0);
+	let is_dmg_game = total_rom[0x143] & 0x80 == 0;
 
 	// TODO make these code checks length safe
         let mbc_type_code = total_rom[0x147];
@@ -67,7 +67,7 @@ impl GameBoyApp {
             }
         };
 
-        let mmu = Mmu::new(mbc);
+        let mmu = Mmu::new(mbc, is_dmg_game);
         let cpu = cpu::Cpu::new(false, mmu);
 
         Some(cpu)

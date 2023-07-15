@@ -158,11 +158,11 @@ impl Mmu {
         };
     }
 
-    pub fn new(mbc: Box<dyn Mbc>) -> Self {
+    pub fn new(mbc: Box<dyn Mbc>, is_dmg: bool) -> Self {
         Self {
             mbc,
             hram: [0x00; 0x7F],
-            ppu: Ppu::new(),
+            ppu: Ppu::new(is_dmg),
             joypad: Joypad::new(),
             serial: Serial::new(),
             timer: Timer::default(),
