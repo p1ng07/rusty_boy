@@ -22,6 +22,7 @@ pub struct Ppu {
     pub bgp: u8,  // Bg palette data
     pub obp0: u8, // Obj palette 0
     pub obp1: u8, // Obj palette 1
+    color_lookup_table: [Color32; 4],
     pub scy: u8,
     pub scx: u8,
     pub ly: u8,
@@ -111,6 +112,12 @@ impl Ppu {
             obp0: 0,
             obp1: 0,
             stat_requested_on_current_line: false,
+            color_lookup_table: [
+                Color32::from_rgb(155, 188, 15),
+                Color32::from_rgb(139, 172, 15),
+                Color32::from_rgb(48, 98, 48),
+                Color32::from_rgb(15, 56, 15),
+            ],
         }
     }
 
@@ -215,7 +222,12 @@ impl Ppu {
 		    self.render_sprites();
 		}
 	    }else {
-		
+		if is_bit_set(self.lcdc, 0) {
+		    self.render_background();
+		}
+		if is_bit_set(self.lcdc, 1) {
+		    self.render_sprites();
+		}
 	    }
 
             // Check if a hblank stat interrupt should fire
@@ -358,7 +370,7 @@ impl Ppu {
             let tile_attributes = self.vram_1[tile_id_address];
 
 	    // Vertical flip background tile
-	    if is_bit_set(tile_attributes, 6) {
+	    if !self.is_dmg && is_bit_set(tile_attributes, 6) {
 		tilemap_tile_y = 7u8 - (pixel_y as u8 % 8);
 	    }
 
@@ -374,14 +386,14 @@ impl Ppu {
 
             // Get the tiledata with the offset to get the data of the line that is being rendered
             // This data represents the whole line that is to be drawn
-	    let tiledata_lsb = if is_bit_set(tile_attributes, 3) {self.vram_1[row_start_address]} else {self.vram_0[row_start_address]};
-	    let tiledata_msb = if is_bit_set(tile_attributes, 3) {self.vram_1[row_start_address + 1]} else {self.vram_0[row_start_address + 1]};
+	    let tiledata_lsb = if !self.is_dmg && is_bit_set(tile_attributes, 3) {self.vram_1[row_start_address]} else {self.vram_0[row_start_address]};
+	    let tiledata_msb = if !self.is_dmg && is_bit_set(tile_attributes, 3) {self.vram_1[row_start_address + 1]} else {self.vram_0[row_start_address + 1]};
 
             // Compute the color id of the given pixel
             let mut x_offset: u8 = tilemap_tile_x % 8;
 
 	    // Horizontal flip background tile
-	    if is_bit_set(tile_attributes, 5) {
+	    if !self.is_dmg && is_bit_set(tile_attributes, 5) {
 		x_offset = 7u8.saturating_sub(tilemap_tile_x % 8);
 	    }
 
@@ -392,26 +404,30 @@ impl Ppu {
 
             let buffer_index = pixel_x as usize + self.ly as usize * GAMEBOY_WIDTH;
 
-	    // Start of the ram location of the color to be used
-	    let color_lsb_index = (tile_attributes & 0b111) as usize * 8 + color_index as usize * 2;
+	    let mut color: Color32 = Color32::BLUE;
+	    if !self.is_dmg {
+		
+		// Start of the ram location of the color to be used
+		let color_lsb_index = (tile_attributes & 0b111) as usize * 8 + color_index as usize * 2;
 
-	    // Get the xbbbbbgg gggrrrrr color format in a unique number;
-	    let color_rgb555 = self.bg_color_ram[color_lsb_index] as u16 | ((self.bg_color_ram[color_lsb_index + 1] as u16) << 8);
+		// Get the xbbbbbgg gggrrrrr color format in a unique number;
+		let color_rgb555 = self.bg_color_ram[color_lsb_index] as u16 | ((self.bg_color_ram[color_lsb_index + 1] as u16) << 8);
 
-	    let red = (color_rgb555 & 0b1_1111) as u8;
-	    let green = ((color_rgb555 >> 5) & 0b1_1111) as u8;
-	    let blue = ((color_rgb555 >> 10) & 0b1_1111) as u8;
+		let red = (color_rgb555 & 0b1_1111) as u8;
+		let green = ((color_rgb555 >> 5) & 0b1_1111) as u8;
+		let blue = ((color_rgb555 >> 10) & 0b1_1111) as u8;
 
-	    let color = Color32::from_rgb((red << 3) | (red >> 2), (green << 3) | (green >> 2), (blue << 3) | (blue >> 2));
+		color = Color32::from_rgb((red << 3) | (red >> 2), (green << 3) | (green >> 2), (blue << 3) | (blue >> 2));
 
+	    }else {
+		color = self.color_lookup_table[(self.bgp as usize >> (color_index * 2)) & 0b11 as usize];
+	    }
             // Paint the current pixel onto the current framebuffer
             self.current_framebuffer[buffer_index] = color;
 
             // Save the used bg/win color index
             self.current_framebuffer_bg_pixel_info[buffer_index] = color_index | tile_attributes & 0x80;
 
-	    // // Save the bg pixel attribute priority
-            // self.current_framebuffer_bg_oam_priority[buffer_index] = if is_bit_set(tile_attributes, 7) {1} else {0};
         }
 
         if window_was_drawn && self.win_ly < 144 {
@@ -432,13 +448,14 @@ impl Ppu {
             }
         }
 
-        /* Sprites are going to be drawn back to front
-        Sprites with lower x coord have higher priority
-        If two sprites have the same x coord, then the sprite
-        with the lower oam index is draw over the sprite with high oam index*/
-
         /* Sort the array and put the higher indices first (lower priority objects) */
         sprites.sort_by(|a, b| b.0.cmp(&a.0));
+
+
+	if self.is_dmg {
+	    /* Sort the array again but this time by the x coord, and put the lower priority objects first */
+	    sprites.sort_by(|a, b| b.1[1].cmp(&a.1[1]));
+	}
 
         for sprite in sprites.iter() {
             let obj_size: usize = if is_bit_set(self.lcdc, 2) { 16 } else { 8 };
@@ -485,29 +502,54 @@ impl Ppu {
 
                 let buffer_index = pixel_x as usize + self.ly as usize * GAMEBOY_WIDTH;
 
-		let color_lsb_index = (attributes & 0b111) as usize * 8 + color_index as usize * 2;
+		if !self.is_dmg{
+		    
+		    let color_lsb_index = (attributes & 0b111) as usize * 8 + color_index as usize * 2;
 
-		// Get the xbbbbbgg gggrrrrr color format in a unique number;
-		let color_rgb555 = self.sprite_color_ram[color_lsb_index] as u16 | ((self.sprite_color_ram[color_lsb_index + 1] as u16) << 8);
+		    // Get the xbbbbbgg gggrrrrr color format in a unique number;
+		    let color_rgb555 = self.sprite_color_ram[color_lsb_index] as u16 | ((self.sprite_color_ram[color_lsb_index + 1] as u16) << 8);
 
-		let red = (color_rgb555 & 0b1_1111) as u8;
-		let green = ((color_rgb555 >> 5) & 0b1_1111) as u8;
-		let blue = ((color_rgb555 >> 10) & 0b1_1111) as u8;
+		    let red = (color_rgb555 & 0b1_1111) as u8;
+		    let green = ((color_rgb555 >> 5) & 0b1_1111) as u8;
+		    let blue = ((color_rgb555 >> 10) & 0b1_1111) as u8;
 
-		let color = Color32::from_rgb((red << 3) | (red >> 2), (green << 3) | (green >> 2), (blue << 3) | (blue >> 2));
+		    let color = Color32::from_rgb((red << 3) | (red >> 2), (green << 3) | (green >> 2), (blue << 3) | (blue >> 2));
 
-                // Don't paint the current pixel if it's transparent
-                if color_index != 0 {
-                    if self.current_framebuffer_bg_pixel_info[buffer_index] & 0x7 == 0 || !is_bit_set(self.lcdc, 0) {
-                        // If there isn't any kind of bg/win priority, just draw it
-                        self.current_framebuffer[buffer_index] = color;
-                    } else {
-                        // If bg/win colors 1-3 has priority over the current sprite, we need to check if the used color_index was 0
-                        if !is_bit_set(attributes, 7) && !is_bit_set(self.current_framebuffer_bg_pixel_info[buffer_index], 7) {
-                            self.current_framebuffer[buffer_index] = color;
-                        }
-                    }
-                }
+		    // Don't paint the current pixel if it's transparent
+		    if color_index != 0 {
+			if self.current_framebuffer_bg_pixel_info[buffer_index] & 0x7 == 0 || !is_bit_set(self.lcdc, 0) {
+			    // If there isn't any kind of bg/win priority, just draw it
+			    self.current_framebuffer[buffer_index] = color;
+			} else {
+			    // If bg/win colors 1-3 has priority over the current sprite, we need to check if the used color_index was 0
+			    if !is_bit_set(attributes, 7) && !is_bit_set(self.current_framebuffer_bg_pixel_info[buffer_index], 7) {
+				self.current_framebuffer[buffer_index] = color;
+			    }
+			}
+		    }
+		} else {
+		    
+		    let palette = if is_bit_set(attributes, 4) {
+			self.obp1
+		    } else {
+			self.obp0
+		    } as usize;
+		    let color_lookup =
+			self.color_lookup_table[(palette >> (color_index * 2)) & 0b11 as usize];
+
+		    // Don't paint the current pixel if it's transparent
+		    if color_index != 0 {
+			if !is_bit_set(attributes, 7) {
+			    // If there isn't any kind of bg/win priority, just draw it
+			    self.current_framebuffer[buffer_index] = color_lookup;
+			} else {
+			    // If bg/win colors 1-3 has priority over the current sprite, we need to check if the used color_index was 0
+			    if self.current_framebuffer_bg_pixel_info[buffer_index] & 0b111 == 0 {
+				self.current_framebuffer[buffer_index] = color_lookup;
+			    }
+			}
+		    }
+		}
             }
         }
     }
