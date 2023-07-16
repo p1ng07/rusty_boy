@@ -425,7 +425,8 @@ impl Ppu {
         for i in (0..self.oam_ram.len()).step_by(4) {
             let (ly, _) = self.oam_ram[i].overflowing_sub(16);
             let obj_size = if is_bit_set(self.lcdc, 2) { 16 } else { 8 };
-            if (ly..ly + obj_size).contains(&self.ly) && sprites.len() < 10 {
+            let range = (ly..ly.saturating_add(obj_size));
+            if range.contains(&self.ly) && sprites.len() < 10 {
                 sprites.push((i, &self.oam_ram[i..(i + 4)]));
             }
         }
@@ -459,7 +460,7 @@ impl Ppu {
             if obj_x == 0 || obj_x >= 168 {
                 continue;
             }
-            for pixel_x in obj_x - 8..obj_x {
+            for pixel_x in obj_x.saturating_sub(8)..obj_x {
                 let mut tilemap_tile_y = self.ly as usize + 16 - obj_y as usize;
 
                 if vertical_flip {
