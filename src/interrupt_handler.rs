@@ -52,7 +52,7 @@ impl InterruptHandler {
     }
 
     pub fn is_interrupt_pending(&self) -> bool {
-	self.IF & self.IE > 0
+	self.IF & 0x1F & self.IE & 0x1F > 0
     }
 
     // Changes the IF register depending on which interrupt was requested
