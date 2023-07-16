@@ -9,3 +9,4 @@ pub mod mmu;
 mod ppu;
 mod serial;
 mod timer;
+mod hdma_controller;

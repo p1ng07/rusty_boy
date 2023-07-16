@@ -118,7 +118,7 @@ impl Cpu {
 
                 let dma_byte =
                     self.mmu
-                        .fetch_byte(address, &self.state, &mut self.interrupt_handler);
+                        .fetch_byte(address, &mut self.interrupt_handler);
 
                 let destination = self.mmu.dma_iterator as usize;
 
@@ -171,7 +171,7 @@ impl Cpu {
         self.tick();
         let byte = self
             .mmu
-            .fetch_byte(self.pc, &self.state, &mut self.interrupt_handler);
+            .fetch_byte(self.pc, &mut self.interrupt_handler);
 
 	self.pc = self.pc.wrapping_add(1);
 	if self.halt_bug {
@@ -249,12 +249,12 @@ impl Cpu {
         self.tick();
         let lower_byte = self
             .mmu
-            .fetch_byte(self.sp, &self.state, &mut self.interrupt_handler);
+            .fetch_byte(self.sp, &mut self.interrupt_handler);
         self.sp = self.sp.wrapping_add(1);
         self.tick();
         let high_byte = self
             .mmu
-            .fetch_byte(self.sp, &self.state, &mut self.interrupt_handler);
+            .fetch_byte(self.sp, &mut self.interrupt_handler);
         self.sp = self.sp.wrapping_add(1);
         (high_byte as u16) << 8 | lower_byte as u16
     }
@@ -337,22 +337,22 @@ impl Cpu {
             format!(
                 "{:02X}",
                 self.mmu
-                    .fetch_byte(self.pc, &self.state, &mut self.interrupt_handler)
+                    .fetch_byte(self.pc, &mut self.interrupt_handler)
             ),
             format!(
                 "{:02X}",
                 self.mmu
-                    .fetch_byte(self.pc + 1, &self.state, &mut self.interrupt_handler)
+                    .fetch_byte(self.pc + 1, &mut self.interrupt_handler)
             ),
             format!(
                 "{:02X}",
                 self.mmu
-                    .fetch_byte(self.pc + 2, &self.state, &mut self.interrupt_handler)
+                    .fetch_byte(self.pc + 2, &mut self.interrupt_handler)
             ),
             format!(
                 "{:02X}",
                 self.mmu
-                    .fetch_byte(self.pc + 3, &self.state, &mut self.interrupt_handler)
+                    .fetch_byte(self.pc + 3, &mut self.interrupt_handler)
             ),
         );
     }

@@ -1,5 +1,6 @@
-use crate::cpu::CpuState;
-use crate::interrupt_handler::InterruptHandler;
+use crate::cpu::{CpuState, is_bit_set};
+use crate::hdma_controller::HdmaController;
+use crate::interrupt_handler::{InterruptHandler, self};
 use crate::joypad::Joypad;
 use crate::mbc::Mbc;
 use crate::ppu::Ppu;
@@ -18,6 +19,7 @@ pub struct Mmu {
     wram_bank_index: usize,   // Index of the wram bank to use in the 0xD000-0xDFFF region
     pub dma_iterator: u8,
     pub dma_source: u8,
+    hdma_controller: HdmaController,
     pub key1: u8           // Prepare speed switch control register
 }
 
@@ -25,13 +27,10 @@ impl Mmu {
     pub fn fetch_byte(
         &mut self,
         address: u16,
-        cpu_state: &CpuState,
         interrupt_handler: &mut InterruptHandler,
     ) -> u8 {
         match address {
-            0..=0x7FFF => match cpu_state {
-                _ => self.mbc.read_byte(address),
-            },
+            0..=0x7FFF => self.mbc.read_byte(address),
             0x8000..=0x9FFF => self.ppu.fetch_vram(address - 0x8000),
             0xA000..=0xBFFF => self.mbc.read_byte(address),
             0xC000..=0xCFFF => {
@@ -62,6 +61,11 @@ impl Mmu {
             0xFF47 => self.ppu.bgp,
             0xFF48 => self.ppu.obp0,
             0xFF49 => self.ppu.obp1,
+	    0xFF51 => self.hdma_controller.hdma1,
+	    0xFF53 => self.hdma_controller.hdma2,
+	    0xFF54 => self.hdma_controller.hdma3,
+	    0xFF54 => self.hdma_controller.hdma4,
+	    0xFF55 => self.hdma_controller.hdma5,
 	    0xFF68 => self.ppu.bg_palette_index as u8,
 	    0xFF69 => self.ppu.fetch_bg_palette_data(),
 	    0xFF6A => self.ppu.sprite_palette_index as u8,
@@ -137,6 +141,7 @@ impl Mmu {
                     *cpu_state = CpuState::NonBoot
                 }
             }
+	    0xFF55 => self.start_hdma(received_byte, interrupt_handler),
 	    0xFF68 => self.ppu.bg_palette_index = received_byte as usize ,
 	    0xFF69 => self.ppu.write_bg_palette_data(received_byte),
 	    0xFF6A => self.ppu.sprite_palette_index = received_byte as usize ,
@@ -171,6 +176,7 @@ impl Mmu {
             key1: 0,
             wram_banks: [[0; 0x2000]; 8],
             wram_bank_index: 1,
+	    hdma_controller: HdmaController::new()
         }
     }
 
@@ -178,5 +184,30 @@ impl Mmu {
         self.dma_iterator = 0;
         self.dma_source = byte;
         *cpu_state = CpuState::DMA; // This requests the dma
+    }
+
+    fn start_hdma(&mut self, hdma5: u8, interrupt_handler: &mut InterruptHandler) {
+	self.hdma_controller.is_active = true;
+
+	let start = (self.hdma_controller.hdma1 as u16) << 8 | self.hdma_controller.hdma2 as u16;
+	let destination = ((self.hdma_controller.hdma3 as u16) << 8 | self.hdma_controller.hdma4 as u16) & 0b0001_1111_1111_0000;
+	
+	if is_bit_set(hdma5, 7) {
+	    // Start an hblank dma
+	    todo!("Implement hblank dma");
+	}else {
+	    // Start a general purpose dma
+	    // This transfer is instant
+	    let mut state = CpuState::NonBoot;
+	    let length = (hdma5 as u16 & 0b111_1111) * 16 + 1;
+
+	    for i in 0..length {
+		let byte = self.fetch_byte(start + i, interrupt_handler);
+
+		self.write_byte(destination + i, byte, &mut state, interrupt_handler);
+	    }
+	    self.hdma_controller.hdma5 = 0xFF;
+	    self.hdma_controller.is_active = false;
+	}
     }
 }
