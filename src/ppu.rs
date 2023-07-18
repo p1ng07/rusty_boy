@@ -470,8 +470,8 @@ impl Ppu {
 
                 let row_start_address = tilemap_tile_y * 2 + tile_index * 16;
 
-		let mut lsb = if is_bit_set(attributes, 3) {self.vram_1[row_start_address]} else {self.vram_0[row_start_address]};
-		let mut msb = if is_bit_set(attributes, 3) {self.vram_1[row_start_address + 1]} else {self.vram_0[row_start_address + 1]};
+		let mut lsb = if is_bit_set(attributes, 3) && !self.is_dmg {self.vram_1[row_start_address]} else {self.vram_0[row_start_address]};
+		let mut msb = if is_bit_set(attributes, 3) && !self.is_dmg {self.vram_1[row_start_address + 1]} else {self.vram_0[row_start_address + 1]};
                 let mut x_offset: u8 = pixel_x.wrapping_sub(obj_x) % 8;
 
                 if horizontal_flip {
