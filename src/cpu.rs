@@ -1,3 +1,5 @@
+use std::ops::ControlFlow;
+
 use strum::IntoEnumIterator;
 
 use crate::cpu_registers::CpuRegisters;
@@ -99,36 +101,6 @@ impl Cpu {
 
         self.execute(first_byte);
 
-	// Check for halt bug
-	if self.state == CpuState::Halt {
-	}
-
-        if self.state == CpuState::DMA {
-            let cycles = self.delta_t_cycles / 4;
-            for _ in 0..cycles {
-                // Stop dma when all values have been written to OAM
-                if self.mmu.dma_iterator > 159 {
-                    self.state = CpuState::NonBoot;
-                    self.mmu.dma_iterator = 0;
-                    break;
-                }
-
-                let address: u16 =
-                    ((self.mmu.dma_source as u16) << 8) | self.mmu.dma_iterator as u16;
-
-                let dma_byte =
-                    self.mmu
-                        .fetch_byte(address, &mut self.interrupt_handler);
-
-                let destination = self.mmu.dma_iterator as usize;
-
-                // Write the dma transfer byte
-                self.mmu.ppu.oam_ram[destination] = dma_byte;
-
-                self.mmu.dma_iterator += 1;
-            }
-        }
-
         // Service interrupts
         if self.interrupt_handler.enabled && self.interrupt_handler.IE > 0 {
             self.handle_interrupts();
@@ -137,6 +109,25 @@ impl Cpu {
         let instruction_delta_t_cycles = self.delta_t_cycles;
         self.delta_t_cycles = 0;
         instruction_delta_t_cycles
+    }
+
+    fn tick_dma(&mut self) {
+	if self.state != CpuState::DMA{
+	    return;
+	}
+        if self.mmu.dma_iterator > 159 {
+            self.state = CpuState::NonBoot;
+            self.mmu.dma_iterator = 0;
+	    return;
+        }
+        let address: u16 =
+            ((self.mmu.dma_source as u16) << 8) | self.mmu.dma_iterator as u16;
+        let dma_byte =
+            self.mmu
+                .fetch_byte(address, &mut self.interrupt_handler);
+        let destination = self.mmu.dma_iterator as usize;
+        self.mmu.ppu.oam_ram[destination] = dma_byte;
+        self.mmu.dma_iterator += 1;
     }
 
     // Ticks every component by 4 t-cycles
@@ -151,11 +142,13 @@ impl Cpu {
 	    self.mmu.ppu.tick(&mut self.interrupt_handler);
 	    self.mmu.ppu.tick(&mut self.interrupt_handler);
 	    self.mmu.ppu.tick(&mut self.interrupt_handler);
+	    self.tick_dma();
 	}
 
 	// Advance the double speed delta counter by 1 m-cycle
 	self.double_speed_delta_counter = self.double_speed_delta_counter.wrapping_add(1);
 
+	self.tick_dma();
         self.mmu
             .timer
             .step(&self.state, &mut self.interrupt_handler);
