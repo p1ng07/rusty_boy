@@ -20,9 +20,10 @@ impl Serial {
     }
 
     pub(crate) fn write_to_control(&mut self, received_byte: u8, interrupt_handler: &mut InterruptHandler) {
-	if is_bit_set(received_byte, 7) {
+	if is_bit_set(received_byte, 7) && !is_bit_set(7,self.serial_data_control) {
 	    self.serial_data_transfer = 0xFF;
 	    interrupt_handler.request_interrupt(Interrupt::Serial);
+	    self.serial_data_control = 0x01;
 	}
     }
 }
