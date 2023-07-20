@@ -137,7 +137,7 @@ impl Cpu {
 	// While in double speed, the ppu operates at it's normal frequency
 	// If the cpu is in double speed mode, every 8 'fast' t-cycles, we cycle the ppu by 4 t-cycles
 	// If the cpu is in normal speed mode, just tick 4 t-cycles for every 4 t-cycles
-	if  !is_bit_set(self.mmu.key1, 7) || (is_bit_set(self.mmu.key1, 7) && self.double_speed_delta_counter % 2 == 0) {
+	if !is_bit_set(self.mmu.key1, 7) ||  (is_bit_set(self.mmu.key1, 7) && self.double_speed_delta_counter % 2 == 0) {
 	    self.mmu.ppu.tick(&mut self.interrupt_handler);
 	    self.mmu.ppu.tick(&mut self.interrupt_handler);
 	    self.mmu.ppu.tick(&mut self.interrupt_handler);
@@ -148,7 +148,6 @@ impl Cpu {
 	// Advance the double speed delta counter by 1 m-cycle
 	self.double_speed_delta_counter = self.double_speed_delta_counter.wrapping_add(1);
 
-	self.tick_dma();
         self.mmu
             .timer
             .step(&self.state, &mut self.interrupt_handler);
