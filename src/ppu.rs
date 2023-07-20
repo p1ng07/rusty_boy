@@ -358,11 +358,11 @@ impl Ppu {
 
             let row_start_address: usize = if is_bit_set(self.lcdc, BG_WIN_TILEDATA_AREA_BIT) {
                 // unsigned addressing
-                tile_id as usize * 16 + (tilemap_pixel_y & 7) as usize * 2
+                tile_id as usize * 16 + (tilemap_tile_y & 7) as usize * 2
             } else {
                 // signed addressing
                 let address =
-                    0x1000i32 + (tile_id as i8 as i32 * 16) + (tilemap_pixel_y as i32 & 7) * 2;
+                    0x1000i32 + (tile_id as i8 as i32 * 16) + (tilemap_tile_y as i32 & 7) * 2;
                 address as usize
             };
 
@@ -372,7 +372,7 @@ impl Ppu {
 	    let tiledata_msb = if !self.is_dmg && is_bit_set(tile_attributes, 3) {self.vram_1[row_start_address + 1]} else {self.vram_0[row_start_address + 1]};
 
             // Compute the color id of the given pixel
-            let mut x_offset: u8 = tilemap_pixel_x % 8;
+            let mut x_offset: u8 = tilemap_tile_x % 8;
 
 	    // Horizontal flip background tile
 	    if !self.is_dmg && is_bit_set(tile_attributes, 5) {
