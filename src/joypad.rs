@@ -1,6 +1,7 @@
 use egui::Ui;
 
 use crate::cpu::is_bit_set;
+use crate::interrupt_handler;
 use crate::interrupt_handler::Interrupt;
 use crate::interrupt_handler::InterruptHandler;
 
@@ -20,7 +21,7 @@ impl Joypad {
 	}
     }
     // Updates the interal byte represetation of the input, returns true if a key has been pressed
-    pub fn update_input(&mut self, ui: &Ui, _interrupt_handler: &mut InterruptHandler) {
+    pub fn update_input(&mut self, ui: &Ui, interrupt_handler: &mut InterruptHandler) {
 	// let p15_mask = 0b0010_0000;
 	// let p14_mask = 0b0001_0000;
 	let p13_mask = 0b0000_1000;
@@ -29,20 +30,6 @@ impl Joypad {
 	let p10_mask = 0b0000_0001;
 
 
-	if !is_bit_set(self.byte, 4) && !is_bit_set(self.byte, 5) {
-	    self.byte = 0b1100_0000;
-	    self.byte |= !(self.group_action & self.group_direction);
-	    // if self.byte == 0b1100_1111 {self.byte = 0xFF;}
-	} else if !is_bit_set(self.byte, 4) {
-	    self.byte = 0b1110_0000;
-	    self.byte |= !self.group_direction;
-	    // if self.byte == 0b1110_1111 {self.byte = 0xFF;}
-	} else if !is_bit_set(self.byte, 5) {
-	    self.byte = 0b1101_0000;
-	    self.byte |= !self.group_action;
-	    // if self.byte == 0b1101_1111 {self.byte = 0xFF;}
-	}
-	self.byte = 0xFF;
 	self.group_action = 0;
 	self.group_direction = 0;
 
@@ -83,31 +70,45 @@ impl Joypad {
 	    //Start button
 	    self.group_action |= p13_mask;
 	}
+
+	if !is_bit_set(self.byte, 5) && !is_bit_set(self.byte, 4) {
+	    self.byte = 0xC0;
+	    self.byte ^= self.group_direction & self.group_action;
+	    return;
+	}
+	if !is_bit_set(self.byte, 4) {
+	    self.byte = 0xE0;
+	    self.byte |= !self.group_direction;
+	    // if self.byte == 0b1110_1111 {self.byte = 0xFF;}
+	    return;
+	}
+	if !is_bit_set(self.byte, 5) {
+	    self.byte = 0xD0;
+	    println!("polling action buttons");
+	    self.byte |= !self.group_action;
+	    // if self.byte == 0b1101_1111 {self.byte = 0xFF;}
+	    return;
+	}
+	self.byte = 0xFF;
     }
 
     pub(crate) fn write_to_byte(&mut self, received_byte: u8, interrupt_handler: &mut InterruptHandler) {
-	if !is_bit_set(received_byte, 4) && !is_bit_set(received_byte, 5) {
-	    self.byte = 0b1100_1111;
-	    self.byte ^= self.group_direction & self.group_action;
-	    interrupt_handler.request_interrupt(Interrupt::Joypad);
-	} else if !is_bit_set(received_byte, 5) {
-	    // Poll action buttons
-	    self.byte = 0b1101_1111;
-	    self.byte ^= self.group_action;
-	    interrupt_handler.request_interrupt(Interrupt::Joypad);
-	} else if !is_bit_set(received_byte, 4){
-	    // Poll direction buttons
-	    self.byte = 0b1110_1111;
-	    self.byte ^= self.group_direction;
-	    interrupt_handler.request_interrupt(Interrupt::Joypad);
-	} else {
-	    self.byte = 0xFF;
-	}
-    }
+	self.byte = (received_byte & 0b0011_0000) | 0b1100_1111;
 
-    pub fn read_joypad(&mut self) -> u8 {
-	let byte = self.byte;
-	self.byte = 0xFF;
-	byte
+	if !is_bit_set(self.byte, 5) && !is_bit_set(self.byte, 4) {
+	    self.byte ^= self.group_direction & self.group_action;
+	    if self.byte != 0b1100_1111 {interrupt_handler.request_interrupt(Interrupt::Joypad);}
+	    return;
+	}
+	if !is_bit_set(self.byte, 4) {
+	    self.byte ^= self.group_direction;
+	    if self.byte != 0b1110_1111 {interrupt_handler.request_interrupt(Interrupt::Joypad);}
+	    return;
+	}
+	if !is_bit_set(self.byte, 5) {
+	    self.byte ^= self.group_action;
+	    if self.byte != 0b1101_1111 {interrupt_handler.request_interrupt(Interrupt::Joypad);}
+	    return;
+	}
     }
 }
