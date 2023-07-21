@@ -88,6 +88,10 @@ impl GameBoyApp {
 	let cycle_limit = 70225 * if is_bit_set(cpu.mmu.key1, 7) {2} else {1};
 	// Run a frame of cpu clocks, if the cpu is in double speed mode, run double those cycles
         while ran_cycles < cycle_limit {
+	    if ran_cycles >= 70225 {
+		// Update input after one frame of cycles (if the cpu is in double speed)
+		cpu.mmu.joypad.update_input(ui, &mut cpu.interrupt_handler);
+	    }
             ran_cycles += cpu.cycle();
         }
 
