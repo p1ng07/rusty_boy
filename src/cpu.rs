@@ -5,6 +5,7 @@ use strum::IntoEnumIterator;
 use crate::cpu_registers::CpuRegisters;
 use crate::interrupt_handler::*;
 use crate::mmu::Mmu;
+use crate::ppu::PpuModes;
 
 #[derive(PartialEq)]
 pub enum CpuState {
@@ -106,6 +107,7 @@ impl Cpu {
         instruction_delta_t_cycles
     }
 
+    // Transfers one byte of data if a OAM DMA is active
     fn tick_dma(&mut self) {
         if self.state != CpuState::DMA {
             return;
@@ -122,6 +124,29 @@ impl Cpu {
         self.mmu.dma_iterator += 1;
     }
 
+    // Transfers 16 bytes of information if a HDMA is active
+    fn tick_hdma(&mut self){
+	if !self.mmu.hdma_controller.is_active {
+	    return;
+	}
+
+	self.mmu.hdma_controller.length -= 1;
+
+	for _ in 0..16 {
+	    let byte = self.mmu.fetch_byte(self.mmu.hdma_controller.iterator_hdma, &mut self.interrupt_handler);
+	    self.mmu.ppu.write_vram(self.mmu.hdma_controller.destination_hdma, byte);
+
+	    self.mmu.hdma_controller.iterator_hdma += 1;
+	    self.mmu.hdma_controller.destination_hdma += 1;
+	}
+
+	if self.mmu.hdma_controller.length == 0 {
+	    // Transfer has terminated
+	    self.mmu.hdma_controller.is_active = false;
+	    self.mmu.hdma_controller.length = 0xFF;
+	}
+    }
+
     // Ticks every component by 4 t-cycles
     fn tick(&mut self) {
         self.delta_t_cycles += 4;
@@ -132,20 +157,38 @@ impl Cpu {
         if !is_bit_set(self.mmu.key1, 7)
             || (is_bit_set(self.mmu.key1, 7) && self.double_speed_delta_counter % 2 == 0)
         {
+	    // Record if the ppu was already in hblank
+	    let ppu_was_in_hblank = match self.mmu.ppu.mode {
+		PpuModes::HBlank => true,
+		_ => false
+	    };
+
+	    // Components that aren't affected by cpu double speed
             self.mmu.ppu.tick(&mut self.interrupt_handler);
             self.mmu.ppu.tick(&mut self.interrupt_handler);
             self.mmu.ppu.tick(&mut self.interrupt_handler);
             self.mmu.ppu.tick(&mut self.interrupt_handler);
-            self.tick_dma();
+
+	    if let PpuModes::HBlank = self.mmu.ppu.mode {
+		// If the ppu wasn't in hblank at the start of the tick
+		// and is in hblank now, perform a hdma tick
+		if !ppu_was_in_hblank {
+		    self.tick_hdma();
+		}  
+	    };
+
+	    self.tick_hdma();
         }
 
+	// Components that are affected by cpu double speed
         // Advance the double speed delta counter by 1 m-cycle
         self.double_speed_delta_counter = self.double_speed_delta_counter.wrapping_add(1);
 
+	self.tick_dma();
+	
         self.mmu
             .timer
             .step(&self.state, &mut self.interrupt_handler);
-
         // Delayed EI instruction
         if self.enable_interrupts_next_tick {
             self.interrupt_handler.enabled = true;

@@ -17,7 +17,7 @@ pub struct Ppu {
     pub vram_1: [u8; 0x2000], // 8 kibibytes of vram
     pub vram_bank_index: usize,
     pub oam_ram: [u8; 160],
-    mode: PpuModes,
+    pub mode: PpuModes,
     current_elapsed_dots: u16,
     pub bgp: u8,  // Bg palette data
     pub obp0: u8, // Obj palette 0
@@ -56,8 +56,7 @@ pub enum LCDCBit {
     BgWinEnablePriority,
 }
 
-#[allow(dead_code)]
-enum PpuModes {
+pub enum PpuModes {
     HBlank,     // Horizontal blank
     Vblank,     // Vertical Blank
     OamScan,    // OAM Scan

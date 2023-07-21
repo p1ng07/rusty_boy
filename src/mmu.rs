@@ -19,7 +19,7 @@ pub struct Mmu {
     wram_bank_index: usize, // Index of the wram bank to use in the 0xD000-0xDFFF region
     pub dma_iterator: u8,
     pub dma_source: u8,
-    hdma_controller: HdmaController,
+    pub hdma_controller: HdmaController,
     pub key1: u8, // Prepare speed switch control register
 }
 
@@ -61,7 +61,7 @@ impl Mmu {
             0xFF52 => self.hdma_controller.hdma2,
             0xFF53 => self.hdma_controller.hdma3,
             0xFF54 => self.hdma_controller.hdma4,
-            0xFF55 => self.hdma_controller.hdma5,
+            0xFF55 => ((self.hdma_controller.is_active as u8) << 7) | (self.hdma_controller.length as u8 - 1),
             0xFF68 => self.ppu.bg_palette_index as u8,
             0xFF69 => self.ppu.fetch_bg_palette_data(),
             0xFF6A => self.ppu.sprite_palette_index as u8,
@@ -194,8 +194,6 @@ impl Mmu {
     }
 
     fn start_hdma(&mut self, hdma5: u8, interrupt_handler: &mut InterruptHandler) {
-        self.hdma_controller.is_active = true;
-
         let hdma1 = self.hdma_controller.hdma1 as u16;
         let hdma2 = self.hdma_controller.hdma2 as u16;
         let hdma3 = self.hdma_controller.hdma3 as u16;
@@ -203,8 +201,23 @@ impl Mmu {
 
         if is_bit_set(hdma5, 7) {
             // TODO Start an hblank dma
-            todo!("Implement hblank dma");
+            self.hdma_controller.iterator_hdma = (hdma1 << 8) | hdma2;
+            self.hdma_controller.destination_hdma = (hdma3 << 8) | hdma4;
+	    self.hdma_controller.iterator_hdma &= 0xFFF0;
+	    self.hdma_controller.destination_hdma &= 0x1FF0;
+
+	    self.hdma_controller.is_active = true;
+
+            self.hdma_controller.length = (hdma5 & 0b111_1111) + 1;
+
         } else {
+	    if self.hdma_controller.is_active {
+		// If a hdma is in place, cancel it
+		// TODO cancel hdma
+		self.hdma_controller.is_active = false;
+		return;
+	    }
+
             let mut start = (hdma1 << 8) | hdma2;
             let mut destination = (hdma3 << 8) | hdma4;
 
@@ -214,13 +227,6 @@ impl Mmu {
             // Start a general purpose dma
             // This transfer is instant
             let length = ((hdma5 as u16 & 0b111_1111) + 1) * 16;
-
-            print!(
-                "Initiated gdma from {:X} to {:X}, length {:X}",
-                start,
-                destination + 0x8000,
-                length
-            );
 
             for i in 0..length {
                 let byte = self.fetch_byte(start + i, interrupt_handler);
@@ -232,7 +238,7 @@ impl Mmu {
             self.hdma_controller.hdma2 = (start + length) as u8;
             self.hdma_controller.hdma3 = ((destination + length) >> 8) as u8;
             self.hdma_controller.hdma4 = (destination + length) as u8;
-            self.hdma_controller.hdma5 = 0xFF;
+            self.hdma_controller.length = 0xFF;
 
             self.hdma_controller.is_active = false;
         }
