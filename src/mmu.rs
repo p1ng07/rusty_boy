@@ -65,7 +65,7 @@ impl Mmu {
 	    0xFF52 => self.hdma_controller.hdma2,
 	    0xFF53 => self.hdma_controller.hdma3,
 	    0xFF54 => self.hdma_controller.hdma4,
-	    0xFF55 => todo!("HDMA GDMA"),
+	    0xFF55 => self.hdma_controller.hdma5,
 	    0xFF68 => self.ppu.bg_palette_index as u8,
 	    0xFF69 => self.ppu.fetch_bg_palette_data(),
 	    0xFF6A => self.ppu.sprite_palette_index as u8,
@@ -143,6 +143,10 @@ impl Mmu {
                     *cpu_state = CpuState::NonBoot
                 }
             }
+	    0xFF51 => self.hdma_controller.hdma1 = received_byte,
+	    0xFF52 => self.hdma_controller.hdma2 = received_byte & 0xF0,
+	    0xFF53 => self.hdma_controller.hdma3 = received_byte & 0b1_1111,
+	    0xFF54 => self.hdma_controller.hdma4 = received_byte & 0xF0,
 	    0xFF55 => self.start_hdma(received_byte, interrupt_handler),
 	    0xFF68 => self.ppu.bg_palette_index = received_byte as usize ,
 	    0xFF69 => self.ppu.write_bg_palette_data(received_byte),
@@ -191,24 +195,39 @@ impl Mmu {
     fn start_hdma(&mut self, hdma5: u8, interrupt_handler: &mut InterruptHandler) {
 	self.hdma_controller.is_active = true;
 
-	let start = (self.hdma_controller.hdma1 as u16) << 8 | self.hdma_controller.hdma2 as u16;
-	let destination = ((self.hdma_controller.hdma3 as u16) << 8 | self.hdma_controller.hdma4 as u16) & 0b0001_1111_1111_0000;
-	
+	let hdma1 = self.hdma_controller.hdma1 as u16;
+	let hdma2 = self.hdma_controller.hdma2 as u16;
+	let hdma3 = self.hdma_controller.hdma3 as u16;
+	let hdma4 = self.hdma_controller.hdma4 as u16;
+
 	if is_bit_set(hdma5, 7) {
 	    // Start an hblank dma
 	    todo!("Implement hblank dma");
 	}else {
+	    let mut start = (hdma1 << 8) | hdma2;
+	    let mut destination = (hdma3 << 8) | hdma4;
+
+	    start &= 0xFFF0;
+	    destination &= 0x1FF0;
+	
 	    // Start a general purpose dma
 	    // This transfer is instant
-	    let mut state = CpuState::NonBoot;
-	    let length = (hdma5 as u16 & 0b111_1111) * 16 + 1;
+	    let length = ((hdma5 as u16 & 0b111_1111) + 1) * 16;
+
+	    print!("Initiated gdma from {:X} to {:X}, length {:X}", start, destination + 0x8000,length);
 
 	    for i in 0..length {
 		let byte = self.fetch_byte(start + i, interrupt_handler);
 
-		self.write_byte(destination + i, byte, &mut state, interrupt_handler);
+		self.ppu.write_vram(destination + i, byte);
 	    }
+
+	    self.hdma_controller.hdma1 = ((start + length) >> 8) as u8;
+	    self.hdma_controller.hdma2 = (start + length) as u8;
+	    self.hdma_controller.hdma3 = ((destination + length) >> 8) as u8;
+	    self.hdma_controller.hdma4 = (destination + length) as u8;
 	    self.hdma_controller.hdma5 = 0xFF;
+
 	    self.hdma_controller.is_active = false;
 	}
     }
