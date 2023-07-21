@@ -202,7 +202,7 @@ impl Mmu {
         let hdma4 = self.hdma_controller.hdma4 as u16;
 
         if is_bit_set(hdma5, 7) {
-            // Start an hblank dma
+            // TODO Start an hblank dma
             todo!("Implement hblank dma");
         } else {
             let mut start = (hdma1 << 8) | hdma2;
