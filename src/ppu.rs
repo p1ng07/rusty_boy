@@ -139,7 +139,7 @@ impl Ppu {
         //     PpuModes::Mode3 => (),
         //     _ => self.vram[address as usize] = byte
         // }
-	if self.vram_bank_index == 0 {
+	if self.vram_bank_index & 1 == 0 {
 	    self.vram_0[address as usize] = byte;
 	}else {
 	    self.vram_1[address as usize] = byte;
@@ -152,7 +152,7 @@ impl Ppu {
         //     PpuModes::Mode3 => 0xFF,
         //     _ =>
         // }
-	if self.vram_bank_index == 0 {
+	if self.vram_bank_index & 1 == 0 {
 	    self.vram_0[address as usize]
 	}else {
 	    self.vram_1[address as usize]
@@ -361,9 +361,7 @@ impl Ppu {
                 tile_id as usize * 16 + (tilemap_tile_y & 7) as usize * 2
             } else {
                 // signed addressing
-                let address =
-                    0x1000i32 + (tile_id as i8 as i32 * 16) + (tilemap_tile_y as i32 & 7) * 2;
-                address as usize
+                (0x1000i32 + (tile_id as i8 as i32 * 16) + (tilemap_tile_y as i8 as i32 & 7) * 2) as usize
             };
 
             // Get the tiledata with the offset to get the data of the line that is being rendered
@@ -386,9 +384,7 @@ impl Ppu {
 
             let buffer_index = pixel_x as usize + self.ly as usize * GAMEBOY_WIDTH;
 
-	    let mut color: Color32 = Color32::BLUE;
-	    if !self.is_dmg {
-		
+	    let color = if !self.is_dmg {
 		// Start of the ram location of the color to be used
 		let color_lsb_index = (tile_attributes & 0b111) as usize * 8 + color_index as usize * 2;
 
@@ -399,16 +395,16 @@ impl Ppu {
 		let green = ((color_rgb555 >> 5) & 0b1_1111) as u8;
 		let blue = ((color_rgb555 >> 10) & 0b1_1111) as u8;
 
-		color = Color32::from_rgb((red << 3) | (red >> 2), (green << 3) | (green >> 2), (blue << 3) | (blue >> 2));
-
+		Color32::from_rgb((red << 3) | (red >> 2), (green << 3) | (green >> 2), (blue << 3) | (blue >> 2))
 	    }else {
-		color = self.color_lookup_table[(self.bgp as usize >> (color_index * 2)) & 0b11 as usize];
-	    }
+		self.color_lookup_table[(self.bgp as usize >> (color_index * 2)) & 0b11 as usize]
+	    };
+
             // Paint the current pixel onto the current framebuffer
             self.current_framebuffer[buffer_index] = color;
 
             // Save the used bg/win color index
-            self.current_framebuffer_bg_pixel_info[buffer_index] = color_index | tile_attributes & 0x80;
+            self.current_framebuffer_bg_pixel_info[buffer_index] = color_index | tile_attributes & 0x80
 
         }
 

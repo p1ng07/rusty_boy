@@ -73,6 +73,7 @@ impl Mmu {
             0xFF4A => self.ppu.wy,
             0xFF4B => self.ppu.wx,
 	    0xFF4D => self.key1,
+	    0xFF4F => (self.ppu.vram_bank_index as u8 & 1) | 0b1111_1110,
 	    0xFF70 => self.wram_bank_index as u8,
             0xFF80..=0xFFFE => self.hram[(address - 0xFF80) as usize],
             0xFFFF => interrupt_handler.IE,
