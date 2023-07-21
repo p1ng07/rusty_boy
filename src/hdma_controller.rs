@@ -1,4 +1,9 @@
-use crate::{cpu::{is_bit_set, Cpu, CpuState}, mmu::{self, Mmu}, ppu::{self, Ppu}, interrupt_handler::{self, InterruptHandler}};
+use crate::{
+    cpu::{is_bit_set, Cpu, CpuState},
+    interrupt_handler::{self, InterruptHandler},
+    mmu::{self, Mmu},
+    ppu::{self, Ppu},
+};
 
 pub struct HdmaController {
     pub hdma1: u8,
@@ -11,13 +16,13 @@ pub struct HdmaController {
 
 impl HdmaController {
     pub fn new() -> Self {
-	Self {
-	    hdma1: 0,
-	    hdma2: 0,
-	    hdma3: 0,
-	    hdma4: 0,
-	    hdma5: 0,
-	    is_active: false
-	}
+        Self {
+            hdma1: 0,
+            hdma2: 0,
+            hdma3: 0,
+            hdma4: 0,
+            hdma5: 0,
+            is_active: false,
+        }
     }
 }

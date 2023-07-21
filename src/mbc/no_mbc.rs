@@ -36,23 +36,21 @@ impl Mbc for NoMbc {
     fn get_rom_banks(&self) -> Vec<[u8; 16 * KIBI_BYTE]> {
         let mut rom1 = [0u8; 16 * KIBI_BYTE];
         let mut rom2 = [0u8; 16 * KIBI_BYTE];
-	for i in 0..16 * KIBI_BYTE {
-	    rom1[i] = self.rom[i];
-	}
-	for i in 16 * KIBI_BYTE..32 * KIBI_BYTE {
-	    rom2[i - 16 * KIBI_BYTE] = self.rom[i];
-	}
-	let vec = vec![rom1, rom2];
-	vec
+        for i in 0..16 * KIBI_BYTE {
+            rom1[i] = self.rom[i];
+        }
+        for i in 16 * KIBI_BYTE..32 * KIBI_BYTE {
+            rom2[i - 16 * KIBI_BYTE] = self.rom[i];
+        }
+        let vec = vec![rom1, rom2];
+        vec
     }
 
     fn get_ram_banks(&self) -> Option<Vec<[u8; 8 * KIBI_BYTE]>> {
-	match self.ram {
-	    Some(x) => {
-		Some(vec![x])
-	    },
-	    None => None
-	}
+        match self.ram {
+            Some(x) => Some(vec![x]),
+            None => None,
+        }
     }
 }
 

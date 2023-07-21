@@ -55,7 +55,7 @@ impl Mbc for Mbc3 {
                 }
             }
             0x2000..=0x3FFF => {
-		// The rom bank register is a 7 bit register
+                // The rom bank register is a 7 bit register
                 self.rom_bank_index = byte as usize & 0x7F;
                 if self.rom_bank_index == 0 {
                     self.rom_bank_index = 1;
@@ -80,13 +80,13 @@ impl Mbc for Mbc3 {
             _ => (),
         }
     }
-    
+
     fn get_rom_banks(&self) -> Vec<[u8; 16 * KIBI_BYTE]> {
         self.rom_banks.clone()
     }
 
     fn get_ram_banks(&self) -> Option<Vec<[u8; 8 * KIBI_BYTE]>> {
-	self.ram_banks.clone()
+        self.ram_banks.clone()
     }
 }
 

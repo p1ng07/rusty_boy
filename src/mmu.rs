@@ -1,6 +1,6 @@
-use crate::cpu::{CpuState, is_bit_set};
+use crate::cpu::{is_bit_set, CpuState};
 use crate::hdma_controller::HdmaController;
-use crate::interrupt_handler::{InterruptHandler, self};
+use crate::interrupt_handler::{self, InterruptHandler};
 use crate::joypad::Joypad;
 use crate::mbc::Mbc;
 use crate::ppu::Ppu;
@@ -16,19 +16,15 @@ pub struct Mmu {
     pub ppu: Ppu,
     serial: Serial,
     wram_banks: [[u8; 0x2000]; 8],
-    wram_bank_index: usize,   // Index of the wram bank to use in the 0xD000-0xDFFF region
+    wram_bank_index: usize, // Index of the wram bank to use in the 0xD000-0xDFFF region
     pub dma_iterator: u8,
     pub dma_source: u8,
     hdma_controller: HdmaController,
-    pub key1: u8           // Prepare speed switch control register
+    pub key1: u8, // Prepare speed switch control register
 }
 
 impl Mmu {
-    pub fn fetch_byte(
-        &mut self,
-        address: u16,
-        interrupt_handler: &mut InterruptHandler,
-    ) -> u8 {
+    pub fn fetch_byte(&mut self, address: u16, interrupt_handler: &mut InterruptHandler) -> u8 {
         match address {
             0..=0x7FFF => self.mbc.read_byte(address),
             0x8000..=0x9FFF => self.ppu.fetch_vram(address - 0x8000),
@@ -39,7 +35,7 @@ impl Mmu {
             }
             0xD000..=0xDFFF => {
                 let local_address = (address & 0x1FFF) as usize;
-		self.wram_banks[self.wram_bank_index][local_address]
+                self.wram_banks[self.wram_bank_index][local_address]
             }
             0xE000..=0xFDFF => {
                 let local_address = (address & 0x1FFF) as usize;
@@ -61,20 +57,20 @@ impl Mmu {
             0xFF47 => self.ppu.bgp,
             0xFF48 => self.ppu.obp0,
             0xFF49 => self.ppu.obp1,
-	    0xFF51 => self.hdma_controller.hdma1,
-	    0xFF52 => self.hdma_controller.hdma2,
-	    0xFF53 => self.hdma_controller.hdma3,
-	    0xFF54 => self.hdma_controller.hdma4,
-	    0xFF55 => self.hdma_controller.hdma5,
-	    0xFF68 => self.ppu.bg_palette_index as u8,
-	    0xFF69 => self.ppu.fetch_bg_palette_data(),
-	    0xFF6A => self.ppu.sprite_palette_index as u8,
-	    0xFF6B => self.ppu.fetch_sprite_palette_data(),
+            0xFF51 => self.hdma_controller.hdma1,
+            0xFF52 => self.hdma_controller.hdma2,
+            0xFF53 => self.hdma_controller.hdma3,
+            0xFF54 => self.hdma_controller.hdma4,
+            0xFF55 => self.hdma_controller.hdma5,
+            0xFF68 => self.ppu.bg_palette_index as u8,
+            0xFF69 => self.ppu.fetch_bg_palette_data(),
+            0xFF6A => self.ppu.sprite_palette_index as u8,
+            0xFF6B => self.ppu.fetch_sprite_palette_data(),
             0xFF4A => self.ppu.wy,
             0xFF4B => self.ppu.wx,
-	    0xFF4D => self.key1,
-	    0xFF4F => (self.ppu.vram_bank_index as u8 & 1) | 0b1111_1110,
-	    0xFF70 => self.wram_bank_index as u8,
+            0xFF4D => self.key1,
+            0xFF4F => (self.ppu.vram_bank_index as u8 & 1) | 0b1111_1110,
+            0xFF70 => self.wram_bank_index as u8,
             0xFF80..=0xFFFE => self.hram[(address - 0xFF80) as usize],
             0xFFFF => interrupt_handler.IE,
             _ => 0xFF,
@@ -107,25 +103,29 @@ impl Mmu {
             0xA000..=0xBFFF => self.mbc.write_byte(address, received_byte),
             0xC000..=0xCFFF => {
                 let local_address = (address & 0x1FFF) as usize;
-                self.wram_banks[0][local_address]= received_byte;
+                self.wram_banks[0][local_address] = received_byte;
             }
             0xD000..=0xDFFF => {
                 let local_address = (address & 0x1FFF) as usize;
-		self.wram_banks[self.wram_bank_index][local_address]= received_byte;
+                self.wram_banks[self.wram_bank_index][local_address] = received_byte;
             }
             0xE000..=0xFDFF => {
                 let local_address = (address & 0x1FFF) as usize;
-                self.wram_banks[0][local_address]= received_byte;
+                self.wram_banks[0][local_address] = received_byte;
             }
             0xFE00..=0xFE9F => self.ppu.write_oam(address - 0xFE00, received_byte),
             0xFF00 => self.joypad.write_to_byte(received_byte, interrupt_handler),
-            0xFF01 => self.serial.write_to_transfer(interrupt_handler, received_byte),
-            0xFF02 => self.serial.write_to_control(received_byte, interrupt_handler),
+            0xFF01 => self
+                .serial
+                .write_to_transfer(interrupt_handler, received_byte),
+            0xFF02 => self
+                .serial
+                .write_to_control(received_byte, interrupt_handler),
             0xFF04..=0xFF07 => self.timer.write_byte(address, received_byte),
             0xFF0F => {
-		interrupt_handler.IF = received_byte & 0x1F;
-		interrupt_handler.IF |= 0b1110_0000;
-	    }
+                interrupt_handler.IF = received_byte & 0x1F;
+                interrupt_handler.IF |= 0b1110_0000;
+            }
             0xFF40 => self.ppu.write_lcdc(received_byte),
             0xFF41 => self.ppu.write_to_lcd_status(received_byte),
             0xFF42 => self.ppu.scy = received_byte,
@@ -137,35 +137,35 @@ impl Mmu {
             0xFF49 => self.ppu.obp1 = received_byte,
             0xFF4A => self.ppu.wy = received_byte,
             0xFF4B => self.ppu.wx = received_byte,
-	    0xFF4D => self.key1 = self.key1 & 0b1111_1110 | (received_byte & 1),
+            0xFF4D => self.key1 = self.key1 & 0b1111_1110 | (received_byte & 1),
             0xFF4F => self.ppu.vram_bank_index = received_byte as usize & 0x1,
             0xFF50 => {
                 if received_byte > 0 {
                     *cpu_state = CpuState::NonBoot
                 }
             }
-	    0xFF51 => self.hdma_controller.hdma1 = received_byte,
-	    0xFF52 => self.hdma_controller.hdma2 = received_byte & 0xF0,
-	    0xFF53 => self.hdma_controller.hdma3 = received_byte & 0b1_1111,
-	    0xFF54 => self.hdma_controller.hdma4 = received_byte & 0xF0,
-	    0xFF55 => self.start_hdma(received_byte, interrupt_handler),
-	    0xFF68 => self.ppu.bg_palette_index = received_byte as usize ,
-	    0xFF69 => self.ppu.write_bg_palette_data(received_byte),
-	    0xFF6A => self.ppu.sprite_palette_index = received_byte as usize ,
-	    0xFF6B => self.ppu.write_sprite_palette_data(received_byte),
-	    0xFF70 => {
-		self.wram_bank_index = received_byte as usize & 0x7;
-		if self.wram_bank_index == 0 {
-		    self.wram_bank_index = 1;
-		}
-	    },
+            0xFF51 => self.hdma_controller.hdma1 = received_byte,
+            0xFF52 => self.hdma_controller.hdma2 = received_byte & 0xF0,
+            0xFF53 => self.hdma_controller.hdma3 = received_byte & 0b1_1111,
+            0xFF54 => self.hdma_controller.hdma4 = received_byte & 0xF0,
+            0xFF55 => self.start_hdma(received_byte, interrupt_handler),
+            0xFF68 => self.ppu.bg_palette_index = received_byte as usize,
+            0xFF69 => self.ppu.write_bg_palette_data(received_byte),
+            0xFF6A => self.ppu.sprite_palette_index = received_byte as usize,
+            0xFF6B => self.ppu.write_sprite_palette_data(received_byte),
+            0xFF70 => {
+                self.wram_bank_index = received_byte as usize & 0x7;
+                if self.wram_bank_index == 0 {
+                    self.wram_bank_index = 1;
+                }
+            }
             0xFF80..=0xFFFE => {
                 self.hram[(address - 0xFF80) as usize] = received_byte;
             }
             0xFFFF => {
-		interrupt_handler.IE = received_byte & 0x1F;
-		interrupt_handler.IE |= 0b1110_0000;
-	    },
+                interrupt_handler.IE = received_byte & 0x1F;
+                interrupt_handler.IE |= 0b1110_0000;
+            }
             _ => (),
         };
     }
@@ -183,7 +183,7 @@ impl Mmu {
             key1: 0,
             wram_banks: [[0; 0x2000]; 8],
             wram_bank_index: 1,
-	    hdma_controller: HdmaController::new()
+            hdma_controller: HdmaController::new(),
         }
     }
 
@@ -194,42 +194,47 @@ impl Mmu {
     }
 
     fn start_hdma(&mut self, hdma5: u8, interrupt_handler: &mut InterruptHandler) {
-	self.hdma_controller.is_active = true;
+        self.hdma_controller.is_active = true;
 
-	let hdma1 = self.hdma_controller.hdma1 as u16;
-	let hdma2 = self.hdma_controller.hdma2 as u16;
-	let hdma3 = self.hdma_controller.hdma3 as u16;
-	let hdma4 = self.hdma_controller.hdma4 as u16;
+        let hdma1 = self.hdma_controller.hdma1 as u16;
+        let hdma2 = self.hdma_controller.hdma2 as u16;
+        let hdma3 = self.hdma_controller.hdma3 as u16;
+        let hdma4 = self.hdma_controller.hdma4 as u16;
 
-	if is_bit_set(hdma5, 7) {
-	    // Start an hblank dma
-	    todo!("Implement hblank dma");
-	}else {
-	    let mut start = (hdma1 << 8) | hdma2;
-	    let mut destination = (hdma3 << 8) | hdma4;
+        if is_bit_set(hdma5, 7) {
+            // Start an hblank dma
+            todo!("Implement hblank dma");
+        } else {
+            let mut start = (hdma1 << 8) | hdma2;
+            let mut destination = (hdma3 << 8) | hdma4;
 
-	    start &= 0xFFF0;
-	    destination &= 0x1FF0;
-	
-	    // Start a general purpose dma
-	    // This transfer is instant
-	    let length = ((hdma5 as u16 & 0b111_1111) + 1) * 16;
+            start &= 0xFFF0;
+            destination &= 0x1FF0;
 
-	    print!("Initiated gdma from {:X} to {:X}, length {:X}", start, destination + 0x8000,length);
+            // Start a general purpose dma
+            // This transfer is instant
+            let length = ((hdma5 as u16 & 0b111_1111) + 1) * 16;
 
-	    for i in 0..length {
-		let byte = self.fetch_byte(start + i, interrupt_handler);
+            print!(
+                "Initiated gdma from {:X} to {:X}, length {:X}",
+                start,
+                destination + 0x8000,
+                length
+            );
 
-		self.ppu.write_vram(destination + i, byte);
-	    }
+            for i in 0..length {
+                let byte = self.fetch_byte(start + i, interrupt_handler);
 
-	    self.hdma_controller.hdma1 = ((start + length) >> 8) as u8;
-	    self.hdma_controller.hdma2 = (start + length) as u8;
-	    self.hdma_controller.hdma3 = ((destination + length) >> 8) as u8;
-	    self.hdma_controller.hdma4 = (destination + length) as u8;
-	    self.hdma_controller.hdma5 = 0xFF;
+                self.ppu.write_vram(destination + i, byte);
+            }
 
-	    self.hdma_controller.is_active = false;
-	}
+            self.hdma_controller.hdma1 = ((start + length) >> 8) as u8;
+            self.hdma_controller.hdma2 = (start + length) as u8;
+            self.hdma_controller.hdma3 = ((destination + length) >> 8) as u8;
+            self.hdma_controller.hdma4 = (destination + length) as u8;
+            self.hdma_controller.hdma5 = 0xFF;
+
+            self.hdma_controller.is_active = false;
+        }
     }
 }

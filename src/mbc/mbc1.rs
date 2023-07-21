@@ -85,7 +85,7 @@ impl Mbc for Mbc1 {
     }
 
     fn get_ram_banks(&self) -> Option<Vec<[u8; 8 * KIBI_BYTE]>> {
-	self.ram_banks.clone()
+        self.ram_banks.clone()
     }
 }
 

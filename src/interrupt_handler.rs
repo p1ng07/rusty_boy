@@ -41,18 +41,16 @@ pub struct InterruptHandler {
 
 #[allow(dead_code)]
 impl InterruptHandler {
-
-    pub fn new () -> Self {
-	Self {
-	enabled: false,
-	    IF: 0b1110_0000,
-	    IE: 0b1110_0000
-	}
-	
+    pub fn new() -> Self {
+        Self {
+            enabled: false,
+            IF: 0b1110_0000,
+            IE: 0b1110_0000,
+        }
     }
 
     pub fn is_interrupt_pending(&self) -> bool {
-	self.IF & 0x1F & self.IE & 0x1F > 0
+        self.IF & 0x1F & self.IE & 0x1F > 0
     }
 
     // Changes the IF register depending on which interrupt was requested

@@ -18,10 +18,9 @@ impl Mbc for Mbc5 {
         match address {
             ..=0x3FFF => self.rom_banks[0][address as usize], // Reading rom bank 0
             0x4000..=0x7FFF => {
-		let index = self.rom_bank_extra_bit.shl(8) | self.rom_bank_index;
-                if let Some(rom_bank) = self.rom_banks.get(index & self.rom_bank_mask)
-                {
-		    let rom_bank: [u8; 16 * KIBI_BYTE] = *rom_bank;
+                let index = self.rom_bank_extra_bit.shl(8) | self.rom_bank_index;
+                if let Some(rom_bank) = self.rom_banks.get(index & self.rom_bank_mask) {
+                    let rom_bank: [u8; 16 * KIBI_BYTE] = *rom_bank;
                     rom_bank[address as usize - 0x4000]
                 } else {
                     panic!("{} rom bank", self.rom_bank_index);
@@ -60,9 +59,9 @@ impl Mbc for Mbc5 {
             0x2000..=0x2FFF => {
                 self.rom_bank_index = byte as usize;
             }
-	    0x3000..=0x3FFF => {
-		self.rom_bank_extra_bit = byte as usize & 1;
-	    },
+            0x3000..=0x3FFF => {
+                self.rom_bank_extra_bit = byte as usize & 1;
+            }
             0x4000..=0x5FFF => {
                 if self.ram_enabled {
                     self.ram_bank_index = (byte & 0xF) as usize;
@@ -87,7 +86,7 @@ impl Mbc for Mbc5 {
     }
 
     fn get_ram_banks(&self) -> Option<Vec<[u8; 8 * KIBI_BYTE]>> {
-	self.ram_banks.clone()
+        self.ram_banks.clone()
     }
 }
 
@@ -110,7 +109,7 @@ impl Mbc5 {
 
         let mut rom_banks: Vec<[u8; 16 * KIBI_BYTE]> = Vec::with_capacity(num_of_banks);
 
-        let rom_bank_mask:usize = match num_of_banks {
+        let rom_bank_mask: usize = match num_of_banks {
             2 => 1,
             4 => 0b11,
             8 => 0b111,
@@ -141,10 +140,10 @@ impl Mbc5 {
 
         // Initialize ram based on the size given in the rom
         let num_ram_banks = match total_rom[0x149] {
-            2 => 1, // 1 bank of 8 KiB
-            3 => 4, // 4 banks of 8 KiB
+            2 => 1,  // 1 bank of 8 KiB
+            3 => 4,  // 4 banks of 8 KiB
             4 => 16, // 4 banks of 8 KiB
-            5 => 8, // 4 banks of 8 KiB
+            5 => 8,  // 4 banks of 8 KiB
             _ => 0,
         };
 
@@ -182,7 +181,7 @@ impl Mbc5 {
             ram_enabled: false,
             ram_bank_index: 0,
             rom_bank_index: 1,
-	    rom_bank_extra_bit: 0,
+            rom_bank_extra_bit: 0,
             rom_bank_mask,
             rom_banks,
             ram_banks,

@@ -28,13 +28,13 @@ pub struct Cpu {
     halt_bug: bool,
     enable_interrupts_next_tick: bool,
 
-    /* Used to count 2 'fast' double speed cycles 
+    /* Used to count 2 'fast' double speed cycles
     Every time we tick 1 'fast' m-cycle this gets incremented
     And every 2 increments of this we tick the ppu by 1 'normal' m-cycle
     Because the ppu does not run on double frequency like the cpu or timer
      */
-    double_speed_delta_counter: u8, 
-    // 
+    double_speed_delta_counter: u8,
+    //
 }
 
 // Instructions and cb-prefixed instructions are on separate files
@@ -42,8 +42,7 @@ mod cb_instructions;
 mod instructions;
 
 impl Cpu {
-    // TODO Bootrom just isn't being ran, maybe change that
-    pub fn new(run_boot: bool, mmu: Mmu) -> Cpu {
+    pub fn new(mmu: Mmu) -> Cpu {
         let mut cpu = Cpu {
             pc: 0,
             sp: 0,
@@ -52,15 +51,12 @@ impl Cpu {
             delta_t_cycles: 0,
             registers: CpuRegisters::default(),
             interrupt_handler: InterruptHandler::new(),
-	    halt_bug: false,
-	    enable_interrupts_next_tick: false,
+            halt_bug: false,
+            enable_interrupts_next_tick: false,
             double_speed_delta_counter: 0,
         };
 
-        // Skip the bootrom, and go straight to running the program
-        if !run_boot {
-            initialize_cpu_state_defaults(&mut cpu);
-        }
+        initialize_cpu_state_defaults(&mut cpu);
         cpu
     }
 
@@ -69,14 +65,13 @@ impl Cpu {
         // Print state of emulator to logger
         self.log_to_file();
 
-	
         if self.state == CpuState::Halt {
-	    // Check for halt bug right after halt is executed and before the cpu ticks
-	    if !self.interrupt_handler.enabled && self.interrupt_handler.is_interrupt_pending() {
-		self.state = CpuState::NonBoot;
-		self.halt_bug = true;
-	    }
-	    
+            // Check for halt bug right after halt is executed and before the cpu ticks
+            if !self.interrupt_handler.enabled && self.interrupt_handler.is_interrupt_pending() {
+                self.state = CpuState::NonBoot;
+                self.halt_bug = true;
+            }
+
             self.tick();
 
             // If there are interrupts pending, and it is possible to service them, disable halt mode
@@ -112,19 +107,16 @@ impl Cpu {
     }
 
     fn tick_dma(&mut self) {
-	if self.state != CpuState::DMA{
-	    return;
-	}
+        if self.state != CpuState::DMA {
+            return;
+        }
         if self.mmu.dma_iterator > 159 {
             self.state = CpuState::NonBoot;
             self.mmu.dma_iterator = 0;
-	    return;
+            return;
         }
-        let address: u16 =
-            ((self.mmu.dma_source as u16) << 8) | self.mmu.dma_iterator as u16;
-        let dma_byte =
-            self.mmu
-                .fetch_byte(address, &mut self.interrupt_handler);
+        let address: u16 = ((self.mmu.dma_source as u16) << 8) | self.mmu.dma_iterator as u16;
+        let dma_byte = self.mmu.fetch_byte(address, &mut self.interrupt_handler);
         let destination = self.mmu.dma_iterator as usize;
         self.mmu.ppu.oam_ram[destination] = dma_byte;
         self.mmu.dma_iterator += 1;
@@ -134,42 +126,42 @@ impl Cpu {
     fn tick(&mut self) {
         self.delta_t_cycles += 4;
 
-	// While in double speed, the ppu operates at it's normal frequency
-	// If the cpu is in double speed mode, every 8 'fast' t-cycles, we cycle the ppu by 4 t-cycles
-	// If the cpu is in normal speed mode, just tick 4 t-cycles for every 4 t-cycles
-	if !is_bit_set(self.mmu.key1, 7) ||  (is_bit_set(self.mmu.key1, 7) && self.double_speed_delta_counter % 2 == 0) {
-	    self.mmu.ppu.tick(&mut self.interrupt_handler);
-	    self.mmu.ppu.tick(&mut self.interrupt_handler);
-	    self.mmu.ppu.tick(&mut self.interrupt_handler);
-	    self.mmu.ppu.tick(&mut self.interrupt_handler);
-	    self.tick_dma();
-	}
+        // While in double speed, the ppu operates at it's normal frequency
+        // If the cpu is in double speed mode, every 8 'fast' t-cycles, we cycle the ppu by 4 t-cycles
+        // If the cpu is in normal speed mode, just tick 4 t-cycles for every 4 t-cycles
+        if !is_bit_set(self.mmu.key1, 7)
+            || (is_bit_set(self.mmu.key1, 7) && self.double_speed_delta_counter % 2 == 0)
+        {
+            self.mmu.ppu.tick(&mut self.interrupt_handler);
+            self.mmu.ppu.tick(&mut self.interrupt_handler);
+            self.mmu.ppu.tick(&mut self.interrupt_handler);
+            self.mmu.ppu.tick(&mut self.interrupt_handler);
+            self.tick_dma();
+        }
 
-	// Advance the double speed delta counter by 1 m-cycle
-	self.double_speed_delta_counter = self.double_speed_delta_counter.wrapping_add(1);
+        // Advance the double speed delta counter by 1 m-cycle
+        self.double_speed_delta_counter = self.double_speed_delta_counter.wrapping_add(1);
 
         self.mmu
             .timer
             .step(&self.state, &mut self.interrupt_handler);
 
-	// Delayed EI instruction
-	if self.enable_interrupts_next_tick {
-	    self.interrupt_handler.enabled = true;
-	    self.enable_interrupts_next_tick = false;
-	}
+        // Delayed EI instruction
+        if self.enable_interrupts_next_tick {
+            self.interrupt_handler.enabled = true;
+            self.enable_interrupts_next_tick = false;
+        }
     }
 
     fn fetch_byte_pc(&mut self) -> u8 {
         self.tick();
-        let byte = self
-            .mmu
-            .fetch_byte(self.pc, &mut self.interrupt_handler);
+        let byte = self.mmu.fetch_byte(self.pc, &mut self.interrupt_handler);
 
-	self.pc = self.pc.wrapping_add(1);
-	if self.halt_bug {
-	    self.pc -= 1;
-	    self.halt_bug = false;
-	}
+        self.pc = self.pc.wrapping_add(1);
+        if self.halt_bug {
+            self.pc -= 1;
+            self.halt_bug = false;
+        }
 
         byte
     }
@@ -239,14 +231,10 @@ impl Cpu {
 
     fn pop_u16_from_stack(&mut self) -> u16 {
         self.tick();
-        let lower_byte = self
-            .mmu
-            .fetch_byte(self.sp, &mut self.interrupt_handler);
+        let lower_byte = self.mmu.fetch_byte(self.sp, &mut self.interrupt_handler);
         self.sp = self.sp.wrapping_add(1);
         self.tick();
-        let high_byte = self
-            .mmu
-            .fetch_byte(self.sp, &mut self.interrupt_handler);
+        let high_byte = self.mmu.fetch_byte(self.sp, &mut self.interrupt_handler);
         self.sp = self.sp.wrapping_add(1);
         (high_byte as u16) << 8 | lower_byte as u16
     }
@@ -297,23 +285,23 @@ impl Cpu {
     }
 
     fn log_to_file(&mut self) {
-            // log::info!(
-            //     "A:{} F:{} B:{} C:{} D:{} E:{} H:{} L:{} SP:{} PC:{} PCMEM:{},{},{},{}",
-            //     format!("{:0>2X}", self.registers.a),
-            //     format!("{:0>2X}", self.registers.f),
-            //     format!("{:0>2X}", self.registers.b),
-            //     format!("{:0>2X}", self.registers.c),
-            //     format!("{:0>2X}", self.registers.d),
-            //     format!("{:0>2X}", self.registers.e),
-            //     format!("{:0>2X}", self.registers.h),
-            //     format!("{:0>2X}", self.registers.l),
-            //     format!("{:0>4X}", self.sp),
-            //     format!("{:0>4X}", self.pc - 1),
-            //     format!("{:02X}", instruction),
-            //     format!("{:02X}", self.mmu.fetch_byte(self.pc, &self.state)),
-            //     format!("{:02X}", self.mmu.fetch_byte(self.pc + 1, &self.state)),
-            //     format!("{:02X}", self.mmu.fetch_byte(self.pc + 2, &self.state))
-            // );
+        // log::info!(
+        //     "A:{} F:{} B:{} C:{} D:{} E:{} H:{} L:{} SP:{} PC:{} PCMEM:{},{},{},{}",
+        //     format!("{:0>2X}", self.registers.a),
+        //     format!("{:0>2X}", self.registers.f),
+        //     format!("{:0>2X}", self.registers.b),
+        //     format!("{:0>2X}", self.registers.c),
+        //     format!("{:0>2X}", self.registers.d),
+        //     format!("{:0>2X}", self.registers.e),
+        //     format!("{:0>2X}", self.registers.h),
+        //     format!("{:0>2X}", self.registers.l),
+        //     format!("{:0>4X}", self.sp),
+        //     format!("{:0>4X}", self.pc - 1),
+        //     format!("{:02X}", instruction),
+        //     format!("{:02X}", self.mmu.fetch_byte(self.pc, &self.state)),
+        //     format!("{:02X}", self.mmu.fetch_byte(self.pc + 1, &self.state)),
+        //     format!("{:02X}", self.mmu.fetch_byte(self.pc + 2, &self.state))
+        // );
         log::info!(
             "A: {} F: {} B: {} C: {} D: {} E: {} H: {} L: {} SP: {} PC: 00:{} ({} {} {} {})",
             format!("{:0>2X}", self.registers.a),
@@ -328,8 +316,7 @@ impl Cpu {
             format!("{:0>4X}", self.pc),
             format!(
                 "{:02X}",
-                self.mmu
-                    .fetch_byte(self.pc, &mut self.interrupt_handler)
+                self.mmu.fetch_byte(self.pc, &mut self.interrupt_handler)
             ),
             format!(
                 "{:02X}",

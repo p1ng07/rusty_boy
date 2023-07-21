@@ -8,10 +8,14 @@ use log4rs::{
     Config,
 };
 
-use crate::{constants::{GAMEBOY_HEIGHT, GAMEBOY_WIDTH}, mbc::{mbc3::Mbc3, mbc5::Mbc5}, cpu::is_bit_set};
 use crate::cpu;
 use crate::mbc::{mbc1::Mbc1, no_mbc::NoMbc, Mbc};
 use crate::mmu::Mmu;
+use crate::{
+    constants::{GAMEBOY_HEIGHT, GAMEBOY_WIDTH},
+    cpu::is_bit_set,
+    mbc::{mbc3::Mbc3, mbc5::Mbc5},
+};
 
 pub struct GameBoyApp {
     cpu: Option<cpu::Cpu>,
@@ -48,19 +52,19 @@ impl GameBoyApp {
             Err(_) => return None,
         };
 
-	// IF true, the game supports gbc enhancements
-	// IF false, the game is DMG only and needs
-	// a default palette
-	let is_dmg_game = total_rom[0x143] & 0x80 == 0;
+        // IF true, the game supports gbc enhancements
+        // IF false, the game is DMG only and needs
+        // a default palette
+        let is_dmg_game = total_rom[0x143] & 0x80 == 0;
 
-	// TODO make these code checks length safe
+        // TODO make these code checks length safe
         let mbc_type_code = total_rom[0x147];
 
         let mbc = match mbc_type_code {
             0 => Box::new(NoMbc::new(total_rom)) as Box<dyn Mbc>,
             1 | 2 | 3 => Box::new(Mbc1::new(total_rom)) as Box<dyn Mbc>,
-	    0xF..=0x13 => Box::new(Mbc3::new(total_rom)) as Box<dyn Mbc>,
-	    0x19..=0x1E => Box::new(Mbc5::new(total_rom)) as Box<dyn Mbc>,
+            0xF..=0x13 => Box::new(Mbc3::new(total_rom)) as Box<dyn Mbc>,
+            0x19..=0x1E => Box::new(Mbc5::new(total_rom)) as Box<dyn Mbc>,
             _ => {
                 println!("Mbc with code {:X} is not yet implemented", mbc_type_code);
                 return None;
@@ -68,7 +72,7 @@ impl GameBoyApp {
         };
 
         let mmu = Mmu::new(mbc, is_dmg_game);
-        let cpu = cpu::Cpu::new(false, mmu);
+        let cpu = cpu::Cpu::new(mmu);
 
         Some(cpu)
     }
@@ -81,17 +85,16 @@ impl GameBoyApp {
 
         cpu.mmu.joypad.update_input(ui, &mut cpu.interrupt_handler);
 
-        // TODO Fix this timing, games run too fast
         // run 70225 t-cycles of cpu work per frame, equating to 4MHz of t-cycles per second
         let mut ran_cycles = 0;
 
-	let cycle_limit = 70225 * if is_bit_set(cpu.mmu.key1, 7) {2} else {1};
-	// Run a frame of cpu clocks, if the cpu is in double speed mode, run double those cycles
+        let cycle_limit = 70225 * if is_bit_set(cpu.mmu.key1, 7) { 2 } else { 1 };
+        // Run a frame of cpu clocks, if the cpu is in double speed mode, run double those cycles
         while ran_cycles < cycle_limit {
-	    if ran_cycles >= 70225 {
-		// Update input after one frame of cycles (if the cpu is in double speed)
-		cpu.mmu.joypad.update_input(ui, &mut cpu.interrupt_handler);
-	    }
+            if ran_cycles >= 70225 {
+                // Update input after one frame of cycles (if the cpu is in double speed)
+                cpu.mmu.joypad.update_input(ui, &mut cpu.interrupt_handler);
+            }
             ran_cycles += cpu.cycle();
         }
 
@@ -169,9 +172,9 @@ impl eframe::App for GameBoyApp {
                             self.cpu = self.load_rom();
                         }
                     }
-		    if ui.button("Save state").clicked() {
-			save_state(&self.cpu);
-		    }
+                    if ui.button("Save state").clicked() {
+                        save_state(&self.cpu);
+                    }
                     if ui.button("Quit").clicked() {
                         frame.close();
                     }
@@ -219,14 +222,14 @@ impl eframe::App for GameBoyApp {
 
     /// Called by the frame work to save state before shutdown.
     fn save(&mut self, _storage: &mut dyn eframe::Storage) {
-	save_state(&self.cpu);
+        save_state(&self.cpu);
     }
 }
 
 fn save_state(cpu: &Option<cpu::Cpu>) {
     let mmu = match cpu.as_ref() {
-	Some(x) => &x.mmu,
-	None => return
+        Some(x) => &x.mmu,
+        None => return,
     };
 
     let _rom_banks = mmu.mbc.get_rom_banks();
@@ -236,7 +239,6 @@ fn save_state(cpu: &Option<cpu::Cpu>) {
 
     // TODO add saving the rom + ram into a .sav file
 }
-
 
 fn init_file_logger() {
     let logfile = FileAppender::builder()
