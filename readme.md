@@ -5,6 +5,7 @@ Start: i
 Select: u
 B: j
 A: k
+Shift: Enter 2x speed mode
 
 # Info
 
