@@ -23,7 +23,7 @@ pub struct GameBoyApp {
     current_rom_path: Option<String>,
     game_framebuffer: [Color32; GAMEBOY_HEIGHT * GAMEBOY_WIDTH],
     game_window_open: bool,
-    game_double_speed: bool
+    game_speed: bool
 }
 
 impl GameBoyApp {
@@ -38,7 +38,7 @@ impl GameBoyApp {
             current_rom_path: None,
             game_framebuffer: [Color32::WHITE; GAMEBOY_HEIGHT * GAMEBOY_WIDTH],
             game_window_open: true,
-	    game_double_speed: false
+	    game_speed: false
         }
     }
 
@@ -183,17 +183,17 @@ impl eframe::App for GameBoyApp {
         egui::SidePanel::left("side_panel").show(ctx, |ui| {
 
 	    // Check if shift is pressed, if so, run in double speed
-	    self.game_double_speed = ctx.input(|i| {
+	    self.game_speed = ctx.input(|i| {
 		i.modifiers.shift
 	    });
 
 	    // Pause button
             ui.toggle_value(&mut self.paused, "Pause");
 	    
-	    if !self.game_double_speed {
-		ui.toggle_value(&mut self.game_double_speed, "Speed: 1x");
+	    if !self.game_speed {
+		ui.toggle_value(&mut self.game_speed, "Speed: 1x");
 	    }else {
-		ui.toggle_value(&mut self.game_double_speed, "Speed: 2x");
+		ui.toggle_value(&mut self.game_speed, "Speed: 2x");
 	    }
 
             if self.paused {
@@ -220,7 +220,7 @@ impl eframe::App for GameBoyApp {
                             self.run_frame(ui);
 
 			    // If the game is in double speed, run two frames
-			    if self.game_double_speed {
+			    if self.game_speed {
 				self.run_frame(ui);
 			    }
                         }

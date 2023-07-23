@@ -14,18 +14,11 @@ Shift: Enter 2x speed mode
 
 # TODO
 
-1. Better timer
-2. Turn into a gameboy color
-3. 2x and 4x speed
-4. Cpu information window
-5. Memory viewer
-6. Save states
-7. Quick reloading of save states
-
-# Gameboy color
-
-1. HDMA
-2. Background Map attributes
-3. BG-OBJ priority fix (don't forget bit 0 of LCDC)
-4. Palette arrays and adding default bg and obj's palettes to these arrays
-5. Pass cgb-acid2
+1. Better 2x 4x 16x speed
+1. Look for visual bugs and correct them
+1. Save states
+1. Resolve todos
+1. Prettify the readme,code and egui application
+1. Maybe deploy to wasm and have a github pages site for it
+1. Release
+1. Go night night

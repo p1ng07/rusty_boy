@@ -200,7 +200,6 @@ impl Mmu {
         let hdma4 = self.hdma_controller.hdma4 as u16;
 
         if is_bit_set(hdma5, 7) {
-            // TODO Start an hblank dma
             self.hdma_controller.iterator_hdma = (hdma1 << 8) | hdma2;
             self.hdma_controller.destination_hdma = (hdma3 << 8) | hdma4;
 	    self.hdma_controller.iterator_hdma &= 0xFFF0;
@@ -213,7 +212,6 @@ impl Mmu {
         } else {
 	    if self.hdma_controller.is_active {
 		// If a hdma is in place, cancel it
-		// TODO cancel hdma
 		self.hdma_controller.is_active = false;
 		return;
 	    }
