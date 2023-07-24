@@ -442,9 +442,12 @@ impl Ppu {
 
         // Get the indices of up to 10 sprites to be rendered on this line
         for i in (0..self.oam_ram.len()).step_by(4) {
-            let ly = self.oam_ram[i].wrapping_sub(16);
+            let obj_y = self.oam_ram[i].saturating_sub(16);
+
             let obj_size = if is_bit_set(self.lcdc, 2) { 16 } else { 8 };
-            let range = ly..ly.saturating_add(obj_size);
+
+            let range = obj_y..self.oam_ram[i].wrapping_sub(16).wrapping_add(obj_size);
+
             if range.contains(&self.ly) && sprites.len() < 10 {
                 sprites.push((i, &self.oam_ram[i..(i + 4)]));
             }
@@ -474,16 +477,13 @@ impl Ppu {
             let horizontal_flip = is_bit_set(attributes, 5);
             let vertical_flip = is_bit_set(attributes, 6);
 
-            // If the object pixel is off screen, don't draw it
-            if obj_x == 0 || obj_x >= 168 {
-                continue;
-            }
             for pixel_x in obj_x.saturating_sub(8)..obj_x {
 		if pixel_x >= 168 {
 		    // If the current sprite is partly off-screen, don't draw those off-screen pixels
 		    continue;
 		}
-                let mut tilemap_tile_y = self.ly as usize + 16 - obj_y as usize;
+
+                let mut tilemap_tile_y = (self.ly as usize + 16).saturating_sub(obj_y as usize);
 
                 if vertical_flip {
                     tilemap_tile_y =
