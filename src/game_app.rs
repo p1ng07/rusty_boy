@@ -120,6 +120,12 @@ impl GameBoyApp {
         ui.image(&tex, size);
     }
 
+    fn handle_input(&mut self, ctx: &egui::Context) {
+	if ctx.input(|ui| ui.key_pressed(egui::Key::Space)) {
+	    self.paused = !self.paused;
+	}
+    }
+
     // fn dump_vram(&self, vram: [u8; 0xA0]) {
     //     for index in (0..vram.len()).step_by(16) {
     //         let number = 0x8000u16 + index.to_owned() as u16;
@@ -153,6 +159,9 @@ impl eframe::App for GameBoyApp {
         let deadline = std::time::Instant::now()
             .checked_add(Duration::from_micros(16600u64))
             .unwrap();
+
+	// Handle input
+	self.handle_input(ctx);
 
         #[cfg(not(target_arch = "wasm32"))]
         egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
@@ -286,6 +295,7 @@ fn save_state(cpu: &Option<cpu::Cpu>) {
 	return;
     }
 
+    // TODO handle existing files
     match File::create(save_file_path.unwrap()) {
 	Ok(mut file) => file.write_all(&(save.unwrap())),
 	Err(e) => return,
