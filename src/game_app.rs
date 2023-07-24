@@ -7,7 +7,7 @@ use log4rs::{
     encode::pattern::PatternEncoder,
     Config,
 };
-use std::{fs::File, io::ErrorKind};
+use std::{fs::File, io::ErrorKind, time::{Duration, Instant}};
 use std::io::prelude::*;
 
 use crate::cpu::{self, Cpu};
@@ -150,9 +150,9 @@ impl GameBoyApp {
 impl eframe::App for GameBoyApp {
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
         // Get the time at which a game update should happen
-        // let _deadline = std::time::Instant::now()
-        //     .checked_add(Duration::from_micros(16600u64))
-        //     .unwrap();
+        let deadline = std::time::Instant::now()
+            .checked_add(Duration::from_micros(16600u64))
+            .unwrap();
 
         #[cfg(not(target_arch = "wasm32"))]
         egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
@@ -239,8 +239,7 @@ impl eframe::App for GameBoyApp {
                 });
         }
         // Update the context after 16.6 ms (forcing the fps to be 60)
-        // ctx.request_repaint_after(deadline.sub(Instant::now()));
-        ctx.request_repaint();
+        ctx.request_repaint_after(deadline.duration_since(Instant::now()));
     }
 
     /// Called by the frame work to save state before shutdown.
@@ -250,7 +249,7 @@ impl eframe::App for GameBoyApp {
 
 fn load_state() -> Option<Cpu> {
     let picked_path = rfd::FileDialog::new()
-	.add_filter("sav files", &["save", "sav"])
+	.add_filter("sav files", &["gbsave"])
 	.pick_file();
 
     if let Some(path) = picked_path {
@@ -281,7 +280,7 @@ fn save_state(cpu: &Option<cpu::Cpu>) {
     let save = bincode::serialize(cpu);
 
     let save_file_path = rfd::FileDialog::new()
-	.set_file_name(".sav")
+	.set_file_name(".gbsave")
 	.save_file();
     if save_file_path.is_none() {
 	return;
