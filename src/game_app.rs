@@ -47,10 +47,8 @@ impl GameBoyApp {
     // TODO make this use results for the various types of errors
     // Tries to load the selected rom
     fn load_rom(&mut self) -> Option<cpu::Cpu> {
-        let total_rom: Vec<u8>;
-
-        match std::fs::read(&self.current_rom_path.clone().unwrap()) {
-            Ok(byte_vec) => total_rom = byte_vec,
+        let total_rom = match std::fs::read(&self.current_rom_path.clone().unwrap()) {
+            Ok(byte_vec) => byte_vec,
             Err(_) => return None,
         };
 
@@ -282,7 +280,9 @@ fn save_state(cpu: &Option<cpu::Cpu>) {
 
     let save = bincode::serialize(cpu);
 
-    let save_file_path = rfd::FileDialog::new().add_filter("save file", &["sav"]).save_file();
+    let save_file_path = rfd::FileDialog::new()
+	.set_file_name(".sav")
+	.save_file();
     if save_file_path.is_none() {
 	return;
     }
