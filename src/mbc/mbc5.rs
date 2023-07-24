@@ -1,7 +1,10 @@
 use std::ops::Shl;
 
-use super::{no_mbc::KIBI_BYTE, Mbc};
+use serde::{Serialize, Deserialize};
 
+use super::{Mbc, mbc1::{LENGTH_ROM_BANK, LENGTH_RAM_BANK}};
+
+#[derive(Serialize, Deserialize)]
 pub struct Mbc5 {
     ram_enabled: bool,
     ram_bank_index: usize,
@@ -9,40 +12,31 @@ pub struct Mbc5 {
     rom_bank_extra_bit: usize,
     rom_bank_mask: usize, // Used to mask the value written to the rom bank register
     ram_bank_index_mask: usize,
-    rom_banks: Vec<[u8; 16 * KIBI_BYTE]>,
-    ram_banks: Option<Vec<[u8; 8 * KIBI_BYTE]>>,
+    #[serde(with = "serde_bytes")]
+    rom_banks: Vec<u8>,
+    #[serde(with = "serde_bytes")]
+    ram_banks: Vec<u8>,
 }
 
+#[typetag::serde]
 impl Mbc for Mbc5 {
     fn read_byte(&self, address: u16) -> u8 {
         match address {
-            ..=0x3FFF => self.rom_banks[0][address as usize], // Reading rom bank 0
+            ..=0x3FFF => self.rom_banks[address as usize], // Reading rom bank 0
             0x4000..=0x7FFF => {
                 let index = self.rom_bank_extra_bit.shl(8) | self.rom_bank_index;
-                if let Some(rom_bank) = self.rom_banks.get(index & self.rom_bank_mask) {
-                    let rom_bank: [u8; 16 * KIBI_BYTE] = *rom_bank;
-                    rom_bank[address as usize - 0x4000]
-                } else {
-                    panic!("{} rom bank", self.rom_bank_index);
-                }
+		let address = address as usize + (index & self.rom_bank_mask as usize) * LENGTH_ROM_BANK - 0x4000usize;
+		self.rom_banks[address as usize]
             }
             0xA000..=0xBFFF => {
                 // Reading ram bank 00-04
                 if !self.ram_enabled {
                     return 0xFF;
                 }
-
-                if let Some(ref ram_bank) = self.ram_banks {
-                    if let Some(bank) = ram_bank.get(self.ram_bank_index & self.ram_bank_index_mask)
-                    {
-                        bank[address as usize - 0xA000]
-                    } else {
-                        0xFF
-                    }
-                } else {
-                    0xFF
-                }
-            }
+		let address = address as usize +
+		    (self.ram_bank_index & self.ram_bank_index_mask as usize) * LENGTH_RAM_BANK - 0xA000; 
+		self.ram_banks.get(address as usize).unwrap_or(&0xFF).to_owned()
+	    }
             _ => 0xFF,
         }
     }
@@ -68,25 +62,20 @@ impl Mbc for Mbc5 {
                 }
             }
             0xA000..=0xBFFF => {
-                if self.ram_enabled {
-                    if let Some(ref mut ram_bank) = self.ram_banks {
-                        if let Some(ref mut bank) =
-                            ram_bank.get_mut(self.ram_bank_index & self.ram_bank_index_mask)
-                        {
-                            bank[address as usize - 0xA000] = byte;
-                        }
-                    }
-                }
+		if !self.ram_enabled {
+		    return;
+		}
+		let address = address as usize +
+		    (self.ram_bank_index & self.ram_bank_index_mask as usize) * LENGTH_RAM_BANK - 0xA000; 
+
+		let value = self.ram_banks.get_mut(address);
+		match value {
+		    Some(_) => self.ram_banks[address] = byte,
+		    None => (),
+		}
             }
             _ => (),
         }
-    }
-    fn get_rom_banks(&self) -> Vec<[u8; 16 * KIBI_BYTE]> {
-        self.rom_banks.clone()
-    }
-
-    fn get_ram_banks(&self) -> Option<Vec<[u8; 8 * KIBI_BYTE]>> {
-        self.ram_banks.clone()
     }
 }
 
@@ -107,7 +96,7 @@ impl Mbc5 {
 
         let mut cartridge_total_iterator = 0usize;
 
-        let mut rom_banks: Vec<[u8; 16 * KIBI_BYTE]> = Vec::with_capacity(num_of_banks);
+        let mut rom_banks: Vec<u8> = Vec::new();
 
         let rom_bank_mask: usize = match num_of_banks {
             2 => 1,
@@ -124,19 +113,17 @@ impl Mbc5 {
 
         // Copy every rom bank on the cartridge
         // Every bank is comprised of 16 KiB
-        for _ in 0..num_of_banks {
-            let mut new_vec: [u8; 16 * KIBI_BYTE] = [0; 16 * KIBI_BYTE];
-            for j in 0..new_vec.len() {
-                new_vec[j] = match total_rom.get(cartridge_total_iterator) {
-                    Some(x) => {
-                        cartridge_total_iterator += 1;
-                        x.to_owned()
-                    }
-                    None => 0x00,
-                };
-            }
-            rom_banks.push(new_vec);
-        }
+	for _ in 0..num_of_banks * LENGTH_ROM_BANK {
+	    let x = match total_rom.get(cartridge_total_iterator) {
+		Some(x) => {
+		    cartridge_total_iterator += 1;
+		    x.to_owned()
+		}
+		None => 0x00,
+	    };
+
+	    rom_banks.push(x);
+	}
 
         // Initialize ram based on the size given in the rom
         let num_ram_banks = match total_rom[0x149] {
@@ -154,28 +141,18 @@ impl Mbc5 {
             _ => 0,
         };
 
-        let mut raw_ram_banks: Vec<[u8; 8 * KIBI_BYTE]> = Vec::new();
+        let mut ram_banks: Vec<u8> = Vec::new();
 
         // Populate ram banks
-        for _ in 0..num_ram_banks {
-            let mut ram_bank = [0u8; 8 * KIBI_BYTE];
-            for i in 0..ram_bank.len() {
-                ram_bank[i] = if let Some(x) = total_rom.get(cartridge_total_iterator) {
-                    cartridge_total_iterator += 1;
-                    x.clone()
-                } else {
-                    0
-                };
-            }
-
-            raw_ram_banks.push(ram_bank);
-        }
-
-        let ram_banks = if raw_ram_banks.is_empty() {
-            None
-        } else {
-            Some(raw_ram_banks)
-        };
+	for _ in 0..num_ram_banks * LENGTH_RAM_BANK {
+	    let x = if let Some(x) = total_rom.get(cartridge_total_iterator) {
+		cartridge_total_iterator += 1;
+		x.clone()
+	    } else {
+		0
+	    };
+	    ram_banks.push(x);
+	}
 
         Self {
             ram_enabled: false,

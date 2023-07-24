@@ -1,3 +1,4 @@
+use serde::{Serialize, Deserialize};
 use strum_macros::EnumIter;
 
 // This macro makes it possible to iterate through every variant of the interrupt
@@ -33,6 +34,7 @@ impl Interrupt {
 }
 
 #[allow(non_snake_case)]
+#[derive(Serialize, Deserialize)]
 pub struct InterruptHandler {
     pub enabled: bool,
     pub IF: u8, // Interrupts flags

@@ -1,4 +1,6 @@
-#[derive(Default)]
+use serde::{Serialize, Deserialize};
+
+#[derive(Serialize, Deserialize,Default)]
 pub struct CpuRegisters {
     pub a: u8,
     pub b: u8,
@@ -10,7 +12,6 @@ pub struct CpuRegisters {
     pub l: u8,
 }
 
-#[allow(dead_code)]
 impl CpuRegisters {
     pub fn get_af(&self) -> u16 {
         u16::from(self.a) << 8 | u16::from(self.f)

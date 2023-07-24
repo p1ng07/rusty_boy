@@ -1,8 +1,11 @@
+use serde::{Serialize, Deserialize};
+
 use crate::{
     cpu::is_bit_set,
     interrupt_handler::{Interrupt, InterruptHandler},
 };
 
+#[derive(Serialize, Deserialize)]
 pub struct Serial {
     pub serial_data_transfer: u8,
     pub serial_data_control: u8,

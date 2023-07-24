@@ -3,6 +3,7 @@ use std::ops::Rem;
 use crate::constants::*;
 use crate::cpu::is_bit_set;
 use epaint::Color32;
+use serde::{Serialize, Deserialize};
 
 use crate::constants::{GAMEBOY_HEIGHT, GAMEBOY_WIDTH};
 use crate::{
@@ -11,11 +12,15 @@ use crate::{
 };
 
 // Scanline based rendering of the ppu
+#[derive(Serialize, Deserialize)]
 pub struct Ppu {
     is_dmg: bool,
+    #[serde(with = "serde_arrays")]
     pub vram_0: [u8; 0x2000], // 8 kibibytes of vram
+    #[serde(with = "serde_arrays")]
     pub vram_1: [u8; 0x2000], // 8 kibibytes of vram
     pub vram_bank_index: usize,
+    #[serde(with = "serde_arrays")]
     pub oam_ram: [u8; 160],
     pub mode: PpuModes,
     current_elapsed_dots: u16,
@@ -28,8 +33,10 @@ pub struct Ppu {
     pub ly: u8,
     pub lyc: u8,
     pub lcdc: u8,
+    #[serde(with = "serde_arrays")]
     pub current_framebuffer: [Color32; GAMEBOY_WIDTH * GAMEBOY_HEIGHT],
     // Saves the color index and bg tile attribute priority of the drawn bg pixels
+    #[serde(with = "serde_arrays")]
     current_framebuffer_bg_pixel_info: [u8; GAMEBOY_WIDTH * GAMEBOY_HEIGHT],
     pub lcd_status: u8,
     pub wy: u8, // Window y position
@@ -38,7 +45,9 @@ pub struct Ppu {
     wy_condition: bool,
     stat_requested_on_current_line: bool,
 
+    #[serde(with = "serde_arrays")]
     pub bg_color_ram: [u8; 64],
+    #[serde(with = "serde_arrays")]
     pub sprite_color_ram: [u8; 64],
     pub bg_palette_index: usize,
     pub sprite_palette_index: usize,
@@ -56,6 +65,7 @@ pub enum LCDCBit {
     BgWinEnablePriority,
 }
 
+#[derive(Serialize, Deserialize)]
 pub enum PpuModes {
     HBlank,     // Horizontal blank
     Vblank,     // Vertical Blank

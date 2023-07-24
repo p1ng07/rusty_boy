@@ -7,8 +7,10 @@ use log4rs::{
     encode::pattern::PatternEncoder,
     Config,
 };
+use std::{fs::File, io::ErrorKind};
+use std::io::prelude::*;
 
-use crate::cpu;
+use crate::cpu::{self, Cpu};
 use crate::mbc::{mbc1::Mbc1, no_mbc::NoMbc, Mbc};
 use crate::mmu::Mmu;
 use crate::{
@@ -168,9 +170,18 @@ impl eframe::App for GameBoyApp {
                             self.cpu = self.load_rom();
                         }
                     }
-                    if ui.button("Save state").clicked() {
+
+                    if self.cpu.is_some() && ui.button("Save state").clicked() {
                         save_state(&self.cpu);
                     }
+
+                    if ui.button("Load state").clicked() {
+			match load_state() {
+			    Some(cpu) => self.cpu = Some(cpu),
+			    None => (),
+			}
+                    }
+
                     if ui.button("Quit").clicked() {
                         frame.close();
                     }
@@ -236,22 +247,50 @@ impl eframe::App for GameBoyApp {
 
     /// Called by the frame work to save state before shutdown.
     fn save(&mut self, _storage: &mut dyn eframe::Storage) {
-        save_state(&self.cpu);
     }
 }
 
+fn load_state() -> Option<Cpu> {
+    let picked_path = rfd::FileDialog::new()
+	.add_filter("sav files", &["save", "sav"])
+	.pick_file();
+
+    if let Some(path) = picked_path {
+	let total_rom: Vec<u8>;
+
+	match std::fs::read(path) {
+	    Ok(byte_vec) => total_rom = byte_vec,
+	    Err(_) => return None,
+	};
+
+	match bincode::deserialize(&total_rom){
+	    Ok(cpu) => Some(cpu),
+	    Err(_) => None
+	}
+
+    }else {
+	return None;
+    }
+}
+
+// TODO cleanup, this code is awful and it should use results or something, really hurts to look at it
 fn save_state(cpu: &Option<cpu::Cpu>) {
-    let mmu = match cpu.as_ref() {
-        Some(x) => &x.mmu,
-        None => return,
+    let cpu = match cpu.as_ref() {
+        Some(x) => x,
+	None => return
     };
 
-    let _rom_banks = mmu.mbc.get_rom_banks();
-    let _ram_banks = mmu.mbc.get_ram_banks();
-    // let rfd = rfd::FileDialog::new()
-    // 	.set_file_name("Yes.sav").add_filter("Save state", &["sav"]).save_file();
+    let save = bincode::serialize(cpu);
 
-    // TODO add saving the rom + ram into a .sav file
+    let save_file_path = rfd::FileDialog::new().add_filter("save file", &["sav"]).save_file();
+    if save_file_path.is_none() {
+	return;
+    }
+
+    match File::create(save_file_path.unwrap()) {
+	Ok(mut file) => file.write_all(&(save.unwrap())),
+	Err(e) => return,
+    };
 }
 
 fn init_file_logger() {

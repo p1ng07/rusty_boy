@@ -1,3 +1,5 @@
+use serde::{Deserialize, Serialize};
+
 use crate::cpu::{is_bit_set, CpuState};
 use crate::hdma_controller::HdmaController;
 use crate::interrupt_handler::{self, InterruptHandler};
@@ -7,15 +9,33 @@ use crate::ppu::Ppu;
 use crate::serial::Serial;
 use crate::timer::Timer;
 
+// Helper struct so the MMU struct can be serialized easier
+#[derive(Clone, Copy, Serialize, Deserialize)]
+struct WramBank {
+    #[serde(with = "serde_arrays")]
+    pub bank: [u8; 0x2000]
+}
+
+impl Default for WramBank {
+    fn default() -> Self {
+	Self {
+	    bank: [0;0x2000]
+	}
+    }
+}
+
 // Emulates the actions triggered by the reading and writing of bytes in the instructions
+#[derive(Serialize, Deserialize)]
 pub struct Mmu {
+    #[serde(with = "serde_arrays")]
     hram: [u8; 0x7F],
     pub joypad: Joypad,
     pub mbc: Box<dyn Mbc>,
     pub timer: Timer,
     pub ppu: Ppu,
     serial: Serial,
-    wram_banks: [[u8; 0x2000]; 8],
+    #[serde(with = "serde_arrays")]
+    wram_banks: [WramBank;8],
     wram_bank_index: usize, // Index of the wram bank to use in the 0xD000-0xDFFF region
     pub dma_iterator: u8,
     pub dma_source: u8,
@@ -31,15 +51,15 @@ impl Mmu {
             0xA000..=0xBFFF => self.mbc.read_byte(address),
             0xC000..=0xCFFF => {
                 let local_address = (address & 0x1FFF) as usize;
-                self.wram_banks[0][local_address]
+                self.wram_banks[0].bank[local_address]
             }
             0xD000..=0xDFFF => {
                 let local_address = (address & 0x1FFF) as usize;
-                self.wram_banks[self.wram_bank_index][local_address]
+                self.wram_banks[self.wram_bank_index].bank[local_address]
             }
             0xE000..=0xFDFF => {
                 let local_address = (address & 0x1FFF) as usize;
-                self.wram_banks[0][local_address]
+                self.wram_banks[0].bank[local_address]
             }
             0xFE00..=0xFE9F => self.ppu.fetch_oam(address - 0xFE00),
             0xFF00 => self.joypad.byte,
@@ -103,15 +123,15 @@ impl Mmu {
             0xA000..=0xBFFF => self.mbc.write_byte(address, received_byte),
             0xC000..=0xCFFF => {
                 let local_address = (address & 0x1FFF) as usize;
-                self.wram_banks[0][local_address] = received_byte;
+                self.wram_banks[0].bank[local_address] = received_byte;
             }
             0xD000..=0xDFFF => {
                 let local_address = (address & 0x1FFF) as usize;
-                self.wram_banks[self.wram_bank_index][local_address] = received_byte;
+                self.wram_banks[self.wram_bank_index].bank[local_address] = received_byte;
             }
             0xE000..=0xFDFF => {
                 let local_address = (address & 0x1FFF) as usize;
-                self.wram_banks[0][local_address] = received_byte;
+                self.wram_banks[0].bank[local_address] = received_byte;
             }
             0xFE00..=0xFE9F => self.ppu.write_oam(address - 0xFE00, received_byte),
             0xFF00 => self.joypad.write_to_byte(received_byte, interrupt_handler),
@@ -181,7 +201,7 @@ impl Mmu {
             dma_iterator: 0,
             dma_source: 0,
             key1: 0,
-            wram_banks: [[0; 0x2000]; 8],
+            wram_banks: [WramBank::default(); 8],
             wram_bank_index: 1,
             hdma_controller: HdmaController::new(),
         }

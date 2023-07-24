@@ -2,54 +2,40 @@
 // Up to 32 KiB of rom (with no rom banks)
 // Optional up to 8KiB of RAM
 
+use serde::{Serialize, Deserialize};
+
 use super::Mbc;
 
 pub const KIBI_BYTE: usize = 1024;
 
+#[derive(Serialize, Deserialize)]
 pub struct NoMbc {
+    #[serde(with = "serde_arrays")]
     rom: [u8; 32 * KIBI_BYTE],
-    ram: Option<[u8; 8 * KIBI_BYTE]>,
+    #[serde(with = "serde_arrays")]
+    ram: [u8; 8 * KIBI_BYTE],
 }
 
+#[typetag::serde]
 impl Mbc for NoMbc {
     fn read_byte(&self, address: u16) -> u8 {
         match address {
             ..=0x7FFF => self.rom[address as usize],
-            0xA000..=0xBFFF => match self.ram {
-                Some(array) => array[(address - 0xA000u16) as usize],
-                None => 0xFF,
-            },
+            0xA000..=0xBFFF => self.ram.get(address as usize - 0xA000).unwrap_or(&0xFF).to_owned(),
             _ => 0xFF,
         }
     }
 
     fn write_byte(&mut self, address: u16, byte: u8) {
         match address {
-            0xA000..=0xBFFF => match self.ram {
-                Some(mut array) => array[(address - 0xA000) as usize] = byte,
-                None => (),
-            },
+            0xA000..=0xBFFF => {
+		let value = self.ram.get_mut(address as usize - 0xA000);
+		match value {
+		    Some(_) => self.ram[address as usize - 0xA000] = byte,
+		    None => (),
+		}
+	    }
             _ => (),
-        }
-    }
-
-    fn get_rom_banks(&self) -> Vec<[u8; 16 * KIBI_BYTE]> {
-        let mut rom1 = [0u8; 16 * KIBI_BYTE];
-        let mut rom2 = [0u8; 16 * KIBI_BYTE];
-        for i in 0..16 * KIBI_BYTE {
-            rom1[i] = self.rom[i];
-        }
-        for i in 16 * KIBI_BYTE..32 * KIBI_BYTE {
-            rom2[i - 16 * KIBI_BYTE] = self.rom[i];
-        }
-        let vec = vec![rom1, rom2];
-        vec
-    }
-
-    fn get_ram_banks(&self) -> Option<Vec<[u8; 8 * KIBI_BYTE]>> {
-        match self.ram {
-            Some(x) => Some(vec![x]),
-            None => None,
         }
     }
 }
@@ -64,8 +50,8 @@ impl NoMbc {
 
         let ram_type_code = total_rom[0x149];
         let ram = match ram_type_code {
-            2 => Some([0u8; 8 * KIBI_BYTE]),
-            _ => None,
+            2 => [0u8; 8 * KIBI_BYTE],
+            _ => [0u8; 8 * KIBI_BYTE],
         };
 
         Self { rom, ram }

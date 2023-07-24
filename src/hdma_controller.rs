@@ -1,10 +1,6 @@
-use crate::{
-    cpu::{is_bit_set, Cpu, CpuState},
-    interrupt_handler::{self, InterruptHandler},
-    mmu::{self, Mmu},
-    ppu::{self, Ppu},
-};
+use serde::{Serialize, Deserialize};
 
+#[derive(Serialize, Deserialize)]
 pub struct HdmaController {
     pub hdma1: u8,
     pub hdma2: u8,

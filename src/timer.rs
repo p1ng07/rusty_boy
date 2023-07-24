@@ -1,3 +1,5 @@
+use serde::{Serialize, Deserialize};
+
 use crate::cpu::CpuState;
 use crate::interrupt_handler::{Interrupt, InterruptHandler};
 
@@ -13,7 +15,7 @@ use crate::interrupt_handler::{Interrupt, InterruptHandler};
 //            01: CPU Clock / 16   (DMG, SGB2, CGB Single Speed Mode: 262144 Hz, SGB1: ~268400 Hz, CGB Double Speed Mode: 524288 Hz)
 //            10: CPU Clock / 64   (DMG, SGB2, CGB Single Speed Mode:  65536 Hz, SGB1:  ~67110 Hz, CGB Double Speed Mode: 131072 Hz)
 //            11: CPU Clock / 256  (DMG, SGB2, CGB Single Speed Mode:  16384 Hz, SGB1:
-#[derive(Default)]
+#[derive(Default, Serialize, Deserialize)]
 pub struct Timer {
     pub delta_cycles_div: i32,
     delta_cycles_tima: i32,

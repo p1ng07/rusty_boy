@@ -1,13 +1,12 @@
-use std::ops::ControlFlow;
-
 use strum::IntoEnumIterator;
+use serde::{Serialize, Deserialize};
 
 use crate::cpu_registers::CpuRegisters;
 use crate::interrupt_handler::*;
 use crate::mmu::Mmu;
 use crate::ppu::PpuModes;
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Serialize, Deserialize)]
 pub enum CpuState {
     NonBoot,
     Stopped,
@@ -18,6 +17,7 @@ pub enum CpuState {
 // Emulates the core cpu, is responsible for decoding instructions and executing them
 // it "drives the whole system", basically the cpu is what ticks the other components
 // and makes them do stuff, like the ppu or the timer
+#[derive(Serialize, Deserialize)]
 pub struct Cpu {
     state: CpuState,
     pub mmu: Mmu,
