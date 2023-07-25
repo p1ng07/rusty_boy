@@ -442,13 +442,18 @@ impl Ppu {
 
         // Get the indices of up to 10 sprites to be rendered on this line
         for i in (0..self.oam_ram.len()).step_by(4) {
-            let obj_y = self.oam_ram[i].saturating_sub(16);
+            let obj_y = self.oam_ram[i];
+
+	    if obj_y == 0 || obj_y >= 160 {
+		continue;
+	    }
 
             let obj_size = if is_bit_set(self.lcdc, 2) { 16 } else { 8 };
 
-            let range = obj_y..self.oam_ram[i].wrapping_sub(16).wrapping_add(obj_size);
+            let spritey = obj_y as u16 as i32 - 16;
+            let range = spritey..spritey + obj_size as i32;
 
-            if range.contains(&self.ly) && sprites.len() < 10 {
+            if range.contains(&(self.ly as i32)) && sprites.len() < 10 {
                 sprites.push((i, &self.oam_ram[i..(i + 4)]));
             }
         }
