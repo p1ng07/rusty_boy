@@ -97,6 +97,7 @@ impl GameBoyApp {
         self.game_framebuffer = cpu.mmu.ppu.current_framebuffer;
     }
 
+    // Adds an image into the given ctx/ui and renders the game screen on it
     fn render_game_window(&self, ctx: &egui::Context, ui: &mut Ui) {
         // Create the main black image
         let mut image = ColorImage::new([GAMEBOY_WIDTH, GAMEBOY_HEIGHT], Color32::BLUE);
@@ -124,6 +125,31 @@ impl GameBoyApp {
 	if ctx.input(|ui| ui.key_pressed(egui::Key::Space)) {
 	    self.paused = !self.paused;
 	}
+
+	if ctx.input(|ui| ui.modifiers.ctrl && ui.key_pressed(egui::Key::S)) {
+	    save_state(&self.cpu);
+	}
+	if ctx.input(|ui| ui.modifiers.ctrl && ui.key_pressed(egui::Key::O)) {
+	    self.open_rom();
+	}
+
+	if ctx.input(|ui| ui.modifiers.ctrl && ui.key_pressed(egui::Key::L)) {
+	    match load_state() {
+		Some(cpu) => self.cpu = Some(cpu),
+		None => (),
+	    }
+	}
+    }
+
+    fn open_rom(&mut self) {
+        let picked_path = rfd::FileDialog::new()
+		        .set_title("Open rom")
+		        .add_filter("*.gb, *.gbc", &["gb", "gbc"])
+		        .pick_file();
+        if let Some(path) = picked_path {
+		        self.current_rom_path = Some(path.display().to_string());
+		        self.cpu = self.load_rom();
+	            }
     }
 
     // fn dump_vram(&self, vram: [u8; 0xA0]) {
@@ -168,32 +194,31 @@ impl eframe::App for GameBoyApp {
             egui::menu::bar(ui, |ui| {
                 ui.menu_button("File", |ui| {
                     // Open rom button
-                    if ui.button("Open Rom").clicked() {
-                        let picked_path = rfd::FileDialog::new()
-                            .add_filter("*.gb, *.gbc", &["gb", "gbc"])
-                            .pick_file();
-                        if let Some(path) = picked_path {
-                            self.current_rom_path = Some(path.display().to_string());
-                            self.cpu = self.load_rom();
-                        }
+		    if ui.add(egui::Button::new("Open rom").shortcut_text("Ctrl-O")).clicked() {
+			self.open_rom();
                     }
 
-                    if self.cpu.is_some() && ui.button("Save state").clicked() {
+		    // Show save state button if a cpu is loaded and button is clicked
+                    if self.cpu.is_some() &&
+			ui.add(egui::Button::new("Save State").shortcut_text("Ctrl-S")).clicked()
+		    {
                         save_state(&self.cpu);
                     }
 
-                    if ui.button("Load state").clicked() {
+		    if ui.add(egui::Button::new("Load State").shortcut_text("Ctrl-L")).clicked(){
 			match load_state() {
 			    Some(cpu) => self.cpu = Some(cpu),
 			    None => (),
 			}
-                    }
+		    }
 
-                    if ui.button("Quit").clicked() {
-                        frame.close();
-                    }
+		    ui.horizontal(|ui| {
+			if ui.button("Quit").clicked() {
+			    frame.close();
+			}
+		    })
+
                 });
-                ui.toggle_value(&mut self.game_window_open, "Game window");
             });
         });
 
@@ -228,7 +253,7 @@ impl eframe::App for GameBoyApp {
             }
         });
 
-        if self.game_window_open {
+        if self.cpu.is_some() {
             egui::Window::new("Game window")
                 .collapsible(false)
                 .resizable(true)
