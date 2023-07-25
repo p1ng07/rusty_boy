@@ -176,8 +176,6 @@ impl Cpu {
 		    self.tick_hdma();
 		}  
 	    };
-
-	    self.tick_hdma();
         }
 
 	// Components that are affected by cpu double speed
