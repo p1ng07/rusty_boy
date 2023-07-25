@@ -1,4 +1,4 @@
-use egui::{TextureFilter, TextureOptions, Ui};
+use egui::{TextureFilter, TextureOptions, Ui, RichText};
 use epaint::{Color32, ColorImage};
 use log::LevelFilter;
 use log4rs::{
@@ -25,7 +25,7 @@ pub struct GameBoyApp {
     current_rom_path: Option<String>,
     game_framebuffer: [Color32; GAMEBOY_HEIGHT * GAMEBOY_WIDTH],
     game_window_open: bool,
-    game_speed: bool
+    game_is_in_double_speed: bool
 }
 
 impl GameBoyApp {
@@ -40,7 +40,7 @@ impl GameBoyApp {
             current_rom_path: None,
             game_framebuffer: [Color32::WHITE; GAMEBOY_HEIGHT * GAMEBOY_WIDTH],
             game_window_open: true,
-	    game_speed: false
+	    game_is_in_double_speed: false
         }
     }
 
@@ -97,8 +97,8 @@ impl GameBoyApp {
         self.game_framebuffer = cpu.mmu.ppu.current_framebuffer;
     }
 
-    // Adds an image into the given ctx/ui and renders the game screen on it
-    fn render_game_window(&self, ctx: &egui::Context, ui: &mut Ui) {
+    // Returns an image containing the game frame
+    fn render_game_frame(&self, ctx: &egui::Context, ui: &mut Ui) -> egui::Image {
         // Create the main black image
         let mut image = ColorImage::new([GAMEBOY_WIDTH, GAMEBOY_HEIGHT], Color32::BLUE);
 
@@ -117,11 +117,17 @@ impl GameBoyApp {
         let tex = egui::Context::load_texture(ctx, "main_image", image, texture_options);
 
         size *= (ui.available_width() / size.x).max(0.4);
+	size = ui.available_size();
         // ui.image(&tex, size);
-        ui.image(&tex, size);
+	egui::Image::new(&tex, size)
     }
 
     fn handle_input(&mut self, ctx: &egui::Context) {
+	// Check if shift is pressed, if so, run in double speed
+	self.game_is_in_double_speed = ctx.input(|i| {
+	    i.modifiers.shift
+	});
+
 	if ctx.input(|ui| ui.key_pressed(egui::Key::Space)) {
 	    self.paused = !self.paused;
 	}
@@ -192,18 +198,18 @@ impl eframe::App for GameBoyApp {
         #[cfg(not(target_arch = "wasm32"))]
         egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
             egui::menu::bar(ui, |ui| {
-                ui.menu_button("File", |ui| {
-                    // Open rom button
+		ui.menu_button("File", |ui| {
+		    // Open rom button
 		    if ui.add(egui::Button::new("Open rom").shortcut_text("Ctrl-O")).clicked() {
 			self.open_rom();
-                    }
+		    }
 
 		    // Show save state button if a cpu is loaded and button is clicked
-                    if self.cpu.is_some() &&
+		    if self.cpu.is_some() &&
 			ui.add(egui::Button::new("Save State").shortcut_text("Ctrl-S")).clicked()
 		    {
-                        save_state(&self.cpu);
-                    }
+			save_state(&self.cpu);
+		    }
 
 		    if ui.add(egui::Button::new("Load State").shortcut_text("Ctrl-L")).clicked(){
 			match load_state() {
@@ -218,60 +224,56 @@ impl eframe::App for GameBoyApp {
 			}
 		    })
 
-                });
+		}); // End of "File" menu
+
+		// Display pause menu 
+		if self.cpu.is_some() {
+		    ui.menu_button("Pause menu", |ui| {
+			ui.toggle_value(&mut self.paused, "Pause");
+
+			if self.paused {
+			    if ui.button("Step Frame").clicked() {
+				if let Some(_) = self.cpu {
+				    self.run_frame(ui);
+				}
+			    }
+			    if ui.button("Step PC").clicked() {
+				if let Some(cpu) = self.cpu.as_mut() {
+				    cpu.cycle();
+				}
+			    }
+			}
+		    });
+
+		    // Display a helper to tell the player that the gme is in double speed
+		    if self.game_is_in_double_speed {
+		        ui.label(RichText::new("Speed: 2x").color(Color32::LIGHT_BLUE));
+		    }
+
+		}
+		
             });
         });
 
 
-        egui::SidePanel::left("side_panel").show(ctx, |ui| {
-
-	    // Check if shift is pressed, if so, run in double speed
-	    self.game_speed = ctx.input(|i| {
-		i.modifiers.shift
-	    });
-
-	    // Pause button
-            ui.toggle_value(&mut self.paused, "Pause");
-	    
-	    if !self.game_speed {
-		ui.toggle_value(&mut self.game_speed, "Speed: 1x");
-	    }else {
-		ui.toggle_value(&mut self.game_speed, "Speed: 2x");
-	    }
-
-            if self.paused {
-                if ui.button("Step Frame").clicked() {
-                    if let Some(_) = self.cpu {
-                        self.run_frame(ui);
-                    }
-                }
-                if ui.button("Step PC").clicked() {
-                    if let Some(cpu) = self.cpu.as_mut() {
-                        cpu.cycle();
-                    }
-                }
-            }
-        });
-
         if self.cpu.is_some() {
-            egui::Window::new("Game window")
-                .collapsible(false)
-                .resizable(true)
-                .show(ctx, |ui| {
-                    if let Some(_) = self.cpu {
-                        if !self.paused {
-                            self.run_frame(ui);
+            let frame = egui::Frame::default().inner_margin(egui::Margin::default());
+	    egui::CentralPanel::default().frame(frame).show(ctx, |ui| {
+		if self.cpu.is_some() {
+		    if !self.paused {
+			self.run_frame(ui);
 
-			    // If the game is in double speed, run two frames
-			    if self.game_speed {
-				self.run_frame(ui);
-			    }
-                        }
+			// If the game is in double speed, run two frames
+			if self.game_is_in_double_speed {
+			    self.run_frame(ui);
+			}
+		    }
 
-                        self.render_game_window(ctx, ui);
-                    };
-                });
-        }
+		    let game_image = self.render_game_frame(ctx, ui);
+		    ui.add(game_image);
+		};
+	    });
+	}
         // Update the context after 16.6 ms (forcing the fps to be 60)
         ctx.request_repaint_after(deadline.duration_since(Instant::now()));
     }
