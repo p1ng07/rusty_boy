@@ -6,6 +6,7 @@ Select: u
 B: j
 A: k
 Shift: Enter 2x speed mode
+Space: Pause
 
 # Info
 
@@ -14,10 +15,8 @@ Shift: Enter 2x speed mode
 
 # TODO
 
-1. Better 2x 4x 16x speed
-2. Look for visual bugs and correct them
-3. Resolve todos
-4. Prettify the readme,code and egui application
-5. Maybe deploy to wasm and have a github pages site for it
-6. Release
-7. Go night night
+1. Resolve todos
+2. Prettify the readme and code
+3. Maybe deploy to wasm and have a github pages site for it
+4. Release
+5. Go night night
