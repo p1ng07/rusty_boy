@@ -249,6 +249,9 @@ impl eframe::App for GameBoyApp {
 		    if self.game_is_in_double_speed {
 		        ui.label(RichText::new("Speed: 2x").color(Color32::LIGHT_BLUE));
 		    }
+		    if self.paused {
+		        ui.label(RichText::new("Paused").color(Color32::LIGHT_BLUE));
+		    }
 
 		}
 		
