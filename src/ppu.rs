@@ -467,8 +467,13 @@ impl Ppu {
             let horizontal_flip = is_bit_set(attributes, 5);
             let vertical_flip = is_bit_set(attributes, 6);
 
-            for pixel_x in obj_x.saturating_sub(8)..obj_x {
-		if pixel_x >= 168 {
+	    if obj_x == 0 || obj_x >= 168 {
+		// If the current sprite is partly off-screen, don't draw those off-screen pixels
+		continue;
+	    }
+
+            for pixel_x in obj_x.wrapping_sub(8)..obj_x {
+		if pixel_x >= 160 {
 		    // If the current sprite is partly off-screen, don't draw those off-screen pixels
 		    continue;
 		}
@@ -580,11 +585,11 @@ impl Ppu {
     }
 
     pub(crate) fn fetch_bg_palette_data(&self) -> u8 {
-        self.bg_color_ram[self.bg_palette_index]
+        self.bg_color_ram[self.bg_palette_index & 127]
     }
 
     pub(crate) fn fetch_sprite_palette_data(&self) -> u8 {
-        self.sprite_color_ram[self.sprite_palette_index]
+        self.sprite_color_ram[self.sprite_palette_index & 127]
     }
 
     pub(crate) fn write_sprite_palette_data(&mut self, received_byte: u8) {
@@ -605,7 +610,7 @@ impl Ppu {
         let increment_bit = self.bg_palette_index & 0x80;
         if is_bit_set(self.bg_palette_index as u8, 7) {
             self.bg_palette_index += 1;
-            if self.bg_palette_index & 0b0111_1111 > 0b11_1111 {
+            if self.bg_palette_index & 0b0111_1111 > 63 {
                 self.bg_palette_index = increment_bit;
             }
         }
