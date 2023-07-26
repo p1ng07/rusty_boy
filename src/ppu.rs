@@ -472,12 +472,10 @@ impl Ppu {
 		continue;
 	    }
 
-            for pixel_x in obj_x.wrapping_sub(8)..obj_x {
+            for pixel_x in obj_x.saturating_sub(8)..obj_x {
 		if pixel_x >= 160 {
-		    // If the current sprite is partly off-screen, don't draw those off-screen pixels
 		    continue;
 		}
-
                 let mut tilemap_tile_y = (self.ly as usize + 16).saturating_sub(obj_y as usize);
 
                 if vertical_flip {
