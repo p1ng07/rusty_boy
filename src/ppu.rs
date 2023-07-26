@@ -580,6 +580,7 @@ impl Ppu {
 
         if !is_bit_set(self.lcdc, 7) {
             self.lcd_status &= 0b1111_1100;
+	    self.ly = 0;
 	    self.current_framebuffer = self.current_framebuffer.map(|_| Color32::WHITE);
         }
     }
