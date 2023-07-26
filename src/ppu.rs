@@ -186,9 +186,6 @@ impl Ppu {
         }
 
 	self.update_current_mode_in_lcd_status();
-	// TODO Better stat interrupt and compare ly lyc
-	// Fix and foxi does not run correctly with this stat interrupt setup
-        // self.compare_ly_lyc(interrupt_handler);
 	self.fire_stat_interrupt(interrupt_handler
 	)
     }

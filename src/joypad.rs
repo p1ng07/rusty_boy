@@ -3,7 +3,6 @@ use serde::Deserialize;
 use serde::Serialize;
 
 use crate::cpu::is_bit_set;
-use crate::interrupt_handler;
 use crate::interrupt_handler::Interrupt;
 use crate::interrupt_handler::InterruptHandler;
 

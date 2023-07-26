@@ -7,7 +7,7 @@ use log4rs::{
     encode::pattern::PatternEncoder,
     Config,
 };
-use std::{fs::File, io::ErrorKind, time::{Duration, Instant}};
+use std::{fs::File, io::ErrorKind, time::{Duration, Instant}, path::PathBuf};
 use std::io::prelude::*;
 
 use crate::cpu::{self, Cpu};
@@ -28,6 +28,26 @@ pub struct GameBoyApp {
     game_is_in_double_speed: bool
 }
 
+#[derive(Debug, Clone)]
+struct CpuDoesNotExistError;
+#[derive(Debug, Clone)]
+struct InternalIOError;
+#[derive(Debug, Clone)]
+struct RomIsTooSmallError;
+#[derive(Debug, Clone)]
+struct MBCNotSupportedError;
+
+pub(crate) enum LoadRomError {
+    CpuDoesNotExist,
+    PathNotChosen,
+    IoError,
+    RomIsTooSmall,
+    MBCNotSupported(u8),
+    CouldNotCreateFile,
+    CouldNotSerializeCpu,
+    CouldNotDeserializeCpu,
+}
+
 impl GameBoyApp {
     /// Called once before the first frame.
     pub fn new(_cc: &eframe::CreationContext<'_>) -> Self {
@@ -44,21 +64,18 @@ impl GameBoyApp {
         }
     }
 
-    // TODO make this use results for the various types of errors
-    // Tries to load the selected rom
-    fn load_rom(&mut self) -> Option<cpu::Cpu> {
-        let total_rom = match std::fs::read(&self.current_rom_path.clone().unwrap()) {
-            Ok(byte_vec) => byte_vec,
-            Err(_) => return None,
-        };
+    // Tries to load a rom, and returns a Cpu with said rom
+    fn load_cpu_with_rom(&mut self, path: &PathBuf) -> Result<Option<Cpu>, LoadRomError> {
+	let total_rom = std::fs::read(path).map_err(|_| LoadRomError::IoError)?;
 
         // IF true, the game supports gbc enhancements
         // IF false, the game is DMG only and needs
         // a default palette
-        let is_dmg_game = total_rom[0x143] & 0x80 == 0;
+        let is_dmg_game = total_rom.get(0x143)
+	    .ok_or_else(|| LoadRomError::RomIsTooSmall)? & 0x80 == 0;
 
-        // TODO make these code checks length safe
-        let mbc_type_code = total_rom[0x147];
+        let mbc_type_code = total_rom.get(0x147)
+	    .ok_or_else(|| LoadRomError::RomIsTooSmall)?;
 
         let mbc = match mbc_type_code {
             0 => Box::new(NoMbc::new(total_rom)) as Box<dyn Mbc>,
@@ -66,15 +83,14 @@ impl GameBoyApp {
             0xF..=0x13 => Box::new(Mbc3::new(total_rom)) as Box<dyn Mbc>,
             0x19..=0x1E => Box::new(Mbc5::new(total_rom)) as Box<dyn Mbc>,
             _ => {
-                println!("Mbc with code {:X} is not yet implemented", mbc_type_code);
-                return None;
+                return Err(LoadRomError::MBCNotSupported(*mbc_type_code));
             }
         };
 
         let mmu = Mmu::new(mbc, is_dmg_game);
         let cpu = cpu::Cpu::new(mmu);
 
-        Some(cpu)
+	Ok(Some(cpu))
     }
 
     fn run_frame(&mut self, ui: &Ui) {
@@ -94,7 +110,7 @@ impl GameBoyApp {
             ran_cycles += cpu.cycle();
         }
 
-        self.game_framebuffer = cpu.mmu.ppu.current_framebuffer;
+	self.game_framebuffer = cpu.mmu.ppu.current_framebuffer;
     }
 
     // Returns an image containing the game frame
@@ -133,56 +149,34 @@ impl GameBoyApp {
 	}
 
 	if ctx.input(|ui| ui.modifiers.ctrl && ui.key_pressed(egui::Key::S)) {
-	    save_state(&self.cpu);
+	    match save_state(&self.cpu){
+		Ok(_) => (),
+		Err(_) => println!("Could not save game")
+	    }
 	}
 	if ctx.input(|ui| ui.modifiers.ctrl && ui.key_pressed(egui::Key::O)) {
-	    self.open_rom();
+	    match self.open_rom() {
+		Ok(cpu) => self.cpu = cpu,
+		Err(_) => println!("Couldn't open rom")
+	    };
 	}
 
 	if ctx.input(|ui| ui.modifiers.ctrl && ui.key_pressed(egui::Key::L)) {
-	    match load_state() {
-		Some(cpu) => self.cpu = Some(cpu),
-		None => (),
-	    }
+	    self.cpu = load_state().map_or(None, |v| v);
 	}
     }
 
-    fn open_rom(&mut self) {
-        let picked_path = rfd::FileDialog::new()
-		        .set_title("Open rom")
-		        .add_filter("*.gb, *.gbc", &["gb", "gbc"])
-		        .pick_file();
-        if let Some(path) = picked_path {
-		        self.current_rom_path = Some(path.display().to_string());
-		        self.cpu = self.load_rom();
-	            }
-    }
+    // Spawns a fileDialog to choose a rom, and returns a cpu if a valid rom was selected
+    fn open_rom(&mut self) -> Result<Option<Cpu>, LoadRomError> {
+	let picked_path = rfd::FileDialog::new()
+	    .set_title("Open rom")
+	    .add_filter("*.gb, *.gbc", &["gb", "gbc"])
+	    .pick_file().ok_or_else(|| LoadRomError::PathNotChosen)?;
 
-    // fn dump_vram(&self, vram: [u8; 0xA0]) {
-    //     for index in (0..vram.len()).step_by(16) {
-    //         let number = 0x8000u16 + index.to_owned() as u16;
-    //         log::info!(
-    // 		"{:X} {:02X} {:02X} {:02X} {:02X} {:02X} {:02X} {:02X} {:02X} {:02X} {:02X} {:02X} {:02X} {:02X} {:02X} {:02X} {:02X}",
-    // 		number,
-    // 		vram[index.to_owned() as usize],
-    // 		vram[1 + index.to_owned() as usize],
-    // 		vram[2+ index.to_owned()  as usize],
-    // 		vram[3+ index.to_owned()  as usize],
-    // 		vram[4+ index.to_owned()  as usize],
-    // 		vram[5+ index.to_owned()  as usize],
-    // 		vram[6+ index.to_owned()  as usize],
-    // 		vram[7+ index.to_owned()  as usize],
-    // 		vram[8+ index.to_owned()  as usize],
-    // 		vram[9+ index.to_owned()  as usize],
-    // 		vram[10+ index.to_owned()  as usize],
-    // 		vram[11+ index.to_owned()  as usize],
-    // 		vram[12+ index.to_owned()  as usize],
-    // 		vram[13+ index.to_owned()  as usize],
-    // 		vram[14+ index.to_owned()  as usize],
-    // 		vram[15+ index.to_owned()  as usize],
-    // 	    );
-    //     }
-    // }
+	self.current_rom_path = Some(picked_path.display().to_string());
+
+	self.load_cpu_with_rom(&picked_path)
+    }
 }
 
 impl eframe::App for GameBoyApp {
@@ -201,28 +195,29 @@ impl eframe::App for GameBoyApp {
 		ui.menu_button("File", |ui| {
 		    // Open rom button
 		    if ui.add(egui::Button::new("Open rom").shortcut_text("Ctrl-O")).clicked() {
-			self.open_rom();
+			match self.open_rom() {
+			    Ok(cpu) => self.cpu = cpu,
+			    Err(_) => println!("Couldn't open rom")
+			};
 		    }
 
 		    // Show save state button if a cpu is loaded and button is clicked
 		    if self.cpu.is_some() &&
 			ui.add(egui::Button::new("Save State").shortcut_text("Ctrl-S")).clicked()
 		    {
-			save_state(&self.cpu);
+			match save_state(&self.cpu){
+			    Ok(_) => (),
+			    Err(_) => println!("Could not save game")
+			}
 		    }
 
 		    if ui.add(egui::Button::new("Load State").shortcut_text("Ctrl-L")).clicked(){
-			match load_state() {
-			    Some(cpu) => self.cpu = Some(cpu),
-			    None => (),
-			}
+			self.cpu = load_state().map_or(None, |v| v);
 		    }
 
-		    ui.horizontal(|ui| {
-			if ui.button("Quit").clicked() {
-			    frame.close();
-			}
-		    })
+		    if ui.button("Quit").clicked() {
+			frame.close();
+		    }
 
 		}); // End of "File" menu
 
@@ -286,50 +281,31 @@ impl eframe::App for GameBoyApp {
     }
 }
 
-fn load_state() -> Option<Cpu> {
+// Tries to load a state 
+fn load_state() -> Result<Option<Cpu>, LoadRomError> {
     let picked_path = rfd::FileDialog::new()
 	.add_filter("sav files", &["gbsave"])
-	.pick_file();
+	.pick_file().ok_or_else(|| LoadRomError::PathNotChosen)?;
 
-    if let Some(path) = picked_path {
-	let total_rom: Vec<u8>;
+    let total_rom = std::fs::read(picked_path).map_err(|_| LoadRomError::IoError)?;
 
-	match std::fs::read(path) {
-	    Ok(byte_vec) => total_rom = byte_vec,
-	    Err(_) => return None,
-	};
-
-	match bincode::deserialize(&total_rom){
-	    Ok(cpu) => Some(cpu),
-	    Err(_) => None
-	}
-
-    }else {
-	return None;
-    }
+    bincode::deserialize(&total_rom).map(|i| Some(i)).map_err(|_| LoadRomError::CouldNotDeserializeCpu)
 }
 
-// TODO cleanup, this code is awful and it should use results or something, really hurts to look at it
-fn save_state(cpu: &Option<cpu::Cpu>) {
-    let cpu = match cpu.as_ref() {
-        Some(x) => x,
-	None => return
-    };
 
-    let save = bincode::serialize(cpu);
+// Tries to save the state into a file
+fn save_state(cpu: &Option<cpu::Cpu>) -> Result<(), LoadRomError> {
+    let cpu = cpu.as_ref().ok_or(LoadRomError::CpuDoesNotExist)?;
+
+    let save = bincode::serialize(cpu).map_err(|_| LoadRomError::CouldNotSerializeCpu)?;
 
     let save_file_path = rfd::FileDialog::new()
 	.set_file_name(".gbsave")
-	.save_file();
-    if save_file_path.is_none() {
-	return;
-    }
+	.save_file().ok_or(LoadRomError::PathNotChosen)?;
 
     // TODO handle existing files
-    match File::create(save_file_path.unwrap()) {
-	Ok(mut file) => file.write_all(&(save.unwrap())),
-	Err(e) => return,
-    };
+    let mut file = File::create(save_file_path).map_err(|_| LoadRomError::CouldNotCreateFile)?;
+    file.write_all(&save).map_err(|_| LoadRomError::CouldNotCreateFile)
 }
 
 fn init_file_logger() {
