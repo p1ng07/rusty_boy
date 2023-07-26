@@ -81,7 +81,7 @@ impl Mmu {
             0xFF52 => self.hdma_controller.hdma2,
             0xFF53 => self.hdma_controller.hdma3,
             0xFF54 => self.hdma_controller.hdma4,
-            0xFF55 => ((self.hdma_controller.is_active as u8) << 7) | (self.hdma_controller.length as u8 - 1),
+            0xFF55 => ((self.hdma_controller.is_active as u8) << 7) | (self.hdma_controller.length.saturating_sub(1) as u8),
             0xFF68 => self.ppu.bg_palette_index as u8,
             0xFF69 => self.ppu.fetch_bg_palette_data(),
             0xFF6A => self.ppu.sprite_palette_index as u8,
