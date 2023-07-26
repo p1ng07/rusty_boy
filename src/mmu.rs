@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 
+use crate::audio_controller::AudioController;
 use crate::cpu::{is_bit_set, CpuState};
 use crate::hdma_controller::HdmaController;
 use crate::interrupt_handler::{self, InterruptHandler};
@@ -41,6 +42,7 @@ pub struct Mmu {
     pub dma_source: u8,
     pub hdma_controller: HdmaController,
     pub key1: u8, // Prepare speed switch control register
+    audio_controller: AudioController
 }
 
 impl Mmu {
@@ -67,6 +69,7 @@ impl Mmu {
             0xFF02 => self.serial.serial_data_control,
             0xFF04..=0xFF07 => self.timer.read_byte(address),
             0xFF0F => interrupt_handler.IF,
+	    0xFF25 => self.audio_controller.nr50,
             0xFF40 => self.ppu.lcdc,
             0xFF41 => self.ppu.lcd_status,
             0xFF42 => self.ppu.scy,
@@ -146,6 +149,7 @@ impl Mmu {
                 interrupt_handler.IF = received_byte & 0x1F;
                 interrupt_handler.IF |= 0b1110_0000;
             }
+	    0xFF25 => self.audio_controller.nr50 = received_byte,
             0xFF40 => self.ppu.write_lcdc(received_byte),
             0xFF41 => self.ppu.write_to_lcd_status(received_byte),
             0xFF42 => self.ppu.scy = received_byte,
@@ -204,6 +208,7 @@ impl Mmu {
             wram_banks: [WramBank::default(); 8],
             wram_bank_index: 1,
             hdma_controller: HdmaController::new(),
+	    audio_controller: AudioController::new()
         }
     }
 

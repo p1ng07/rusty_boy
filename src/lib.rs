@@ -10,3 +10,4 @@ pub mod mmu;
 mod ppu;
 mod serial;
 mod timer;
+pub mod audio_controller;
