@@ -108,6 +108,8 @@ impl GameBoyApp {
             ran_cycles += cpu.cycle();
         }
 
+	cpu.mmu.mbc.tick_second();
+
 	self.game_framebuffer = cpu.mmu.ppu.current_framebuffer;
     }
 

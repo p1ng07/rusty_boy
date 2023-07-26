@@ -1,18 +1,35 @@
+use std::time::SystemTime;
+
 use serde::{Serialize, Deserialize};
+
+use crate::cpu::is_bit_set;
 
 use super::{Mbc, mbc1::{LENGTH_ROM_BANK, LENGTH_RAM_BANK}};
 
 #[derive(Serialize, Deserialize)]
 pub struct Mbc3 {
-    ram_enabled: bool,
-    ram_bank_index: usize,
+    ram_rtc_enabled: bool,
+    ram_bank_rtc_register_index: usize,
     rom_bank_index: usize,
     rom_bank_mask: u16, // Used to mask the value written to the rom bank register
     ram_bank_index_mask: usize,
     #[serde(with = "serde_bytes")]
     rom_banks: Vec<u8>,
     #[serde(with = "serde_bytes")]
-    ram_banks: Vec<u8>
+    ram_banks: Vec<u8>,
+    latch_clock_data: u8,
+    latched_hours: u8,
+    latched_minutes: u8,
+    latched_seconds: u8,
+    latched_low_byte_day_counter: u8,
+    // bit7 - Day counter carry, bit6 - Halt, bit0 - most significant bit of day counter
+    latched_high_byte_day_counter: u8, 
+    hours: u8,
+    minutes: u8,
+    seconds: u8,
+    low_byte_day_counter: u8,
+    // bit7 - Day counter carry, bit6 - Halt, bit0 - most significant bit of day counter
+    high_byte_day_counter: u8, 
 }
 
 #[typetag::serde]
@@ -26,13 +43,28 @@ impl Mbc for Mbc3 {
             }
             0xA000..=0xBFFF => {
                 // Reading ram bank 00-04
-                if !self.ram_enabled {
+                if !self.ram_rtc_enabled {
                     return 0xFF;
 		}
 
-		let address = address as usize +
-		    (self.ram_bank_index & self.ram_bank_index_mask as usize) * LENGTH_RAM_BANK - 0xA000; 
-		self.ram_banks.get(address as usize).unwrap_or(&0xFF).to_owned()
+		if (0..5).contains(&self.ram_bank_rtc_register_index) {
+		    let address = address as usize +
+			(self.ram_bank_rtc_register_index & self.ram_bank_index_mask as usize) * LENGTH_RAM_BANK - 0xA000; 
+		     
+		    self.ram_banks.get(address as usize).unwrap_or(&0xFF).to_owned()
+
+		}else if (8..0xD).contains(&self.ram_bank_rtc_register_index) {
+		    match self.ram_bank_rtc_register_index {
+			0x8 => self.latched_seconds,
+			0x9 => self.latched_minutes,
+			0xA => self.latched_hours,
+			0xB => self.latched_low_byte_day_counter,
+			0xC => self.latched_high_byte_day_counter,
+			_ => 0xFF,
+		    }
+		}else {
+		    0xFF
+		}
 	    }
 	    _ => 0xFF,
         }
@@ -42,9 +74,9 @@ impl Mbc for Mbc3 {
         match address {
             ..=0x1FFF => {
                 if byte & 0xF == 0xA {
-                    self.ram_enabled = true;
+                    self.ram_rtc_enabled = true;
                 } else {
-                    self.ram_enabled = false;
+                    self.ram_rtc_enabled = false;
                 }
             }
             0x2000..=0x3FFF => {
@@ -55,25 +87,83 @@ impl Mbc for Mbc3 {
                 }
             }
             0x4000..=0x5FFF => {
-                if self.ram_enabled {
-                    self.ram_bank_index = (byte & 0b11) as usize;
+		if self.ram_rtc_enabled {
+		    self.ram_bank_rtc_register_index = (byte & 0b1111) as usize;
                 }
             }
+	    0x6000..=0x7FFF => {
+		if self.latch_clock_data == 0 {
+		    self.latch_clock_data = byte;
+		    if byte == 1 {
+			self.latched_seconds = self.seconds;
+			self.latched_minutes = self.minutes;
+			self.latched_hours = self.hours;
+			self.latched_high_byte_day_counter = self.high_byte_day_counter;
+			self.latched_low_byte_day_counter = self.low_byte_day_counter;
+		    }
+		}
+	    }
             0xA000..=0xBFFF => {
-		if !self.ram_enabled {
+		if !self.ram_rtc_enabled {
 		    return;
 		}
-		let address = address as usize +
-		    (self.ram_bank_index & self.ram_bank_index_mask as usize) * LENGTH_RAM_BANK - 0xA000; 
+		if (0..5).contains(&self.ram_bank_rtc_register_index) {
+		    let address = address as usize +
+			(self.ram_bank_rtc_register_index & self.ram_bank_index_mask as usize) * LENGTH_RAM_BANK - 0xA000; 
 
-		let value = self.ram_banks.get_mut(address);
-		match value {
-		    Some(_) => self.ram_banks[address] = byte,
-		    None => (),
+		    let value = self.ram_banks.get_mut(address);
+		    match value {
+			Some(_) => self.ram_banks[address] = byte,
+			None => (),
+		    }
+
+		}else if (8..0xD).contains(&self.ram_bank_rtc_register_index) {
+		    match self.ram_bank_rtc_register_index {
+			0x8 => self.seconds = byte,
+			0x9 => self.minutes = byte,
+			0xA => self.hours = byte,
+			0xB => self.low_byte_day_counter = byte,
+			0xC => self.high_byte_day_counter = byte,
+			_ => ()
+		    }
 		}
             }
             _ => (),
         }
+    }
+
+    // This function is only used by mbc3
+    fn tick_second(&mut self) {
+	// If timer is halted, don't add to current time
+	if !is_bit_set(self.low_byte_day_counter, 6){
+	    return;
+	}
+
+	self.seconds += 1;
+
+	if self.seconds > 59 {
+	    self.seconds = 0;
+	    self.minutes += 1;
+
+	    if self.minutes > 59 {
+		self.minutes = 0;
+		self.hours += 1;
+
+		if self.hours > 23 {
+		    self.hours = 0;
+		    let (low_byte_day_counter, high_bit_day_counter) = self.low_byte_day_counter.overflowing_add(1);
+		    self.low_byte_day_counter = low_byte_day_counter;
+
+		    if high_bit_day_counter {
+			if is_bit_set(self.high_byte_day_counter, 0){
+			    // If the current high bit of day counter is already set, set the day counter carry
+			    self.high_byte_day_counter |= 0x80;
+			}
+			self.high_byte_day_counter = self.high_byte_day_counter & 0xFE | high_bit_day_counter as u8;
+		    }
+		}
+	    }
+	}
     }
 }
 
@@ -145,13 +235,24 @@ impl Mbc3 {
 	}
 
         Self {
-            ram_enabled: false,
-            ram_bank_index: 0,
+            ram_rtc_enabled: false,
+            ram_bank_rtc_register_index: 0,
             rom_bank_index: 1,
             rom_bank_mask,
             rom_banks,
             ram_banks,
             ram_bank_index_mask,
+            latch_clock_data: 0,
+            latched_hours: 0,
+            latched_minutes: 0,
+            latched_seconds: 0,
+            latched_low_byte_day_counter: 0,
+            latched_high_byte_day_counter: 0,
+            hours: 0,
+            minutes: 0,
+            seconds: 0,
+            low_byte_day_counter: 0,
+            high_byte_day_counter: 0,
         }
     }
 }

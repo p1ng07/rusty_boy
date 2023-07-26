@@ -38,6 +38,9 @@ impl Mbc for NoMbc {
             _ => (),
         }
     }
+
+    // This function is only used in MBC3
+    fn tick_second(&mut self) {}
 }
 
 impl NoMbc {

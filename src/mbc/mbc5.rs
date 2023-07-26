@@ -77,6 +77,9 @@ impl Mbc for Mbc5 {
             _ => (),
         }
     }
+
+    // This function is only used by mbc3
+    fn tick_second(&mut self) {}
 }
 
 impl Mbc5 {
