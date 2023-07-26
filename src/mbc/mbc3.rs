@@ -1,6 +1,6 @@
 use serde::{Serialize, Deserialize};
 
-use super::{no_mbc::KIBI_BYTE, Mbc, mbc1::{LENGTH_ROM_BANK, LENGTH_RAM_BANK}};
+use super::{Mbc, mbc1::{LENGTH_ROM_BANK, LENGTH_RAM_BANK}};
 
 #[derive(Serialize, Deserialize)]
 pub struct Mbc3 {

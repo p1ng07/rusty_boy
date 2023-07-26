@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use crate::audio_controller::AudioController;
 use crate::cpu::{is_bit_set, CpuState};
 use crate::hdma_controller::HdmaController;
-use crate::interrupt_handler::{self, InterruptHandler};
+use crate::interrupt_handler::InterruptHandler;
 use crate::joypad::Joypad;
 use crate::mbc::Mbc;
 use crate::ppu::Ppu;

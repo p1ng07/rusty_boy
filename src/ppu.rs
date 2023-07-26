@@ -178,7 +178,7 @@ impl Ppu {
 
         match self.mode {
             PpuModes::OamScan => self.oam_scan(),
-            PpuModes::DrawPixels => self.draw_pixels(interrupt_handler),
+            PpuModes::DrawPixels => self.draw_pixels(),
             PpuModes::HBlank => {
                 self.horizontal_blank(interrupt_handler);
             }
@@ -203,7 +203,7 @@ impl Ppu {
     // Performs the drawing pixels step of the ppu
     // This takes a fixed 172 dots
     // At the end of this mode, the screen should be drawn before we enter hblank
-    fn draw_pixels(&mut self, interrupt_handler: &mut InterruptHandler) {
+    fn draw_pixels(&mut self) {
         // drawing pixels takes 172 dots
         // Change into hblank when that ellapses and render the current line
         if self.current_elapsed_dots > 247 {

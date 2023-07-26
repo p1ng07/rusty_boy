@@ -58,16 +58,6 @@ impl CpuRegisters {
         self.a |= high_bit;
     }
 
-    pub(crate) fn rrca(&mut self) {
-        let low_bit = self.a & 0x1;
-        self.set_carry_flag(low_bit > 0);
-        self.set_n_flag(false);
-        self.set_half_carry_flag(false);
-        self.set_zero_flag(false);
-        self.a >>= 1;
-        self.a |= low_bit << 7;
-    }
-
     pub(crate) fn and_u8(&mut self, reg: u8) {
         self.a &= reg;
         self.set_zero_flag(self.a == 0);
@@ -207,10 +197,6 @@ impl CpuRegisters {
     // Receives a u8 and uses the 4 lower bits of the u8 as the flags register
     pub(crate) fn set_flags(&mut self, flags: u8) {
         self.f = flags << 4;
-    }
-
-    pub(crate) fn unset_flags(&mut self) {
-        self.f = 0;
     }
 
     pub(crate) fn cpl(&mut self) {

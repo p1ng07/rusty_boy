@@ -7,7 +7,7 @@ use log4rs::{
     encode::pattern::PatternEncoder,
     Config,
 };
-use std::{fs::File, io::ErrorKind, time::{Duration, Instant}, path::PathBuf};
+use std::{fs::File, time::{Duration, Instant}, path::PathBuf};
 use std::io::prelude::*;
 
 use crate::cpu::{self, Cpu};
@@ -24,7 +24,6 @@ pub struct GameBoyApp {
     paused: bool,
     current_rom_path: Option<String>,
     game_framebuffer: [Color32; GAMEBOY_HEIGHT * GAMEBOY_WIDTH],
-    game_window_open: bool,
     game_is_in_double_speed: bool
 }
 
@@ -59,7 +58,6 @@ impl GameBoyApp {
             cpu: None,
             current_rom_path: None,
             game_framebuffer: [Color32::WHITE; GAMEBOY_HEIGHT * GAMEBOY_WIDTH],
-            game_window_open: true,
 	    game_is_in_double_speed: false
         }
     }
@@ -99,7 +97,7 @@ impl GameBoyApp {
             None => return,
         };
 
-        cpu.mmu.joypad.update_input(ui, &mut cpu.interrupt_handler);
+        cpu.mmu.joypad.update_input(ui);
 
         // run 70225 t-cycles of cpu work per frame, equating to 4MHz of t-cycles per second
         let mut ran_cycles = 0;
@@ -149,10 +147,16 @@ impl GameBoyApp {
 	}
 
 	if ctx.input(|ui| ui.modifiers.ctrl && ui.key_pressed(egui::Key::S)) {
-	    match save_state(&self.cpu){
-		Ok(_) => (),
-		Err(_) => println!("Could not save game")
+	    let save_file_path = rfd::FileDialog::new()
+		.set_file_name(".gbsave")
+		.save_file();
+	    if let Some(path) = save_file_path {
+		match save_state(&self.cpu, path){
+		    Ok(_) => (),
+		    Err(_) => println!("Could not save game")
+		}
 	    }
+
 	}
 	if ctx.input(|ui| ui.modifiers.ctrl && ui.key_pressed(egui::Key::O)) {
 	    match self.open_rom() {
@@ -205,9 +209,14 @@ impl eframe::App for GameBoyApp {
 		    if self.cpu.is_some() &&
 			ui.add(egui::Button::new("Save State").shortcut_text("Ctrl-S")).clicked()
 		    {
-			match save_state(&self.cpu){
-			    Ok(_) => (),
-			    Err(_) => println!("Could not save game")
+			let save_file_path = rfd::FileDialog::new()
+			    .set_file_name(".gbsave")
+			    .save_file();
+			if let Some(path) = save_file_path {
+			    match save_state(&self.cpu, path){
+				Ok(_) => (),
+				Err(_) => println!("Could not save game")
+			    }
 			}
 		    }
 
@@ -294,17 +303,13 @@ fn load_state() -> Result<Option<Cpu>, LoadRomError> {
 
 
 // Tries to save the state into a file
-fn save_state(cpu: &Option<cpu::Cpu>) -> Result<(), LoadRomError> {
+fn save_state(cpu: &Option<cpu::Cpu>, path: PathBuf) -> Result<(), LoadRomError> {
     let cpu = cpu.as_ref().ok_or(LoadRomError::CpuDoesNotExist)?;
 
     let save = bincode::serialize(cpu).map_err(|_| LoadRomError::CouldNotSerializeCpu)?;
 
-    let save_file_path = rfd::FileDialog::new()
-	.set_file_name(".gbsave")
-	.save_file().ok_or(LoadRomError::PathNotChosen)?;
-
     // TODO handle existing files
-    let mut file = File::create(save_file_path).map_err(|_| LoadRomError::CouldNotCreateFile)?;
+    let mut file = File::create(path).map_err(|_| LoadRomError::CouldNotCreateFile)?;
     file.write_all(&save).map_err(|_| LoadRomError::CouldNotCreateFile)
 }
 
