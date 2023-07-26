@@ -166,7 +166,7 @@ impl GameBoyApp {
 	}
 
 	if ctx.input(|ui| ui.modifiers.ctrl && ui.key_pressed(egui::Key::L)) {
-	    self.cpu = load_state().map_or(None, |v| v);
+	    self.load_state();
 	}
     }
 
@@ -180,6 +180,12 @@ impl GameBoyApp {
 	self.current_rom_path = Some(picked_path.display().to_string());
 
 	self.load_cpu_with_rom(&picked_path)
+    }
+
+    fn load_state(&mut self){
+	if let Ok(x) = load_state() {
+	    self.cpu = x;
+	}
     }
 }
 
@@ -221,7 +227,7 @@ impl eframe::App for GameBoyApp {
 		    }
 
 		    if ui.add(egui::Button::new("Load State").shortcut_text("Ctrl-L")).clicked(){
-			self.cpu = load_state().map_or(None, |v| v);
+			self.load_state();
 		    }
 
 		    if ui.button("Quit").clicked() {
@@ -288,6 +294,7 @@ impl eframe::App for GameBoyApp {
     /// Called by the frame work to save state before shutdown.
     fn save(&mut self, _storage: &mut dyn eframe::Storage) {
     }
+
 }
 
 // Tries to load a state 
@@ -300,7 +307,6 @@ fn load_state() -> Result<Option<Cpu>, LoadRomError> {
 
     bincode::deserialize(&total_rom).map(|i| Some(i)).map_err(|_| LoadRomError::CouldNotDeserializeCpu)
 }
-
 
 // Tries to save the state into a file
 fn save_state(cpu: &Option<cpu::Cpu>, path: PathBuf) -> Result<(), LoadRomError> {
