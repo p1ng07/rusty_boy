@@ -20,6 +20,7 @@ pub struct Ppu {
     #[serde(with = "serde_arrays")]
     pub vram_1: [u8; 0x2000], // 8 kibibytes of vram
     pub vram_bank_index: usize,
+    stat_is_blocked: bool,
     #[serde(with = "serde_arrays")]
     pub oam_ram: [u8; 160],
     pub mode: PpuModes,
@@ -43,7 +44,6 @@ pub struct Ppu {
     pub wx: u8, // Window x position + 7
     win_ly: u8,
     wy_condition: bool,
-    stat_requested_on_current_line: bool,
 
     #[serde(with = "serde_arrays")]
     pub bg_color_ram: [u8; 64],
@@ -65,7 +65,7 @@ pub enum LCDCBit {
     BgWinEnablePriority,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, PartialEq)]
 pub enum PpuModes {
     HBlank,     // Horizontal blank
     Vblank,     // Vertical Blank
@@ -77,10 +77,11 @@ impl Ppu {
     pub fn new(is_dmg: bool) -> Ppu {
         Self {
             is_dmg,
+	    stat_is_blocked: false,
             oam_ram: [0; 0xA0],
             mode: PpuModes::OamScan,
             current_elapsed_dots: 1,
-            current_framebuffer: [Color32::from_rgb(155, 188, 15); GAMEBOY_WIDTH * GAMEBOY_HEIGHT],
+            current_framebuffer: [Color32::WHITE; GAMEBOY_WIDTH * GAMEBOY_HEIGHT],
             current_framebuffer_bg_pixel_info: [0; GAMEBOY_WIDTH * GAMEBOY_HEIGHT],
             lcd_status: 2, // the lcd status will start with in mode 2
             vram_0: [0; 0x2000],
@@ -102,7 +103,6 @@ impl Ppu {
             bgp: 0,
             obp0: 0,
             obp1: 0,
-            stat_requested_on_current_line: false,
             color_lookup_table: [
                 Color32::from_rgb(155, 188, 15),
                 Color32::from_rgb(139, 172, 15),
@@ -113,15 +113,15 @@ impl Ppu {
     }
 
     fn compare_ly_lyc(&mut self, interrupt_handler: &mut InterruptHandler) {
-        if self.ly == self.lyc && !self.stat_requested_on_current_line {
-            self.lcd_status |= 0b0000_0100;
-
-            // If the 'ly==lyc' interrupt is enabled, fire it
-            if is_bit_set(self.lcd_status, 6) {
-                interrupt_handler.request_interrupt(Interrupt::Stat);
-                self.stat_requested_on_current_line = true;
-            }
-        }
+	if self.ly == self.lyc {
+	    self.lcd_status |= 0b0000_0100;
+	    // If the 'ly==lyc' interrupt is enabled, fire it
+	    if is_bit_set(self.lcd_status, 6) {
+		interrupt_handler.request_interrupt(Interrupt::Stat);
+	    }
+	}else {
+	    self.lcd_status &= 0b1111_1011;
+	}
     }
 
     pub fn fetch_oam(&self, address: u16) -> u8 {
@@ -185,8 +185,12 @@ impl Ppu {
             PpuModes::Vblank => self.vertical_blank(interrupt_handler),
         }
 
-        self.compare_ly_lyc(interrupt_handler);
-        self.update_current_mode_in_lcd_status();
+	self.update_current_mode_in_lcd_status();
+	// TODO Better stat interrupt and compare ly lyc
+	// Fix and foxi does not run correctly with this stat interrupt setup
+        // self.compare_ly_lyc(interrupt_handler);
+	self.fire_stat_interrupt(interrupt_handler
+	)
     }
 
     // Perform the oam scan step of the ppu
@@ -221,9 +225,9 @@ impl Ppu {
             }
 
             // Check if a hblank stat interrupt should fire
-            if is_bit_set(self.lcd_status, 3) {
-                interrupt_handler.request_interrupt(Interrupt::Stat);
-            }
+            // if is_bit_set(self.lcd_status, 3) {
+            //     interrupt_handler.request_interrupt(Interrupt::Stat);
+            // }
 
             self.mode = PpuModes::HBlank;
         }
@@ -243,20 +247,8 @@ impl Ppu {
             if self.ly == 144 {
                 interrupt_handler.request_interrupt(Interrupt::Vblank);
 
-                // Check if a stat interrupt should fire
-                if is_bit_set(self.lcd_status, 4) {
-                    interrupt_handler.request_interrupt(Interrupt::Stat);
-                }
-                self.stat_requested_on_current_line = false;
-
                 self.mode = PpuModes::Vblank;
             } else {
-                // Check if a oam scan interrupt should fire
-                if is_bit_set(self.lcd_status, 5) {
-                    interrupt_handler.request_interrupt(Interrupt::Stat);
-                }
-
-                self.stat_requested_on_current_line = false;
                 self.mode = PpuModes::OamScan;
 
                 // Check for wy == ly at the start of every mode 2
@@ -280,13 +272,6 @@ impl Ppu {
                 self.ly = 0;
                 self.compare_ly_lyc(interrupt_handler);
 
-                // check if a oam scan interrupt should occur
-                if is_bit_set(self.lcd_status, 5) {
-                    interrupt_handler.request_interrupt(Interrupt::Stat);
-                }
-
-                self.stat_requested_on_current_line = false;
-
                 self.mode = PpuModes::OamScan;
 
                 self.wy_condition = false;
@@ -301,7 +286,7 @@ impl Ppu {
     }
 
     pub(crate) fn write_to_lcd_status(&mut self, received_byte: u8) {
-        self.lcd_status = 0b1000_0111 | (received_byte & 0b0111_1000);
+        self.lcd_status = (self.lcd_status & 0b1000_0111) | (received_byte & 0b0111_1000);
     }
 
     fn update_current_mode_in_lcd_status(&mut self) {
@@ -590,6 +575,7 @@ impl Ppu {
 
         if !is_bit_set(self.lcdc, 7) {
             self.lcd_status &= 0b1111_1100;
+	    self.current_framebuffer = self.current_framebuffer.map(|_| Color32::WHITE);
         }
     }
 
@@ -623,5 +609,22 @@ impl Ppu {
                 self.bg_palette_index = increment_bit;
             }
         }
+    }
+
+    pub fn write_to_lyc(&mut self, received_byte: u8, interrupt_handler: &mut InterruptHandler) {
+	self.lyc = received_byte;
+	self.compare_ly_lyc(interrupt_handler);
+	self.fire_stat_interrupt(interrupt_handler);
+    }
+
+    fn fire_stat_interrupt(&mut self, interrupt_handler: &mut InterruptHandler) {
+        let fire_stat = (self.ly == self.lyc && is_bit_set(self.lcd_status,6)) ||
+	            (self.mode == PpuModes::HBlank && is_bit_set(self.lcd_status, 3)) ||
+	            (self.mode == PpuModes::Vblank && is_bit_set(self.lcd_status, 4)) ||
+	            (self.mode == PpuModes::OamScan && is_bit_set(self.lcd_status, 5));
+	if fire_stat && !self.stat_is_blocked{
+	    interrupt_handler.request_interrupt(Interrupt::Stat);
+	}
+	self.stat_is_blocked = fire_stat;
     }
 }

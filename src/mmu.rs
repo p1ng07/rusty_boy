@@ -150,7 +150,7 @@ impl Mmu {
             0xFF41 => self.ppu.write_to_lcd_status(received_byte),
             0xFF42 => self.ppu.scy = received_byte,
             0xFF43 => self.ppu.scx = received_byte,
-            0xFF45 => self.ppu.lyc = received_byte,
+            0xFF45 => self.ppu.write_to_lyc(received_byte, interrupt_handler),
             0xFF46 => self.request_dma(received_byte, cpu_state),
             0xFF47 => self.ppu.bgp = received_byte,
             0xFF48 => self.ppu.obp0 = received_byte,
@@ -262,3 +262,4 @@ impl Mmu {
         }
     }
 }
+
