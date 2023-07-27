@@ -1,6 +1,7 @@
 use eframe::EventLoopBuilder;
+use egui::color_picker::color_picker_color32;
 use egui::{TextureFilter, TextureOptions, Ui, RichText};
-use epaint::{Color32, ColorImage};
+use egui::{Color32, ColorImage};
 use log::LevelFilter;
 use log4rs::{
     append::file::FileAppender,
@@ -23,7 +24,6 @@ use crate::{
 pub struct GameBoyApp {
     cpu: Option<cpu::Cpu>,
     paused: bool,
-    current_rom_path: Option<String>,
     game_framebuffer: [Color32; GAMEBOY_HEIGHT * GAMEBOY_WIDTH],
     game_is_in_double_speed: bool
 }
@@ -57,7 +57,6 @@ impl GameBoyApp {
         Self {
             paused: false,
             cpu: None,
-            current_rom_path: None,
             game_framebuffer: [Color32::WHITE; GAMEBOY_HEIGHT * GAMEBOY_WIDTH],
 	    game_is_in_double_speed: false
         }
@@ -171,14 +170,22 @@ impl GameBoyApp {
 
     // Spawns a fileDialog to choose a rom, and returns a cpu if a valid rom was selected
     fn open_rom(&mut self) -> Result<Option<Cpu>, LoadRomError> {
-	let picked_path = rfd::FileDialog::new()
-	    .set_title("Open rom")
-	    .add_filter("*.gb, *.gbc", &["gb", "gbc"])
-	    .pick_file().ok_or_else(|| LoadRomError::PathNotChosen)?;
+	
+	// let picked_path = rfd::FileDialog::new()
+	//     .set_title("Open rom")
+	//     .add_filter("*.gb, *.gbc", &["gb", "gbc"])
+	//     .pick_file().ok_or_else(|| LoadRomError::PathNotChosen)?;
 
-	self.current_rom_path = Some(picked_path.display().to_string());
+	let picked_path = nfd::dialog().filter("gbc").filter("gb").open().map_err(|_| LoadRomError::PathNotChosen)?;
+	// let picked_path = nfd::open_file_dialog(Some(".gbc .gb"), None).map_err(|_| LoadRomError::PathNotChosen)?;
 
-	self.load_cpu_with_rom(&picked_path)
+	match &picked_path {
+	    nfd::Response::Okay(path) => {
+		self.load_cpu_with_rom(&PathBuf::from(path))
+	    },
+	    nfd::Response::OkayMultiple(_) => Err(LoadRomError::PathNotChosen),
+	    nfd::Response::Cancel => Err(LoadRomError::PathNotChosen),
+	}
     }
 
     fn load_state(&mut self){
