@@ -81,7 +81,6 @@ impl Joypad {
         }
         if !is_bit_set(self.byte, 5) {
             self.byte = 0xD0;
-            println!("polling action buttons");
             self.byte |= !self.group_action;
             // if self.byte == 0b1101_1111 {self.byte = 0xFF;}
             return;

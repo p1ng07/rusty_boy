@@ -5,8 +5,10 @@ fn main() -> eframe::Result<()> {
 
     use rusty_boy::game_app::GameBoyApp;
 
-    let native_options = eframe::NativeOptions::default();
-
+    let native_options = eframe::NativeOptions {
+	hardware_acceleration: eframe::HardwareAcceleration::Preferred,
+        ..Default::default()
+    };
     eframe::run_native(
         "Rusty boy: Your favourite gameboy emulator",
         native_options,

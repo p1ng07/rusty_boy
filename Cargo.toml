@@ -6,7 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [env]
-RUST_BACKTRACE=1
+RUST_BACKTRACE=0
 
 [dependencies]
 egui = "0.22.0"

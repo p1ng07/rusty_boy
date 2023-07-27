@@ -1,3 +1,4 @@
+use eframe::EventLoopBuilder;
 use egui::{TextureFilter, TextureOptions, Ui, RichText};
 use epaint::{Color32, ColorImage};
 use log::LevelFilter;
@@ -153,17 +154,13 @@ impl GameBoyApp {
 		.set_file_name(".gbsave")
 		.save_file();
 	    if let Some(path) = save_file_path {
-		match save_state(&self.cpu, path){
-		    Ok(_) => (),
-		    Err(_) => println!("Could not save game")
-		}
+		let _ = save_state(&self.cpu, path);
 	    }
 
 	}
 	if ctx.input(|ui| ui.modifiers.ctrl && ui.key_pressed(egui::Key::O)) {
-	    match self.open_rom() {
-		Ok(cpu) => self.cpu = cpu,
-		Err(_) => println!("Couldn't open rom")
+	    if let Ok(cpu) = self.open_rom() {
+		self.cpu = cpu
 	    };
 	}
 
@@ -207,9 +204,8 @@ impl eframe::App for GameBoyApp {
 		ui.menu_button("File", |ui| {
 		    // Open rom button
 		    if ui.add(egui::Button::new("Open rom").shortcut_text("Ctrl-O")).clicked() {
-			match self.open_rom() {
-			    Ok(cpu) => self.cpu = cpu,
-			    Err(_) => println!("Couldn't open rom")
+			if let Ok(cpu) = self.open_rom() {
+			    self.cpu = cpu
 			};
 		    }
 
@@ -221,10 +217,7 @@ impl eframe::App for GameBoyApp {
 			    .set_file_name(".gbsave")
 			    .save_file();
 			if let Some(path) = save_file_path {
-			    match save_state(&self.cpu, path){
-				Ok(_) => (),
-				Err(_) => println!("Could not save game")
-			    }
+			    let _ = save_state(&self.cpu, path);
 			}
 		    }
 

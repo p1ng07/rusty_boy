@@ -1,5 +1,3 @@
-use std::time::SystemTime;
-
 use serde::{Serialize, Deserialize};
 
 use crate::cpu::is_bit_set;

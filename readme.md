@@ -1,22 +1,30 @@
 # controls
 
-Movement: wasd
-Start: i
-Select: u
-B: j
-A: k
-Shift: Enter 2x speed mode
-Space: Pause
+- Movement: wasd
+- Start: i
+- Select: u
+- B: j
+- A: k
+- Shift: Enter 2x speed mode
+- Space: Pause
 
 # Info
 
-- Does not emulate bootrom, and will not run alternative bootroms.
-- Therefore, Gameboy Color palettes cannot be chosen during run time, maybe I will add them via a color chooser in the application
+A Semi-accurate Gameboy Color emulator in Rust!
 
-# TODO
+_Features:_
 
-1. Resolve todos
-2. Prettify the readme and code
-3. Maybe deploy to wasm and have a github pages site for it
-4. Release
-5. Go night night
+- Save states.
+- Double speed (press shift)
+- Pause and stepping(press space)
+
+_*No, no sound is planned*_, but if you find any bugs or crashes, feel free to open an issue.
+
+The graphics are done with a `scanline renderer`, instead of a cycle accurate state machine,
+so expect some visual bugs on tests and the few GB/GBC games that require super accurate emulation.
+
+# Build
+
+There are available builds in the releases page.
+
+But you can also just clone the repo and run `cargo run --release`
