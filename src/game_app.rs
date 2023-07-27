@@ -283,7 +283,8 @@ impl eframe::App for GameBoyApp {
 	    });
 	}
         // Update the context after 16.6 ms (forcing the fps to be 60)
-        ctx.request_repaint_after(deadline.duration_since(Instant::now()));
+        // ctx.request_repaint_after(deadline.duration_since(Instant::now()));
+	ctx.request_repaint();
     }
 
     /// Called by the frame work to save state before shutdown.

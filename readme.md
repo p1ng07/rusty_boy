@@ -1,12 +1,4 @@
-# controls
-
-- Movement: wasd
-- Start: i
-- Select: u
-- B: j
-- A: k
-- Shift: Enter 2x speed mode
-- Space: Pause
+# WORK IN PROGRESS
 
 # Info
 
@@ -23,9 +15,15 @@ _*No, no sound is planned*_, but if you find any bugs or crashes, feel free to o
 The graphics are done with a `scanline renderer`, instead of a cycle accurate state machine,
 so expect some visual bugs on tests and the few GB/GBC games that require super accurate emulation.
 
-## Known bugs
+# controls
 
-- On windows, sometimes the file dialog crashes the program, this is a winit bug, that I cannot fix, just try to restart the program.
+- Movement: wasd
+- Start: i
+- Select: u
+- B: j
+- A: k
+- Shift: Enter 2x speed mode
+- Space: Pause
 
 # Images
 
