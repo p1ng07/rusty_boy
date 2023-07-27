@@ -23,6 +23,16 @@ _*No, no sound is planned*_, but if you find any bugs or crashes, feel free to o
 The graphics are done with a `scanline renderer`, instead of a cycle accurate state machine,
 so expect some visual bugs on tests and the few GB/GBC games that require super accurate emulation.
 
+## Known bugs
+
+- On windows, sometimes the file dialog crashes the program, this is a winit bug, that I cannot fix, just try to restart the program.
+
+# Images
+
+![GIF](https://github.com/p1ng07/rusty_boy/res/recording.gif)
+![Zelda DX](https://github.com/p1ng07/rusty_boy/res/zelda_screenshot.png)
+![Pokemon crystal](https://github.com/p1ng07/rusty_boy/res/pokemon.png)
+
 # Build
 
 There are available builds in the releases page.
