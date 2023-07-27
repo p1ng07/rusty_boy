@@ -2,7 +2,7 @@ use std::ops::Rem;
 
 use crate::constants::*;
 use crate::cpu::is_bit_set;
-use epaint::Color32;
+use egui::Color32;
 use serde::{Serialize, Deserialize};
 
 use crate::constants::{GAMEBOY_HEIGHT, GAMEBOY_WIDTH};
@@ -28,14 +28,14 @@ pub struct Ppu {
     pub bgp: u8,  // Bg palette data
     pub obp0: u8, // Obj palette 0
     pub obp1: u8, // Obj palette 1
-    color_lookup_table: [Color32; 4],
+    color_lookup_table: [egui::Color32; 4],
     pub scy: u8,
     pub scx: u8,
     pub ly: u8,
     pub lyc: u8,
     pub lcdc: u8,
     #[serde(with = "serde_arrays")]
-    pub current_framebuffer: [Color32; GAMEBOY_WIDTH * GAMEBOY_HEIGHT],
+    pub current_framebuffer: [egui::Color32; GAMEBOY_WIDTH * GAMEBOY_HEIGHT],
     // Saves the color index and bg tile attribute priority of the drawn bg pixels
     #[serde(with = "serde_arrays")]
     current_framebuffer_bg_pixel_info: [u8; GAMEBOY_WIDTH * GAMEBOY_HEIGHT],
@@ -81,7 +81,7 @@ impl Ppu {
             oam_ram: [0; 0xA0],
             mode: PpuModes::OamScan,
             current_elapsed_dots: 1,
-            current_framebuffer: [Color32::WHITE; GAMEBOY_WIDTH * GAMEBOY_HEIGHT],
+            current_framebuffer: [egui::Color32::WHITE; GAMEBOY_WIDTH * GAMEBOY_HEIGHT],
             current_framebuffer_bg_pixel_info: [0; GAMEBOY_WIDTH * GAMEBOY_HEIGHT],
             lcd_status: 2, // the lcd status will start with in mode 2
             vram_0: [0; 0x2000],
