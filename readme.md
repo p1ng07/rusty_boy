@@ -29,9 +29,9 @@ so expect some visual bugs on tests and the few GB/GBC games that require super 
 
 # Images
 
-![GIF](https://github.com/p1ng07/rusty_boy/res/recording.gif)
-![Zelda DX](https://github.com/p1ng07/rusty_boy/res/zelda_screenshot.png)
-![Pokemon crystal](https://github.com/p1ng07/rusty_boy/res/pokemon.png)
+![GIF](https://github.com/p1ng07/rusty_boy/blob/master/res/recording.gif)
+![Zelda DX](https://github.com/p1ng07/rusty_boy/blob/master/res/zelda_screenshot.png)
+![Pokemon crystal](https://github.com/p1ng07/rusty_boy/blob/master/res/pokemon.png)
 
 # Build
 
