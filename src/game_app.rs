@@ -8,7 +8,7 @@ use log4rs::{
     encode::pattern::PatternEncoder,
     Config,
 };
-use std::{fs::File, time::{Duration, Instant}, path::PathBuf};
+use std::{fs::File, time::{Duration, Instant}, path::PathBuf, ops::{Sub, SubAssign, AddAssign}};
 use std::io::prelude::*;
 
 use crate::cpu::{self, Cpu};
@@ -19,14 +19,6 @@ use crate::{
     cpu::is_bit_set,
     mbc::{mbc3::Mbc3, mbc5::Mbc5},
 };
-
-pub struct GameBoyApp {
-    cpu: Option<cpu::Cpu>,
-    paused: bool,
-    current_rom_path: Option<String>,
-    game_framebuffer: [Color32; GAMEBOY_HEIGHT * GAMEBOY_WIDTH],
-    game_is_in_double_speed: bool
-}
 
 #[derive(Debug, Clone)]
 struct CpuDoesNotExistError;
@@ -48,6 +40,15 @@ pub(crate) enum LoadRomError {
     CouldNotDeserializeCpu,
 }
 
+pub struct GameBoyApp {
+    cpu: Option<cpu::Cpu>,
+    paused: bool,
+    current_rom_path: Option<String>,
+    game_framebuffer: [Color32; GAMEBOY_HEIGHT * GAMEBOY_WIDTH],
+    game_is_in_double_speed: bool,
+    time_surplus: Duration
+}
+
 impl GameBoyApp {
     /// Called once before the first frame.
     pub fn new(_cc: &eframe::CreationContext<'_>) -> Self {
@@ -59,7 +60,8 @@ impl GameBoyApp {
             cpu: None,
             current_rom_path: None,
             game_framebuffer: [Color32::WHITE; GAMEBOY_HEIGHT * GAMEBOY_WIDTH],
-	    game_is_in_double_speed: false
+	    game_is_in_double_speed: false,
+	    time_surplus: Duration::new(0,0)
         }
     }
 
@@ -108,6 +110,8 @@ impl GameBoyApp {
         while ran_cycles < cycle_limit {
             ran_cycles += cpu.cycle();
         }
+
+	self.time_surplus.add_assign(Duration::from_nanos((0.238418579f64* ((ran_cycles - cycle_limit) as f64)) as u64));
 
 	cpu.mmu.mbc.tick_second();
 
@@ -194,6 +198,7 @@ impl eframe::App for GameBoyApp {
         let deadline = std::time::Instant::now()
             .checked_add(Duration::from_micros(16600u64))
             .unwrap();
+        let start_time = std::time::Instant::now();
 
 	// Handle input
 	self.handle_input(ctx);
@@ -284,13 +289,18 @@ impl eframe::App for GameBoyApp {
 	}
         // Update the context after 16.6 ms (forcing the fps to be 60)
         // ctx.request_repaint_after(deadline.duration_since(Instant::now()));
+
+	let time_after_frame = Instant::now();
+	let duration_of_frame = time_after_frame.duration_since(start_time);
+	println!("Time that it took to emulate frame {} ms", duration_of_frame.as_millis());
+	std::thread::sleep(deadline.duration_since(time_after_frame).saturating_sub(self.time_surplus));
+	println!("Time that the thread slept {}", Instant::now().sub(time_after_frame).as_millis());
+
+	self.time_surplus += Instant::now().duration_since(start_time).saturating_sub(Duration::from_millis(16600));
+	// let time_now = Instant::now();
+	// let time_to_run_frame = 
 	ctx.request_repaint();
     }
-
-    /// Called by the frame work to save state before shutdown.
-    fn save(&mut self, _storage: &mut dyn eframe::Storage) {
-    }
-
 }
 
 // Tries to load a state 

@@ -7,6 +7,7 @@ fn main() -> eframe::Result<()> {
 
     let native_options = eframe::NativeOptions {
 	hardware_acceleration: eframe::HardwareAcceleration::Preferred,
+	vsync: false,
         ..Default::default()
     };
     eframe::run_native(

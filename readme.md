@@ -33,6 +33,12 @@ so expect some visual bugs on tests and the few GB/GBC games that require super 
 
 # Build
 
-There are available builds in the releases page.
+Just clone the repo and run `cargo run --release`
 
-But you can also just clone the repo and run `cargo run --release`
+Once it is done, there will be ready-made binaries in the releases page.
+
+# Todo
+
+1. Better Timer
+2. Better RTC
+3. Fifo renderer
