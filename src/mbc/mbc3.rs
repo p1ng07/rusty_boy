@@ -6,6 +6,8 @@ use super::{Mbc, mbc1::{LENGTH_ROM_BANK, LENGTH_RAM_BANK}};
 
 #[derive(Serialize, Deserialize)]
 pub struct Mbc3 {
+    internal_t_cycle_counter: u16,
+    rtc_internal_cycles: u16,
     ram_rtc_enabled: bool,
     ram_bank_rtc_register_index: usize,
     rom_bank_index: usize,
@@ -117,13 +119,18 @@ impl Mbc for Mbc3 {
 
 		}else if (8..0xD).contains(&self.ram_bank_rtc_register_index) {
 		    match self.ram_bank_rtc_register_index {
-			0x8 => self.seconds = byte,
-			0x9 => self.minutes = byte,
-			0xA => self.hours = byte,
+			0x8 => self.seconds = byte & 0x3F,
+			0x9 => self.minutes = byte & 0x3F,
+			0xA => self.hours = byte & 0x1F,
 			0xB => self.low_byte_day_counter = byte,
-			0xC => self.high_byte_day_counter = byte,
+			0xC => self.high_byte_day_counter = byte & 0xC1,
 			_ => ()
 		    }
+		    self.latched_seconds = self.seconds;
+		    self.latched_minutes = self.minutes;
+		    self.latched_hours = self.hours;
+		    self.latched_high_byte_day_counter = self.high_byte_day_counter;
+		    self.latched_low_byte_day_counter = self.low_byte_day_counter;
 		}
             }
             _ => (),
@@ -131,12 +138,28 @@ impl Mbc for Mbc3 {
     }
 
     // This function is only used by mbc3
-    fn tick_second(&mut self) {
-	// If timer is halted, don't add to current time
-	if !is_bit_set(self.low_byte_day_counter, 6){
+    fn tick(&mut self) {
+	self.internal_t_cycle_counter += 4;
+
+	if self.internal_t_cycle_counter < 128  {
 	    return;
 	}
 
+	self.internal_t_cycle_counter = 0;
+	self.rtc_internal_cycles += 1;
+
+	if self.rtc_internal_cycles < 32_768  {
+	    return;
+	}
+
+	self.rtc_internal_cycles = 0;
+
+	// If timer is halted, don't add to current time
+	if is_bit_set(self.high_byte_day_counter, 6){
+	    return;
+	}
+
+	println!("A second passed");
 	self.seconds += 1;
 
 	if self.seconds > 59 {
@@ -149,15 +172,17 @@ impl Mbc for Mbc3 {
 
 		if self.hours > 23 {
 		    self.hours = 0;
-		    let (low_byte_day_counter, high_bit_day_counter) = self.low_byte_day_counter.overflowing_add(1);
+		    let (low_byte_day_counter, carry_high_bit_day_counter) =
+			self.low_byte_day_counter.overflowing_add(1);
+
 		    self.low_byte_day_counter = low_byte_day_counter;
 
-		    if high_bit_day_counter {
+		    if carry_high_bit_day_counter {
 			if is_bit_set(self.high_byte_day_counter, 0){
 			    // If the current high bit of day counter is already set, set the day counter carry
 			    self.high_byte_day_counter |= 0x80;
 			}
-			self.high_byte_day_counter = self.high_byte_day_counter & 0xFE | high_bit_day_counter as u8;
+			self.high_byte_day_counter = self.high_byte_day_counter & 0xFE | carry_high_bit_day_counter as u8;
 		    }
 		}
 	    }
@@ -233,6 +258,8 @@ impl Mbc3 {
 	}
 
         Self {
+	    rtc_internal_cycles: 0,
+	    internal_t_cycle_counter: 0,
             ram_rtc_enabled: false,
             ram_bank_rtc_register_index: 0,
             rom_bank_index: 1,

@@ -8,7 +8,7 @@ use log4rs::{
     encode::pattern::PatternEncoder,
     Config,
 };
-use std::{fs::File, time::{Duration, Instant}, path::PathBuf, ops::{Sub, SubAssign, AddAssign}};
+use std::{fs::File, time::{Duration, Instant}, path::PathBuf, ops::{Sub, SubAssign, AddAssign, Add}};
 use std::io::prelude::*;
 
 use crate::cpu::{self, Cpu};
@@ -73,10 +73,10 @@ impl GameBoyApp {
         // IF false, the game is DMG only and needs
         // a default palette
         let is_dmg_game = total_rom.get(0x143)
-	    .ok_or_else(|| LoadRomError::RomIsTooSmall)? & 0x80 == 0;
+	    .ok_or(LoadRomError::RomIsTooSmall)? & 0x80 == 0;
 
         let mbc_type_code = total_rom.get(0x147)
-	    .ok_or_else(|| LoadRomError::RomIsTooSmall)?;
+	    .ok_or(LoadRomError::RomIsTooSmall)?;
 
         let mbc = match mbc_type_code {
             0 => Box::new(NoMbc::new(total_rom)) as Box<dyn Mbc>,
@@ -105,15 +105,12 @@ impl GameBoyApp {
         // run 70225 t-cycles of cpu work per frame, equating to 4MHz of t-cycles per second
         let mut ran_cycles = 0;
 
-        let cycle_limit = 70225 * if is_bit_set(cpu.mmu.key1, 7) { 2 } else { 1 };
+        let cycle_limit: u128 = 70225 * if is_bit_set(cpu.mmu.key1, 7) { 2 } else { 1 };
+
         // Run a frame of cpu clocks, if the cpu is in double speed mode, run double those cycles
         while ran_cycles < cycle_limit {
-            ran_cycles += cpu.cycle();
+            ran_cycles += cpu.cycle() as u128;
         }
-
-	self.time_surplus.add_assign(Duration::from_nanos((0.238418579f64* ((ran_cycles - cycle_limit) as f64)) as u64));
-
-	cpu.mmu.mbc.tick_second();
 
 	self.game_framebuffer = cpu.mmu.ppu.current_framebuffer;
     }
@@ -178,7 +175,7 @@ impl GameBoyApp {
 	let picked_path = rfd::FileDialog::new()
 	    .set_title("Open rom")
 	    .add_filter("*.gb, *.gbc", &["gb", "gbc"])
-	    .pick_file().ok_or_else(|| LoadRomError::PathNotChosen)?;
+	    .pick_file().ok_or(LoadRomError::PathNotChosen)?;
 
 	self.current_rom_path = Some(picked_path.display().to_string());
 
@@ -195,10 +192,7 @@ impl GameBoyApp {
 impl eframe::App for GameBoyApp {
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
         // Get the time at which a game update should happen
-        let deadline = std::time::Instant::now()
-            .checked_add(Duration::from_micros(16600u64))
-            .unwrap();
-        let start_time = std::time::Instant::now();
+        let deadline = std::time::Instant::now().add(Duration::from_micros(16742u64));
 
 	// Handle input
 	self.handle_input(ctx);
@@ -287,18 +281,20 @@ impl eframe::App for GameBoyApp {
 		};
 	    });
 	}
+
         // Update the context after 16.6 ms (forcing the fps to be 60)
-        // ctx.request_repaint_after(deadline.duration_since(Instant::now()));
+	let correct_sleep_time = deadline.duration_since(Instant::now()).checked_sub(self.time_surplus);
 
-	let time_after_frame = Instant::now();
-	let duration_of_frame = time_after_frame.duration_since(start_time);
-	println!("Time that it took to emulate frame {} ms", duration_of_frame.as_millis());
-	std::thread::sleep(deadline.duration_since(time_after_frame).saturating_sub(self.time_surplus));
-	println!("Time that the thread slept {}", Instant::now().sub(time_after_frame).as_millis());
+	if let Some(x) = correct_sleep_time {
+	    let time_before_sleep = Instant::now();
+	    std::thread::sleep(x);
+	    let actual_sleep_time = Instant::now().duration_since(time_before_sleep);
 
-	self.time_surplus += Instant::now().duration_since(start_time).saturating_sub(Duration::from_millis(16600));
-	// let time_now = Instant::now();
-	// let time_to_run_frame = 
+	    self.time_surplus = actual_sleep_time.sub(x);
+	}else {
+	    self.time_surplus = Duration::new(0,0);
+	}
+
 	ctx.request_repaint();
     }
 }
@@ -307,7 +303,7 @@ impl eframe::App for GameBoyApp {
 fn load_state() -> Result<Option<Cpu>, LoadRomError> {
     let picked_path = rfd::FileDialog::new()
 	.add_filter("sav files", &["gbsave"])
-	.pick_file().ok_or_else(|| LoadRomError::PathNotChosen)?;
+	.pick_file().ok_or(LoadRomError::PathNotChosen)?;
 
     let total_rom = std::fs::read(picked_path).map_err(|_| LoadRomError::IoError)?;
 

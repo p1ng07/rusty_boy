@@ -80,7 +80,7 @@ impl Mbc for Mbc1 {
     }
 
     // This function is only used by mbc3
-    fn tick_second(&mut self) {}
+    fn tick(&mut self) {}
 }
 
 impl Mbc1 {

@@ -17,60 +17,63 @@ use crate::interrupt_handler::{Interrupt, InterruptHandler};
 //            11: CPU Clock / 256  (DMG, SGB2, CGB Single Speed Mode:  16384 Hz, SGB1:
 #[derive(Default, Serialize, Deserialize)]
 pub struct Timer {
-    pub delta_cycles_div: i32,
     delta_cycles_tima: i32,
-    pub divider: u8,
-    pub timer_counter: u8,
-    timer_modulo: u8,
+    pub divider: u16,
+    pub tima: u8,
+    tma: u8,
+    tima_was_reloaded: bool,
     pub timer_control: u8,
+    reload_tima_next_m_cycle: bool
 }
 
 impl Timer {
-    pub fn step(&mut self, cpu_state: &CpuState, interrupt_handler: &mut InterruptHandler) {
-        let elapsed_cycles: i32 = 4;
-        // Div registers gets incremented every 256 t-cycles
-        self.delta_cycles_div += elapsed_cycles;
-        if self.delta_cycles_div >= 256 && *cpu_state != CpuState::Stopped {
-            self.divider = self.divider.wrapping_add(1);
-            self.delta_cycles_div -= 256;
-        }
-
+    pub fn tick(&mut self, interrupt_handler: &mut InterruptHandler) {
         // Define the frequency of the timer counter based on the lower 2 bits of tac
-        let threshold = match self.timer_control & 0b0000_0011 {
-            0x0 => 1024, // 4096 Hz
-            0x1 => 16,   // 262144 Hz
-            0x2 => 64,   // 65536 Hz
-            0x3 => 256,  // 16384 Hz
-            _ => 64,     // It won't get to this
-        };
+        let threshold = self.get_mask_of_timer_frequency();
+
+	let threshold_bit_was_one = threshold & self.divider > 0;
+
+	self.divider = self.divider.wrapping_add(4);
 
         // If the timer bit is not high, then the time_counter should not count
         if self.timer_control & 0x4 == 0 {
             return;
         }
 
-        self.delta_cycles_tima += elapsed_cycles;
-        if self.delta_cycles_tima >= threshold {
-            self.delta_cycles_tima -= threshold;
-            let (added_timer_counter, overflow) = self.timer_counter.overflowing_add(1);
+	self.tima_was_reloaded ^= self.tima_was_reloaded;
+	
+	if self.reload_tima_next_m_cycle {
+	    self.tima = self.tma;
+	    self.tima_was_reloaded = true;
+	    self.reload_tima_next_m_cycle = false;
+	    interrupt_handler.request_interrupt(Interrupt::Timer);
+	}
 
-            // Check for overflow
-            if overflow {
-                // There was an overflow, fire interrupt and reset to timer_modulo
-                interrupt_handler.request_interrupt(Interrupt::Timer);
-                self.timer_counter = self.timer_modulo;
-            } else {
-                // There was no oveflow, just add normally
-                self.timer_counter = added_timer_counter;
-            }
-        }
+
+	if self.divider & threshold == 0 && threshold_bit_was_one {
+	    let (added_timer_counter, overflow) = self.tima.overflowing_add(1);
+
+	    self.reload_tima_next_m_cycle = overflow;
+	    self.tima = added_timer_counter;
+	};
+    }
+
+    fn get_mask_of_timer_frequency(&mut self) -> u16 {
+        let threshold = match self.timer_control & 0b0000_0011 {
+            0x0 => 1 << 9, // 4096 Hz
+            0x1 => 1 << 3,   // 262144 Hz
+            0x2 => 1 << 5,   // 65536 Hz
+            0x3 => 1 << 7,  // 16384 Hz
+            _ => 64,     // It won't get to this
+        };
+        threshold
     }
 
     pub fn read_byte(&self, address: u16) -> u8 {
         match address {
-            0xFF04 => self.divider,
-            0xFF05 => self.timer_counter,
-            0xFF06 => self.timer_modulo,
+            0xFF04 => (self.divider >> 8) as u8,
+            0xFF05 => self.tima,
+            0xFF06 => self.tma,
             0xFF07 => self.timer_control,
             _ => 0xFF,
         }
@@ -78,10 +81,37 @@ impl Timer {
 
     pub fn write_byte(&mut self, address: u16, byte: u8) {
         match address {
-            0xFF04 => self.divider = 0,
-            0xFF05 => self.timer_counter = byte,
-            0xFF06 => self.timer_modulo = byte,
-            0xFF07 => self.timer_control = byte,
+            0xFF04 => {
+		// Write div
+		self.divider = 0;
+	    },
+            0xFF05 => {
+		// Write tima
+
+		// If tima was reloaded on this cycle, ignore the write
+		if self.tima_was_reloaded {
+		    self.tima_was_reloaded = false;
+		    return;
+		}
+
+		self.tima = byte;
+		
+		// If tima was te be reloaded and the interrupt fired, ignore both of those
+		self.reload_tima_next_m_cycle ^= self.reload_tima_next_m_cycle;
+	    },
+            0xFF06 => {
+		// Write tma
+		self.tma = byte;
+
+		// If tima was reloaded on this cycle, write to tima also
+		if self.tima_was_reloaded {
+		    self.tima = byte;
+		}
+	    },
+            0xFF07 => {
+		// Write tac
+		self.timer_control = byte;
+	    },
             _ => (),
         }
     }

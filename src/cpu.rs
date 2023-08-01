@@ -168,6 +168,8 @@ impl Cpu {
             self.mmu.ppu.tick(&mut self.interrupt_handler);
             self.mmu.ppu.tick(&mut self.interrupt_handler);
             self.mmu.ppu.tick(&mut self.interrupt_handler);
+	    
+	    // self.mmu.mbc.tick();
 
 	    if let PpuModes::HBlank = self.mmu.ppu.mode {
 		// If the ppu wasn't in hblank at the start of the tick
@@ -186,7 +188,9 @@ impl Cpu {
 	
         self.mmu
             .timer
-            .step(&self.state, &mut self.interrupt_handler);
+            .tick(&mut self.interrupt_handler);
+
+	// TODO take this out of here
         // Delayed EI instruction
         if self.enable_interrupts_next_tick {
             self.interrupt_handler.enabled = true;
@@ -195,8 +199,8 @@ impl Cpu {
     }
 
     fn fetch_byte_pc(&mut self) -> u8 {
-        self.tick();
         let byte = self.mmu.fetch_byte(self.pc, &mut self.interrupt_handler);
+        self.tick();
 
         self.pc = self.pc.wrapping_add(1);
         if self.halt_bug {

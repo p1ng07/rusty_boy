@@ -40,7 +40,7 @@ impl Mbc for NoMbc {
     }
 
     // This function is only used in MBC3
-    fn tick_second(&mut self) {}
+    fn tick(&mut self) {}
 }
 
 impl NoMbc {
