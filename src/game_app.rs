@@ -8,7 +8,7 @@ use log4rs::{
     encode::pattern::PatternEncoder,
     Config,
 };
-use std::{fs::File, time::{Duration, Instant}, path::PathBuf, ops::{Sub, SubAssign, AddAssign}};
+use std::{fs::File, time::{Duration, Instant}, path::PathBuf, ops::{Sub, SubAssign, AddAssign, Add}};
 use std::io::prelude::*;
 
 use crate::cpu::{self, Cpu};
@@ -105,13 +105,12 @@ impl GameBoyApp {
         // run 70225 t-cycles of cpu work per frame, equating to 4MHz of t-cycles per second
         let mut ran_cycles = 0;
 
-        let cycle_limit = 70225 * if is_bit_set(cpu.mmu.key1, 7) { 2 } else { 1 };
+        let cycle_limit: u128 = 70225 * if is_bit_set(cpu.mmu.key1, 7) { 2 } else { 1 };
+
         // Run a frame of cpu clocks, if the cpu is in double speed mode, run double those cycles
         while ran_cycles < cycle_limit {
-            ran_cycles += cpu.cycle();
+            ran_cycles += cpu.cycle() as u128;
         }
-
-	self.time_surplus.add_assign(Duration::from_nanos((0.238418579f64* ((ran_cycles - cycle_limit) as f64)) as u64));
 
 	self.game_framebuffer = cpu.mmu.ppu.current_framebuffer;
     }
@@ -193,10 +192,7 @@ impl GameBoyApp {
 impl eframe::App for GameBoyApp {
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
         // Get the time at which a game update should happen
-        let deadline = std::time::Instant::now()
-            .checked_add(Duration::from_micros(16600u64))
-            .unwrap();
-        let start_time = std::time::Instant::now();
+        let deadline = std::time::Instant::now().add(Duration::from_micros(16600u64));
 
 	// Handle input
 	self.handle_input(ctx);
@@ -287,11 +283,13 @@ impl eframe::App for GameBoyApp {
 	}
 
         // Update the context after 16.6 ms (forcing the fps to be 60)
-	let time_after_frame = Instant::now();
-	let sleep_time = deadline.duration_since(time_after_frame).saturating_sub(self.time_surplus);
-	std::thread::sleep(sleep_time);
+	let time_before_sleep = Instant::now();
 
-	self.time_surplus = Instant::now().duration_since(start_time).saturating_sub(Duration::from_millis(16600));
+	let correct_sleep_time = deadline.duration_since(time_before_sleep.sub(self.time_surplus));
+	std::thread::sleep(correct_sleep_time);
+	let actual_sleep_time = Instant::now().duration_since(time_before_sleep);
+
+	self.time_surplus = actual_sleep_time.saturating_sub(correct_sleep_time);
 
 	ctx.request_repaint();
     }
