@@ -4,7 +4,7 @@ pub trait Mbc {
     fn write_byte(&mut self, address: u16, byte: u8);
     // This function is only used for mbc3
     // Advances one second time in the MBC3 RTC
-    fn tick_second(&mut self);
+    fn tick(&mut self);
 }
 
 pub mod mbc1;
