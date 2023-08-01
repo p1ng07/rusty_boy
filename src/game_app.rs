@@ -285,7 +285,7 @@ impl eframe::App for GameBoyApp {
         // Update the context after 16.6 ms (forcing the fps to be 60)
 	let time_before_sleep = Instant::now();
 
-	let correct_sleep_time = deadline.duration_since(time_before_sleep.sub(self.time_surplus));
+	let correct_sleep_time = deadline.duration_since(time_before_sleep).saturating_sub(self.time_surplus);
 	std::thread::sleep(correct_sleep_time);
 	let actual_sleep_time = Instant::now().duration_since(time_before_sleep);
 
