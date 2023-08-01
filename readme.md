@@ -37,8 +37,6 @@ Just clone the repo and run `cargo run --release`
 
 Once it is done, there will be ready-made binaries in the releases page.
 
-# Todo
+# TODO:
 
-1. Better Timer
-2. Better RTC
-3. Fifo renderer
+1. Fifo renderer
