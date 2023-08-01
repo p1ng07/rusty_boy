@@ -192,7 +192,7 @@ impl GameBoyApp {
 impl eframe::App for GameBoyApp {
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
         // Get the time at which a game update should happen
-        let deadline = std::time::Instant::now().add(Duration::from_micros(16600u64));
+        let deadline = std::time::Instant::now().add(Duration::from_micros(16742u64));
 
 	// Handle input
 	self.handle_input(ctx);
@@ -283,13 +283,17 @@ impl eframe::App for GameBoyApp {
 	}
 
         // Update the context after 16.6 ms (forcing the fps to be 60)
-	let time_before_sleep = Instant::now();
+	let correct_sleep_time = deadline.duration_since(Instant::now()).checked_sub(self.time_surplus);
 
-	let correct_sleep_time = deadline.duration_since(time_before_sleep).saturating_sub(self.time_surplus);
-	std::thread::sleep(correct_sleep_time);
-	let actual_sleep_time = Instant::now().duration_since(time_before_sleep);
+	if let Some(x) = correct_sleep_time {
+	    let time_before_sleep = Instant::now();
+	    std::thread::sleep(x);
+	    let actual_sleep_time = Instant::now().duration_since(time_before_sleep);
 
-	self.time_surplus = actual_sleep_time.saturating_sub(correct_sleep_time);
+	    self.time_surplus = actual_sleep_time.sub(x);
+	}else {
+	    self.time_surplus = Duration::new(0,0);
+	}
 
 	ctx.request_repaint();
     }
