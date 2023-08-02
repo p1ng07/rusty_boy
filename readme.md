@@ -35,7 +35,7 @@ so expect some visual bugs on tests and the few GB/GBC games that require super 
 
 Just clone the repo and run `cargo run --release`
 
-Once it is done, there will be ready-made binaries in the releases page.
+Once it is done, there will be ready-made binaries for linux and windows in the releases page.
 
 # TODO:
 
