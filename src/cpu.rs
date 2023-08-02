@@ -169,7 +169,7 @@ impl Cpu {
             self.mmu.ppu.tick(&mut self.interrupt_handler);
             self.mmu.ppu.tick(&mut self.interrupt_handler);
 	    
-	    // self.mmu.mbc.tick();
+	    self.mmu.mbc.tick();
 
 	    if let PpuModes::HBlank = self.mmu.ppu.mode {
 		// If the ppu wasn't in hblank at the start of the tick

@@ -155,13 +155,44 @@ impl GameBoyApp {
 		.set_file_name(".gbsave")
 		.save_file();
 	    if let Some(path) = save_file_path {
-		let _ = save_state(&self.cpu, path);
-	    }
+		match save_state(&self.cpu, path){
+		    Ok(_) => (),
+		    Err(e) => {
+			let error_message = match e {
+			    LoadRomError::CouldNotCreateFile => Some(&"Could not create file."),
+			    LoadRomError::CouldNotSerializeCpu => Some(&"Could not save program."),
+			    _ => None, 
+			};
+
+			if let Some(message) = error_message {
+			    rfd::MessageDialog::new().set_level(rfd::MessageLevel::Error)
+				.set_description(message)
+				.set_title("Saving error").show();
+			}
+		    }
+		    
+		}
+	    };
 
 	}
 	if ctx.input(|ui| ui.modifiers.ctrl && ui.key_pressed(egui::Key::O)) {
-	    if let Ok(cpu) = self.open_rom() {
-		self.cpu = cpu
+	    match self.open_rom() {
+		Ok(x) => self.cpu = x,
+		Err(e) => {
+		    
+		    let error_message = match e {
+			LoadRomError::MBCNotSupported(_) => Some(&"Memory Bank chip is not supported."),
+			LoadRomError::IoError => Some(&"Could not access file."),
+			LoadRomError::RomIsTooSmall => Some(&"ROM file is too small."),
+			_ => None, 
+		    };
+
+		    if let Some(message) = error_message {
+			rfd::MessageDialog::new().set_level(rfd::MessageLevel::Error)
+			    .set_description(message)
+			    .set_title("Loading error").show();
+		    }
+		}
 	    };
 	}
 
@@ -203,8 +234,23 @@ impl eframe::App for GameBoyApp {
 		ui.menu_button("File", |ui| {
 		    // Open rom button
 		    if ui.add(egui::Button::new("Open rom").shortcut_text("Ctrl-O")).clicked() {
-			if let Ok(cpu) = self.open_rom() {
-			    self.cpu = cpu
+			match self.open_rom() {
+			    Ok(x) => self.cpu = x,
+			    Err(e) => {
+				
+				let error_message = match e {
+				    LoadRomError::MBCNotSupported(_) => Some(&"Memory Bank chip is not supported."),
+				    LoadRomError::IoError => Some(&"Could not access file."),
+				    LoadRomError::RomIsTooSmall => Some(&"ROM file is too small."),
+				    _ => None, 
+				};
+
+				if let Some(message) = error_message {
+				    rfd::MessageDialog::new().set_level(rfd::MessageLevel::Error)
+					.set_description(message)
+					.set_title("Loading error").show();
+				}
+			    }
 			};
 		    }
 
@@ -215,8 +261,25 @@ impl eframe::App for GameBoyApp {
 			let save_file_path = rfd::FileDialog::new()
 			    .set_file_name(".gbsave")
 			    .save_file();
+
 			if let Some(path) = save_file_path {
-			    let _ = save_state(&self.cpu, path);
+			    match save_state(&self.cpu, path){
+				Ok(_) => (),
+				Err(e) => {
+				    let error_message = match e {
+					LoadRomError::CouldNotCreateFile => Some(&"Could not create file."),
+					LoadRomError::CouldNotSerializeCpu => Some(&"Could not save program."),
+					_ => None, 
+				    };
+
+				    if let Some(message) = error_message {
+					rfd::MessageDialog::new().set_level(rfd::MessageLevel::Error)
+					    .set_description(message)
+					    .set_title("Saving error").show();
+				    }
+				}
+				
+			    }
 			}
 		    }
 
@@ -317,7 +380,6 @@ fn save_state(cpu: &Option<cpu::Cpu>, path: PathBuf) -> Result<(), LoadRomError>
 
     let save = bincode::serialize(cpu).map_err(|_| LoadRomError::CouldNotSerializeCpu)?;
 
-    // TODO handle existing files
     let mut file = File::create(path).map_err(|_| LoadRomError::CouldNotCreateFile)?;
     file.write_all(&save).map_err(|_| LoadRomError::CouldNotCreateFile)
 }

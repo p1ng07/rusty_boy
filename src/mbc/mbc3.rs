@@ -159,7 +159,6 @@ impl Mbc for Mbc3 {
 	    return;
 	}
 
-	println!("A second passed");
 	self.seconds += 1;
 
 	if self.seconds > 59 {
